@@ -1,0 +1,3707 @@
+{
+ "summary": {
+  "npm": {
+   "packages": 100,
+   "readme_errors": 0,
+   "with_launch_snippet": 67,
+   "all_unpinned": 67,
+   "any_pinned": 0,
+   "snippets": 454,
+   "unpinned_snippets": 454
+  },
+  "pypi": {
+   "packages": 48,
+   "readme_errors": 0,
+   "with_launch_snippet": 38,
+   "all_unpinned": 38,
+   "any_pinned": 0,
+   "snippets": 241,
+   "unpinned_snippets": 241
+  },
+  "registry": {
+   "packages": 200,
+   "readme_errors": 1,
+   "with_launch_snippet": 143,
+   "all_unpinned": 138,
+   "any_pinned": 5,
+   "snippets": 738,
+   "unpinned_snippets": 704
+  },
+  "all": {
+   "packages": 348,
+   "readme_errors": 1,
+   "with_launch_snippet": 248,
+   "all_unpinned": 243,
+   "any_pinned": 5,
+   "snippets": 1433,
+   "unpinned_snippets": 1399
+  }
+ },
+ "rows": [
+  {
+   "type": "npm",
+   "package": "@agentskit/doc-bridge",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@agimon-ai/po-logsink",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@ai-dossier/mcp-server",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@aikidosec/mcp",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@aikidosec/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@alisaitteke/photoshop-mcp",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@alisaitteke/photoshop-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@antv/mcp-server-chart",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@anyproto/anytype-mcp",
+   "stratum": "npm",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@anyproto/anytype-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@apify/actors-mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@atlassian-dc-mcp/jira",
+   "stratum": "registry",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "@atlassian-dc-mcp/jira"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@auth0/auth0-mcp-server",
+   "stratum": "registry",
+   "launches": 35,
+   "pinned": 0,
+   "unpinned": 35,
+   "examples": [
+    "@auth0/auth0-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@automattic/mcp-wordpress-remote",
+   "stratum": "npm",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "@automattic/mcp-wordpress-remote"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@azure-devops/mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@azure/mcp",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@azure/mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@brave/brave-search-mcp-server",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@brave/brave-search-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@brightdata/mcp",
+   "stratum": "npm",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "@brightdata/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@browsermcp/mcp",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@browsermcp/mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@browserstack/mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@bytebase/dbhub",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@bytebase/dbhub@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@cachly-dev/mcp-server",
+   "stratum": "registry",
+   "launches": 19,
+   "pinned": 0,
+   "unpinned": 19,
+   "examples": [
+    "@cachly-dev/mcp-server",
+    "@cachly-dev/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@cap-js/mcp-server",
+   "stratum": "npm",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "@cap-js/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@cargo-ai/cli",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@cargo-ai/cli"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@chrischall/flightaware-mcp",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@chrischall/flightaware-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@cloakedagent/sdk",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@cloudbase/cloudbase-mcp",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@cloudbase/cloudbase-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@codespar/mcp-c6",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@codespar/mcp-c6"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@coding-solo/godot-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@currents/mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@cyanheads/mcp-ts-core",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@cyanheads/mcp-ts-core"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@dbx-app/mcp-server",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@dbx-app/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@delorenj/mcp-server-trello",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@discourse/mcp",
+   "stratum": "registry",
+   "launches": 28,
+   "pinned": 0,
+   "unpinned": 28,
+   "examples": [
+    "@discourse/mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@drawio/mcp",
+   "stratum": "npm",
+   "launches": 10,
+   "pinned": 0,
+   "unpinned": 10,
+   "examples": [
+    "@drawio/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@dynatrace-oss/dynatrace-mcp-server",
+   "stratum": "registry",
+   "launches": 17,
+   "pinned": 0,
+   "unpinned": 17,
+   "examples": [
+    "@dynatrace-oss/dynatrace-mcp-server",
+    "@dynatrace-oss/dynatrace-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@ericthered926/duckduckgo-mcp-server",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@ericthered926/duckduckgo-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@esaio/esa-mcp-server",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@esaio/esa-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@eslint/mcp",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@eslint/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@fanyangmeng/ghost-mcp",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@fanyangmeng/ghost-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@flisk-sh/flisk",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@flisk-sh/flisk",
+    "@flisk-sh/flisk@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@foldkit/devtools-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@gaiventures/pilotfish-mcp",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "@gaiventures/pilotfish-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@geml/geml",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@geml/geml@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@gitkraken/gk",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@gitwand/mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@google-cloud/observability-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@google-cloud/storage-mcp",
+   "stratum": "npm",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@google-cloud/storage-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@growthbook/mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@growthbook/mcp",
+    "@growthbook/mcp@<version>"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@hasna/todos",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@hostinger/mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@hubspot/mcp-server",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@hubspot/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@hypequery/mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@hypothesi/tauri-mcp-server",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@hypothesi/tauri-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@imgly/codesign-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@infoinlet/mcp-translate",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@infoinlet/mcp-translate"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@kubb/mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@larksuiteoapi/lark-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@launchdarkly/mcp-server",
+   "stratum": "npm",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@launchdarkly/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@letoribo/mcp-graphql-enhanced",
+   "stratum": "npm",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "@letoribo/mcp-graphql-enhanced"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@masonator/coolify-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@masonator/coolify-mcp",
+    "@masonator/coolify-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mastra/mcp-docs-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@meshy-ai/meshy-mcp-server",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@meshy-ai/meshy-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@metamask/device-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@microsoft/powerbi-modeling-mcp",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@microsoft/powerbi-modeling-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mobilenext/mobile-mcp",
+   "stratum": "registry",
+   "launches": 18,
+   "pinned": 0,
+   "unpinned": 18,
+   "examples": [
+    "@mobilenext/mobile-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-everything",
+   "stratum": "npm",
+   "launches": 8,
+   "pinned": 0,
+   "unpinned": 8,
+   "examples": [
+    "@modelcontextprotocol/server-everything"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-filesystem",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@modelcontextprotocol/server-filesystem"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-memory",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@modelcontextprotocol/server-memory"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-pdf",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@modelcontextprotocol/server-pdf"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-sequential-thinking",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@modelcontextprotocol/server-sequential-thinking"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/glsl-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@mrfentmen/glsl-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/nix-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@mrfentmen/nix-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/open-canada-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@mrfentmen/open-canada-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/qtscript-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@mrfentmen/qtscript-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@muggleai/works",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@mukundakatta/agentfit-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@mukundakatta/agentfit-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@muvon/octobrain",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@netlify/mcp",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@netlify/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@next-ai-drawio/mcp-server",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@next-ai-drawio/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@notionhq/notion-mcp-server",
+   "stratum": "npm",
+   "launches": 16,
+   "pinned": 0,
+   "unpinned": 16,
+   "examples": [
+    "@notionhq/notion-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@open-deltat/mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@open-deltat/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@open-pencil/mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@openplan/mcp",
+   "stratum": "registry",
+   "error": "HTTP Error 404: Not Found"
+  },
+  {
+   "type": "npm",
+   "package": "@ophirai/mcp-server",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@ophirai/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@orsf/mcp-server",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@orsf/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@ostraagent/mcp",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@ostraagent/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pandacss/mcp",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pandacss/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@paperclipai/mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@pedrot95dev/twitterapi.mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@pedrot95dev/twitterapi.mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@perplexity-ai/mcp-server",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@perplexity-ai/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@perspectivefi/spectra-mcp",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@perspectivefi/spectra-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-faa-delays",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-faa-delays"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-fjc-judges",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-fjc-judges"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-fyyd",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-fyyd"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-globocan",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-globocan"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-imei",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-imei"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-irail",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-irail"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-onedrive",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-onedrive"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-pacer",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-pacer"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-startuphub",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-startuphub"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-tradier",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-tradier"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-zenodo",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@pipeworx/mcp-zenodo"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@playwright/mcp",
+   "stratum": "registry",
+   "launches": 19,
+   "pinned": 0,
+   "unpinned": 19,
+   "examples": [
+    "@playwright/mcp",
+    "@playwright/mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@postman/postman-mcp-server",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@postman/postman-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@qase/mcp-server",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@qase/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@readystack/cra-annex-ii-docs-lint",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@readystack/cra-annex-ii-docs-lint"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@readystack/en301549-lint",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@readystack/en301549-lint"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@reneturcios/browserdebug",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@reneturcios/browserdebug"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@reneturcios/threatcheck",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "@reneturcios/threatcheck"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@rightnow/forge-mcp-server",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "@rightnow/forge-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@rootpilot/mcp-ssh-diagnose",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@rootpilot/mcp-ssh-diagnose"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@rsdoctor/mcp-server",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "@rsdoctor/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@ryvonetwork/gateway-mcp",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@ryvonetwork/gateway-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@sap-ux/fiori-mcp-server",
+   "stratum": "npm",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "@sap-ux/fiori-mcp-server@<version>"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@sap/mdk-mcp-server",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@scavio/mcp-server",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@scavio/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@seanhogg/builderforce-memory-mcp",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "@seanhogg/builderforce-memory-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@sendinel/mcp-server",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@sendinel/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@sentry/mcp-server",
+   "stratum": "npm",
+   "launches": 8,
+   "pinned": 0,
+   "unpinned": 8,
+   "examples": [
+    "@sentry/mcp-server",
+    "@sentry/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@serdnaley/metabase-mcp",
+   "stratum": "npm",
+   "launches": 8,
+   "pinned": 0,
+   "unpinned": 8,
+   "examples": [
+    "@serdnaley/metabase-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@shopify/dev-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@smartbear/mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@smartbear/mcp",
+    "@smartbear/mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@softeria/ms-365-mcp-server",
+   "stratum": "npm",
+   "launches": 39,
+   "pinned": 0,
+   "unpinned": 39,
+   "examples": [
+    "@softeria/ms-365-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@statable/mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@statable/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@statelyai/mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@supabase/mcp-server-supabase",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@sveltejs/mcp",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@sveltejs/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@swmansion/argent",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@sylphx/anymd",
+   "stratum": "registry",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "@sylphx/anymd"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@sync.so/mcp-server",
+   "stratum": "registry",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "@sync.so/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@tableau/mcp-server",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "@tableau/mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@tacticlaunch/mcp-linear",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@tacticlaunch/mcp-linear"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@taiga-ai/mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@tmhs/screencast-mcp",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@tmhs/screencast-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@togglhq/mcp",
+   "stratum": "npm",
+   "launches": 8,
+   "pinned": 0,
+   "unpinned": 8,
+   "examples": [
+    "@togglhq/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@tradecanvas/mcp",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "@tradecanvas/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@ui5/mcp-server",
+   "stratum": "npm",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "@ui5/mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@unleash/mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@upstash/context7-mcp",
+   "stratum": "npm",
+   "launches": 37,
+   "pinned": 0,
+   "unpinned": 37,
+   "examples": [
+    "@upstash/context7-mcp",
+    "@upstash/context7-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@usercall/mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "@usercall/mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@vantasdk/vanta-mcp-server",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "@vantasdk/vanta-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@wdio/mcp",
+   "stratum": "registry",
+   "launches": 15,
+   "pinned": 0,
+   "unpinned": 15,
+   "examples": [
+    "@wdio/mcp",
+    "@wdio/mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@whisper-security/whisper-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@whisper-security/whisper-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@winor30/mcp-server-datadog",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@winor30/mcp-server-datadog"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@wirecat/cli-memo",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@wonderwhy-er/desktop-commander",
+   "stratum": "npm",
+   "launches": 18,
+   "pinned": 0,
+   "unpinned": 18,
+   "examples": [
+    "@wonderwhy-er/desktop-commander@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@xeroapi/xero-mcp-server",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "@xeroapi/xero-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@xgamesfun/solana",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 11,
+   "unpinned": 0,
+   "examples": [
+    "@xgamesfun/solana@0.28.31"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@yawlabs/ctxlint",
+   "stratum": "registry",
+   "launches": 18,
+   "pinned": 0,
+   "unpinned": 18,
+   "examples": [
+    "@yawlabs/ctxlint@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@yuvlero/mark",
+   "stratum": "registry",
+   "launches": 19,
+   "pinned": 0,
+   "unpinned": 19,
+   "examples": [
+    "@yuvlero/mark",
+    "@yuvlero/mark@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@zencoderai/slack-mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "@zereight/mcp-gitlab",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "agent-blackboard",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "agent-device",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "agentation-mcp",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "agentation-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "agentdb",
+   "stratum": "npm",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "agentdb",
+    "agentdb@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "ai-usage-mcp",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "ai-usage-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "aiterm-mcp",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "aiterm-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "alterlab-mcp-server",
+   "stratum": "registry",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "alterlab-mcp-server",
+    "alterlab-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "api-anything",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "api-anything"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "appium-mcp",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "appium-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "argocd-mcp",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "argocd-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "atris",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "atris"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "bitbucket-mcp",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "bitbucket-mcp",
+    "bitbucket-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "bitpull",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "bitpull"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "blume",
+   "stratum": "npm",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "Blume",
+    "blume",
+    "blume@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "brilliant-directories-mcp",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "brilliant-directories-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "chelaile-mcp-server",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "chelaile-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "chrome-devtools-mcp",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "chrome-devtools-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "claude-flow",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "claude-flow@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "codebase-memory-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "codeburn",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "codeburn"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "color-space",
+   "stratum": "registry",
+   "launches": 8,
+   "pinned": 0,
+   "unpinned": 8,
+   "examples": [
+    "color-space"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "comfyui-mcp",
+   "stratum": "registry",
+   "launches": 15,
+   "pinned": 0,
+   "unpinned": 15,
+   "examples": [
+    "comfyui-mcp",
+    "comfyui-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "cookie-mcp",
+   "stratum": "registry",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "cookie-mcp",
+    "cookie-mcp@X.Y.Z"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "creem",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "creem"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "dembrandt",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "dembrandt"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "domain-expertise-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "domain-expertise-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "duduclaw",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "duduclaw"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "dynoxide",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "dynoxide"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "e2e",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "emailmd",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "emailmd"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "endform",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "endform@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "exa-mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "fallow",
+   "stratum": "registry",
+   "launches": 16,
+   "pinned": 0,
+   "unpinned": 16,
+   "examples": [
+    "fallow"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "ffmpeg-skill",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "ffmpeg-skill"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "figma-developer-mcp",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "figma-developer-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "firebase-tools",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "firecrawl-mcp",
+   "stratum": "npm",
+   "launches": 13,
+   "pinned": 0,
+   "unpinned": 13,
+   "examples": [
+    "firecrawl-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "freee-mcp",
+   "stratum": "npm",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "freee-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "gdharness",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "gitnexus",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "gongio-mcp",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "gongio-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "guniweb-sap-mcp",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "guniweb-sap-mcp",
+    "guniweb-sap-mcp@<version>"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "hacktricks-mcp-server",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "hostinger-api-mcp",
+   "stratum": "npm",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "hostinger-api-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "hyperiux-mcp-server",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "hyperiux-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "igniteui-theming",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "ihateposting-mcp",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "ihateposting-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "japan-company-info-mcp-bridge",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "japan-company-info-mcp-bridge"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "kemory",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "kemory"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "kordoc",
+   "stratum": "npm",
+   "launches": 17,
+   "pinned": 0,
+   "unpinned": 17,
+   "examples": [
+    "kordoc"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "kubernetes-mcp-server",
+   "stratum": "npm",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "kubernetes-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "license-verify-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "loki-mode",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "loki-mode"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "lookupd",
+   "stratum": "registry",
+   "launches": 13,
+   "pinned": 0,
+   "unpinned": 13,
+   "examples": [
+    "lookupd",
+    "lookupd@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "mcp-gsc",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "mcp-gsc",
+    "mcp-gsc@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "mcp-gsheets",
+   "stratum": "registry",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "mcp-gsheets",
+    "mcp-gsheets@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "mcp-redtrack",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "mcp-redtrack"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "mcp-searxng",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "mcp-searxng"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "mcp-server-kubernetes",
+   "stratum": "npm",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "mcp-server-kubernetes"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "mcp-web-recon-agent",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "mcp-web-recon-agent"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "memorydetective",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "mongodb-mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "n8n-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "next-devtools-mcp",
+   "stratum": "npm",
+   "launches": 10,
+   "pinned": 0,
+   "unpinned": 10,
+   "examples": [
+    "next-devtools-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "notion-mcp-server",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "notion-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "nx-mcp",
+   "stratum": "npm",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "nx-mcp",
+    "nx-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "obsidian-mcp-server",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "obsidian-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "opencode-mcp",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "opencode-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "perplexity-comet-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "pic-gen",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "playcanvas-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "podman-mcp-server",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "podman-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "portveil-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "portveil-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "premiere-pro-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "quanticdata-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "quanticdata-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "rea-agents",
+   "stratum": "npm",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "rea-agents",
+    "rea-agents@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "readfirst",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "readfirst"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "reddit-mcp-buddy",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "reddit-mcp-buddy"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "replicate-mcp",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "repomix",
+   "stratum": "registry",
+   "launches": 11,
+   "pinned": 0,
+   "unpinned": 11,
+   "examples": [
+    "Repomix",
+    "repomix",
+    "repomix@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "ruflo",
+   "stratum": "registry",
+   "launches": 13,
+   "pinned": 0,
+   "unpinned": 13,
+   "examples": [
+    "ruflo",
+    "ruflo@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "run402-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "runbook-ai-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "runbook-ai-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "runtime-support-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "ruv-swarm",
+   "stratum": "registry",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "ruv-swarm"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "ruvector",
+   "stratum": "npm",
+   "launches": 46,
+   "pinned": 0,
+   "unpinned": 46,
+   "examples": [
+    "ruvector"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "s3eidat-tools-mcp",
+   "stratum": "registry",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "s3eidat-tools-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "scryfall-mcp-server",
+   "stratum": "npm",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "scryfall-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "semiotic",
+   "stratum": "registry",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "semiotic"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "shinjuku-shield",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "signoff-cli",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "slack-mcp-server",
+   "stratum": "npm",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "snyk",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "ssh-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "ssh-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "statuz-cli",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "statuz-cli"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "stellar-agent-search",
+   "stratum": "registry",
+   "launches": 9,
+   "pinned": 9,
+   "unpinned": 0,
+   "examples": [
+    "stellar-agent-search@0.1.0"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "sup-network",
+   "stratum": "registry",
+   "launches": 12,
+   "pinned": 12,
+   "unpinned": 0,
+   "examples": [
+    "sup-network@0.1.8"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "taoyuan-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "taoyuan-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "tavily-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "tavily-mcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "telnyx",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "threejs-devtools-mcp",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "threejs-devtools-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "tokensafe",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "tokensafe"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "vugola-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "npm",
+   "package": "wikimoth-mcp",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "wikimoth-mcp"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "x64dbg-mcp-server",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "x64dbg-mcp-server"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "xcodebuildmcp",
+   "stratum": "npm",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "xcodebuildmcp@latest"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "yahoo-finance2",
+   "stratum": "npm",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "yahoo-finance2"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "zitadel-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "aiapi-pro",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "aimarket-mcp-packager",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "amazon-ads-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "analytics-mcp",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "analytics-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "arc-free-skills",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 1,
+   "unpinned": 1,
+   "examples": [
+    "arc-free-skills",
+    "arc-free-skills==1.0.0"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "arxiv-mcp-server",
+   "stratum": "pypi",
+   "launches": 15,
+   "pinned": 0,
+   "unpinned": 15,
+   "examples": [
+    "arxiv-mcp-server"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "arxyne",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "astro-airflow-mcp",
+   "stratum": "pypi",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "astro-airflow-mcp",
+    "astro-airflow-mcp@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-aws-api-mcp-server",
+   "stratum": "pypi",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "awslabs.aws-api-mcp-server",
+    "awslabs.aws-api-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-aws-documentation-mcp-server",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "awslabs.aws-documentation-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-aws-iac-mcp-server",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "awslabs.aws-iac-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-aws-pricing-mcp-server",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "awslabs.aws-pricing-mcp-server",
+    "awslabs.aws-pricing-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-billing-cost-management-mcp-server",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "awslabs.billing-cost-management-mcp-server",
+    "awslabs.billing-cost-management-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-cloudwatch-mcp-server",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "awslabs.cloudwatch-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "awslabs-redshift-mcp-server",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "awslabs.redshift-mcp-server@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "bernstein",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "bricksentry-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "bricksentry-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "browser-use",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "btcmcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "chroma-mcp",
+   "stratum": "pypi",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "chroma-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "comparador-luz-gas",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 0,
+   "unpinned": 4,
+   "examples": [
+    "comparador-luz-gas"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "dbt-mcp",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "deepseek-search-everywhere-mcp",
+   "stratum": "registry",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "deepseek-search-everywhere-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "duckduckgo-mcp-server",
+   "stratum": "pypi",
+   "launches": 19,
+   "pinned": 0,
+   "unpinned": 19,
+   "examples": [
+    "duckduckgo-mcp-server"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "ecfr-mcp",
+   "stratum": "registry",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "ecfr-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "edgartools",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "edgartools"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "edgescaleai-cube-mcp",
+   "stratum": "pypi",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "edgescaleai-cube-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "elevenlabs-mcp",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "elevenlabs-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "excel-mcp-server",
+   "stratum": "pypi",
+   "launches": 10,
+   "pinned": 0,
+   "unpinned": 10,
+   "examples": [
+    "excel-mcp-server"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "exomem",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "exomem"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "extra-desktop",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "extra-desktop"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "f1-mcp",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "falcon-mcp",
+   "stratum": "pypi",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "falcon-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "freecad-mcp",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "freecad-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "ha-mcp",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "ha-mcp",
+    "ha-mcp@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "hirepulse-tools",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "hirepulse-tools"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "hol-guard",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "jcodemunch-mcp",
+   "stratum": "pypi",
+   "launches": 15,
+   "pinned": 0,
+   "unpinned": 15,
+   "examples": [
+    "jcodemunch-mcp",
+    "jcodemunch-mcp==X.Y.Z"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "langsmith-mcp-server",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "langsmith-mcp-server"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "lean-lsp-mcp",
+   "stratum": "pypi",
+   "launches": 16,
+   "pinned": 0,
+   "unpinned": 16,
+   "examples": [
+    "lean-lsp-mcp",
+    "lean_lsp_mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "lean-memory",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "llm-sandbox",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "logfire-mcp",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "markitdown-mcp",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-atlassian",
+   "stratum": "pypi",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "mcp-atlassian"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-clickhouse",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-for-blender",
+   "stratum": "pypi",
+   "launches": 27,
+   "pinned": 0,
+   "unpinned": 27,
+   "examples": [
+    "mcp-for-blender",
+    "mcp-for-blender@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-google-sheets",
+   "stratum": "pypi",
+   "launches": 12,
+   "pinned": 0,
+   "unpinned": 12,
+   "examples": [
+    "mcp-google-sheets",
+    "mcp-google-sheets@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-grafana",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "mcp-grafana"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-interminal",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "mcp-interminal"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-okx",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "mcp-okx"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-proxy-for-aws",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-pystub",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-server-appwrite",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-server-fetch",
+   "stratum": "pypi",
+   "launches": 7,
+   "pinned": 0,
+   "unpinned": 7,
+   "examples": [
+    "mcp-server-fetch"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-server-git",
+   "stratum": "pypi",
+   "launches": 10,
+   "pinned": 0,
+   "unpinned": 10,
+   "examples": [
+    "mcp-server-git",
+    "mcp_server_git"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-server-time",
+   "stratum": "pypi",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "mcp-server-time"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcpforunityserver",
+   "stratum": "pypi",
+   "launches": 6,
+   "pinned": 0,
+   "unpinned": 6,
+   "examples": [
+    "mcpforunityserver"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "meilisearch-mcp",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "notebooklm-mcp-cli",
+   "stratum": "pypi",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "notebooklm-mcp-cli"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "olane-copass-local",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "opensearch-mcp-server-py",
+   "stratum": "pypi",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "opensearch-mcp-server-py"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "ouroboros-ai",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "pagerduty-mcp",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "pagerduty-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "postgres-mcp",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "praisonai",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "prometheus-mcp-server",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "promptready-mcp",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "promptready-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "releaseguard-cli",
+   "stratum": "registry",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "releaseguard-cli"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "rigor-mcp",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "rigor-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "sancho-fetch",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "scrapling",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "searxng",
+   "stratum": "registry",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "searxng"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "seleniumbase",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "serena-agent",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "serper-mcp-server",
+   "stratum": "pypi",
+   "launches": 3,
+   "pinned": 0,
+   "unpinned": 3,
+   "examples": [
+    "serper-mcp-server"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "skilltotal",
+   "stratum": "registry",
+   "launches": 4,
+   "pinned": 1,
+   "unpinned": 3,
+   "examples": [
+    "skilltotal",
+    "skilltotal@1.2.0"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "skylos",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "sling",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "socialscrape-mcp",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "socialscrape-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "tilt-mcp",
+   "stratum": "pypi",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "tooluniverse",
+   "stratum": "registry",
+   "launches": 1,
+   "pinned": 0,
+   "unpinned": 1,
+   "examples": [
+    "tooluniverse"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "truthound",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "unifi-network-mcp",
+   "stratum": "pypi",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "unifi-network-mcp",
+    "unifi-network-mcp@latest"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "validation-mcp-server",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "wemo-mcp-server",
+   "stratum": "registry",
+   "launches": 9,
+   "pinned": 0,
+   "unpinned": 9,
+   "examples": [
+    "wemo-mcp-server"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "wikimoth",
+   "stratum": "registry",
+   "launches": 0,
+   "pinned": 0,
+   "unpinned": 0,
+   "examples": []
+  },
+  {
+   "type": "pypi",
+   "package": "windows-mcp",
+   "stratum": "pypi",
+   "launches": 21,
+   "pinned": 0,
+   "unpinned": 21,
+   "examples": [
+    "windows-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "workspace-mcp",
+   "stratum": "pypi",
+   "launches": 5,
+   "pinned": 0,
+   "unpinned": 5,
+   "examples": [
+    "workspace-mcp"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "yandex-cli",
+   "stratum": "pypi",
+   "launches": 2,
+   "pinned": 0,
+   "unpinned": 2,
+   "examples": [
+    "yandex-cli"
+   ]
+  }
+ ]
+}

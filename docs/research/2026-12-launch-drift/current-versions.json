@@ -1,0 +1,3832 @@
+{
+ "built": "2026-11-16",
+ "dates": [
+  "2026-11-16"
+ ],
+ "packages": [
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "chrome-devtools-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.13.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-pdf",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.0.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-filesystem",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@wonderwhy-er/desktop-commander",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@upstash/context7-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.7.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agent-device",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.21.37",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-everything",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-memory",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "rea-agents",
+   "versions": {
+    "2026-11-16": {
+     "version": "6.9.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@pandacss/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.5.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@notionhq/notion-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.6.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "hostinger-api-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "yahoo-finance2",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.0.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@swmansion/argent",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.33.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@sentry/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.49.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-sequential-thinking",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hostinger/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "ruvector",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.27",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@supabase/mcp-server-supabase",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.17.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@azure/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.0.0-beta.7",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "firecrawl-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.40.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agent-blackboard",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agentdb",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.10.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "blume",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.2.7",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@zereight/mcp-gitlab",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.3.28",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "next-devtools-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agentation-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "figma-developer-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.13.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "mongodb-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@azure-devops/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.11.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@launchdarkly/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.7.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@open-pencil/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.16.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@softeria/ms-365-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.185.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@kubb/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "5.20.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "xcodebuildmcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "nx-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.25.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@sap-ux/fiori-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.16.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@ui5/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@mastra/mcp-docs-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.13",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@aikidosec/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.34",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@currents/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "creem",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.14.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "scryfall-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "kordoc",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.24.81",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@tacticlaunch/mcp-linear",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.4.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@fanyangmeng/ghost-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@zencoderai/slack-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@coding-solo/godot-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@bytebase/dbhub",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@metamask/device-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.8.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@automattic/mcp-wordpress-remote",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.5.5",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@drawio/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.12.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@letoribo/mcp-graphql-enhanced",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.17.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@cloudbase/cloudbase-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.37.7",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "gitnexus",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.12",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hubspot/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "kubernetes-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@perplexity-ai/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "chelaile-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@netlify/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.22.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@imgly/codesign-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@cap-js/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "n8n-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.102.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "slack-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@anyproto/anytype-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.0.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@brave/brave-search-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.1.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@antv/mcp-server-chart",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.10",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@vantasdk/vanta-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@eslint/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.16",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "exa-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.4.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@meshy-ai/meshy-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.6.11",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@statelyai/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.28.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@serdnaley/metabase-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.5.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@ericthered926/duckduckgo-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@google-cloud/storage-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@tableau/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "6.0.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@paperclipai/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2026.1106.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@shopify/dev-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.18.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@apify/actors-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.21.11",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@larksuiteoapi/lark-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.5.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@winor30/mcp-server-datadog",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.8.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@microsoft/powerbi-modeling-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@browserstack/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.6.9",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@google-cloud/observability-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@taiga-ai/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.37.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@togglhq/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.13.293",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@foldkit/devtools-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.26.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@browsermcp/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.5.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@agimon-ai/po-logsink",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.1-alpha.146",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hasna/todos",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.18.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "argocd-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "opencode-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@xeroapi/xero-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.18",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "freee-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.38.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@sendinel/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.256",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@brightdata/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.8.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@next-ai-drawio/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.15",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "mcp-server-kubernetes",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.2.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hypothesi/tauri-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.13.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "replicate-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-for-blender",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-fetch",
+   "versions": {
+    "2026-11-16": {
+     "version": "2026.11.11",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-atlassian",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.24.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-time",
+   "versions": {
+    "2026-11-16": {
+     "version": "2026.11.11",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "postgres-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "lean-lsp-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.33.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-grafana",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-api-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "ha-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "9.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-git",
+   "versions": {
+    "2026-11-16": {
+     "version": "2026.11.11",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-appwrite",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.6.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "opensearch-mcp-server-py",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.12.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-documentation-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.2.5",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcpforunityserver",
+   "versions": {
+    "2026-11-16": {
+     "version": "10.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "workspace-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.5.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "chroma-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-clickhouse",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "excel-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.3.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "langsmith-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-cloudwatch-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "serena-agent",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-pricing-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "jcodemunch-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.108.455",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "pagerduty-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "analytics-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "logfire-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "exomem",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.184.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "dbt-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.10.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-google-sheets",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.6.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "duckduckgo-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-billing-cost-management-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.45",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-iac-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.26",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "markitdown-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.1a8",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "prometheus-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "elevenlabs-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.12.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "falcon-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.20.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "serper-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.10",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "freecad-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.32",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "windows-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.8.9",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "arxiv-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.8.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-redshift-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "tilt-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "astro-airflow-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "notebooklm-mcp-cli",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.16.5",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "unifi-network-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.46.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "yandex-cli",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.142.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "edgescaleai-cube-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.65",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "meilisearch-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.7.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@playwright/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.85",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "browser-use",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.5",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "firebase-tools",
+   "versions": {
+    "2026-11-16": {
+     "version": "15.36.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "fallow",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.43.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "seleniumbase",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.58.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-proxy-for-aws",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.8.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "color-space",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "edgartools",
+   "versions": {
+    "2026-11-16": {
+     "version": "6.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "scrapling",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.5.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "e2e",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.23.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "snyk",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1308.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "telnyx",
+   "versions": {
+    "2026-11-16": {
+     "version": "7.31.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "llm-sandbox",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.46",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "sling",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.7",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "truthound",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.3.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "arxyne",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.13.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "bernstein",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.24.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "hol-guard",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.59.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "ouroboros-ai",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.60.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "repomix",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.19.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sveltejs/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.30",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cargo-ai/cli",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.154",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "skylos",
+   "versions": {
+    "2026-11-16": {
+     "version": "5.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@gitkraken/gk",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.1.77",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "praisonai",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.7.25",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ruflo",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.77.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "tooluniverse",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.5.10",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mobilenext/mobile-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.17",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@yawlabs/ctxlint",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.28.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "endform",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.83.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "dynoxide",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cyanheads/mcp-ts-core",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.13.22",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@dynatrace-oss/dynatrace-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.1.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ssh-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.26.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "tavily-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.22",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-gsc",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-searxng",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.10.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "aiterm-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.70.70",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@agentskit/doc-bridge",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.6.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "claude-flow",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.77.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@wirecat/cli-memo",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.141.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "dembrandt",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.39.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@smartbear/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.44.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "shinjuku-shield",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.218",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "igniteui-theming",
+   "versions": {
+    "2026-11-16": {
+     "version": "30.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@flisk-sh/flisk",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.4.67",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "tokensafe",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.1.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "codebase-memory-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.12.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@hypequery/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.14.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "appium-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.99.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "comfyui-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.52.206",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@discourse/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "codeburn",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.28",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ruv-swarm",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.0.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sap/mdk-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@alisaitteke/photoshop-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.7.38",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@xgamesfun/solana",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.28.31",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@unleash/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.6.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@auth0/auth0-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0-beta.19",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "semiotic",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.13.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@growthbook/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@muggleai/works",
+   "versions": {
+    "2026-11-16": {
+     "version": "5.38.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ai-dossier/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.6.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "premiere-pro-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.30.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@dbx-app/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.144",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "loki-mode",
+   "versions": {
+    "2026-11-16": {
+     "version": "11.144.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@esaio/esa-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.15.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ffmpeg-skill",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.10.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "api-anything",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "obsidian-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.9.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "signoff-cli",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.8.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@tradecanvas/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.13.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "readfirst",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.34.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@seanhogg/builderforce-memory-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2026.10.82",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@wdio/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "gdharness",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.111",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@qase/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "alterlab-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.13.27",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@gaiventures/pilotfish-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.53",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "podman-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.0.15",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@postman/postman-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.15.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "atris",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.85.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "run402-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "4.155.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-gsheets",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.11.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@atlassian-dc-mcp/jira",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.43.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@scavio/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.63.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "brilliant-directories-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "6.59.682",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "reddit-mcp-buddy",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@whisper-security/whisper-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.269.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@delorenj/mcp-server-trello",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.8.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "bitbucket-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "5.0.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "notion-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cachly-dev/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.10.253",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@masonator/coolify-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.10.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "threejs-devtools-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.5.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sylphx/anymd",
+   "versions": {
+    "2026-11-16": {
+     "version": "8.5.11",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "emailmd",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.13.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@rsdoctor/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.5",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sync.so/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.27",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "bitpull",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.46",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@gitwand/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.13.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@rootpilot/mcp-ssh-diagnose",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "lean-memory",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "olane-copass-local",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "x64dbg-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "btcmcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/qtscript-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "arc-free-skills",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@chrischall/flightaware-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.4.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "runbook-ai-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@reneturcios/threatcheck",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "quanticdata-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.11.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pedrot95dev/twitterapi.mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cloakedagent/sdk",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "pic-gen",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "skilltotal",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "hirepulse-tools",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "lookupd",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "memorydetective",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.18.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@usercall/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@readystack/en301549-lint",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.7",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@rightnow/forge-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "stellar-agent-search",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ophirai/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "ecfr-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.15",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-okx",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-zenodo",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "japan-company-info-mcp-bridge",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.2.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-onedrive",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-web-recon-agent",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.8.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "wikimoth-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ai-usage-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.16.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/open-canada-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-irail",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-interminal",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.19",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "hacktricks-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.3.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-fjc-judges",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "sup-network",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.8",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "perplexity-comet-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.6.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "wemo-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.4.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "validation-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@muvon/octobrain",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.15.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "searxng",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@infoinlet/mcp-translate",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@readystack/cra-annex-ii-docs-lint",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.7",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-imei",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/glsl-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ihateposting-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.12.9",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "extra-desktop",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-fyyd",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "duduclaw",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.82.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mukundakatta/agentfit-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "runtime-support-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@yuvlero/mark",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-faa-delays",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@openplan/mcp",
+   "versions": {},
+   "error": "HTTP Error 404: Not Found"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "license-verify-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@tmhs/screencast-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.51.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@open-deltat/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@reneturcios/browserdebug",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-globocan",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@geml/geml",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.13.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@orsf/mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "playcanvas-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "vugola-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "bricksentry-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.22",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "portveil-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "guniweb-sap-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.11.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-redtrack",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "releaseguard-cli",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ostraagent/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.24",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "domain-expertise-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "socialscrape-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "gongio-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "rigor-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.5.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "hyperiux-mcp-server",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "f1-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-tradier",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "zitadel-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "aimarket-mcp-packager",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.1.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@perspectivefi/spectra-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.6",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "cookie-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.9.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "aiapi-pro",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/nix-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.0.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "comparador-luz-gas",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.5",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "wikimoth",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.3",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "taoyuan-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "1.1.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ryvonetwork/gateway-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.2",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "s3eidat-tools-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "deepseek-search-everywhere-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "3.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "kemory",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.19.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@statable/mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-startuphub",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "sancho-fetch",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-pystub",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "amazon-ads-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.3.33",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "statuz-cli",
+   "versions": {
+    "2026-11-16": {
+     "version": "2.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "promptready-mcp",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.4.0",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-pacer",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.2.1",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@codespar/mcp-c6",
+   "versions": {
+    "2026-11-16": {
+     "version": "0.1.0-alpha.4",
+     "source": "npm latest dist-tag / PyPI info.version on the snapshot date"
+    }
+   }
+  }
+ ]
+}
