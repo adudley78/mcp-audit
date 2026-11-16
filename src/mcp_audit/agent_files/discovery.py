@@ -9,6 +9,15 @@ Confirmed file surfaces (2026-06-14; skills added 2026-09-08):
 **Claude Code — skills**
   - ``~/.claude/skills/**/SKILL.md``  (user-global)
   - ``.claude/skills/**/SKILL.md``    (project-level)
+
+**Other agents — skills** (added 2026-11-16, STORY-0159; vendor docs cited
+at ``skill_package.USER_SKILL_DIRS``)
+  - ``~/.agents/skills``, ``.agents/skills``    (Codex, Gemini CLI, Cursor,
+    Copilot; client ``agent-skills``)
+  - ``~/.gemini/skills``, ``.gemini/skills``    (Gemini CLI)
+  - ``~/.cursor/skills``, ``.cursor/skills``, ``~/.codex/skills``,
+    ``.codex/skills``                           (Cursor)
+  - ``~/.copilot/skills``, ``.github/skills``   (GitHub Copilot)
   Nesting is permitted by the skill spec — matched recursively, at any depth
   up to the same walk cap as the rest of this module. A symlinked skill
   directory or a symlinked ``SKILL.md`` is never silently dropped — see
@@ -193,6 +202,38 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         "claude-code",
         "user",
     ),
+    # Other agents' skills directories (STORY-0159; vendor docs read 2026-11-16,
+    # see skill_package.USER_SKILL_DIRS).
+    AgentInstructionPathPattern(
+        ".agents/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "agent-skills",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".gemini/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "gemini-cli",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".cursor/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".codex/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".copilot/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "copilot",
+        "user",
+    ),
     AgentInstructionPathPattern(
         ".claude/CLAUDE.md",
         AgentFileSurface.CLAUDE_MEMORY,
@@ -264,6 +305,38 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         ".claude/skills/**/SKILL.md",
         AgentFileSurface.CLAUDE_SKILL,
         "claude-code",
+        "project",
+    ),
+    # Other agents' skills directories (STORY-0159; see
+    # skill_package.PROJECT_SKILL_DIRS).
+    AgentInstructionPathPattern(
+        ".agents/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "agent-skills",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".gemini/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "gemini-cli",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".cursor/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".codex/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".github/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "copilot",
         "project",
     ),
     AgentInstructionPathPattern(

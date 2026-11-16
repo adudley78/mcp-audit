@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Skills in every agent's skills directory, not only Claude Code's (STORY-0159).** The default scan, `scan --project` and `agent-files` read `.claude/skills` only, but Codex, Gemini CLI, Cursor and GitHub Copilot load skills from their own directories and from the shared `.agents/skills`, which is where the skills CLI installs them. Every file in a skill there now gets the same checks (SKILL-001..008, POISON-04x, TRUST-002/004/005): user `~/.agents/skills` (Codex, Gemini CLI, Cursor, Copilot), `~/.gemini/skills`, `~/.cursor/skills`, `~/.codex/skills` (Cursor's compatibility path) and `~/.copilot/skills`; project `.agents/skills`, `.gemini/skills`, `.cursor/skills`, `.codex/skills` and `.github/skills`. Paths are from each vendor's docs, read 2026-11-16 and cited in `skill_package.USER_SKILL_DIRS`. Findings name the agent (`agent-skills` for the shared directory). A skill reached from two directories, such as the skills CLI's `.claude/skills/<name>` link to `.agents/skills/<name>`, is read once. Skills-directory plugins stay a Claude Code directory feature. Raised by Carl Sue (@carlsue) on X, 2026-11-16. Not covered: see GAPS.md.
+
 ---
 
 ## [0.31.0] - 2026-11-16

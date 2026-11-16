@@ -1555,6 +1555,19 @@ Known limits, each measured or stated, not guessed:
   (same skip list, at most eight levels below the skills directory);
   otherwise it is read as part of the enclosing skill, so an empty
   `SKILL.md` in `__pycache__/` or `.tox/` hides nothing.
+- **Other agents' skills directories: the documented ones only (STORY-0159).**
+  The default scan reads `.agents/skills`, `.gemini/skills`, `.cursor/skills`,
+  `.codex/skills` and `.copilot/skills` (user) / `.github/skills` (project)
+  beside `.claude/skills`, as the vendor docs listed them on 2026-11-16. Not
+  read: Codex's admin directory `/etc/codex/skills` and skills bundled with
+  Codex; Gemini CLI extension skills; `.agents/skills` in the directories
+  between the working directory and the repository root (Codex reads every
+  one; a default scan reads the working directory's, `scan --project` the
+  whole tree); OpenCode, Windsurf, Kiro and other agents' skill locations; a
+  skills directory moved by an environment variable. Codex follows symlinked
+  skill folders; mcp-audit still follows a link one level only (below).
+  Skills-directory plugins (`.claude-plugin/plugin.json`) are recognised only
+  in Claude Code's directory.
 - **Symlinked skill folders are followed one level only** (decision
   2026-10-26, Marcus `humans/decisions/2026-10-26-follow-symlinked-skill-folders.md`).
   A symlink directly under a skills directory that points at a skill is read
