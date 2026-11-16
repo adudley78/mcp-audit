@@ -112,6 +112,42 @@ from mcp_audit.models import Finding, Severity
 
 #: Client on the package findings themselves.
 PACKAGE_CLIENT = "claude-code"
+
+#: Skills directories each agent loads, as path segments under the home
+#: directory (user) or a project directory (project), with the client named
+#: on findings.  Vendor docs read 2026-11-16 (STORY-0159):
+#: Codex learn.chatgpt.com/docs/build-skills (``.agents/skills`` in the
+#: working directory up to the repository root, and ``$HOME/.agents/skills``);
+#: Gemini CLI geminicli.com/docs/cli/skills (``.gemini/skills`` or the alias
+#: ``.agents/skills``, workspace and user); Cursor cursor.com/docs/skills
+#: (``.agents/skills``, ``.cursor/skills``, plus ``.claude/skills`` and
+#: ``.codex/skills`` for compatibility, project and user); GitHub Copilot CLI
+#: docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-skills
+#: (``.github/skills``, ``.claude/skills`` or ``.agents/skills`` in the
+#: repository; ``~/.copilot/skills`` or ``~/.agents/skills``).  The first entry
+#: is Claude Code's own directory; only that one loads skills-directory
+#: plugins (``.claude-plugin/plugin.json``).  ``.agents/skills`` is shared by
+#: several agents, so its findings name the open standard, ``agent-skills``.
+USER_SKILL_DIRS: tuple[tuple[tuple[str, str], str], ...] = (
+    ((".claude", "skills"), PACKAGE_CLIENT),
+    ((".agents", "skills"), "agent-skills"),
+    ((".gemini", "skills"), "gemini-cli"),
+    ((".cursor", "skills"), "cursor"),
+    ((".codex", "skills"), "cursor"),
+    ((".copilot", "skills"), "copilot"),
+)
+PROJECT_SKILL_DIRS: tuple[tuple[tuple[str, str], str], ...] = (
+    ((".claude", "skills"), PACKAGE_CLIENT),
+    ((".agents", "skills"), "agent-skills"),
+    ((".gemini", "skills"), "gemini-cli"),
+    ((".cursor", "skills"), "cursor"),
+    ((".codex", "skills"), "cursor"),
+    ((".github", "skills"), "copilot"),
+)
+#: Parent directory names of a recognised skills directory.
+_SKILL_DIR_PARENTS = frozenset(
+    segments[0] for segments, _ in USER_SKILL_DIRS + PROJECT_SKILL_DIRS
+)
 #: Client on MCP servers a skill carries but Claude Code does not load from
 #: where they sit.  They never join discovery, so they never reach the lock,
 #: the rug-pull state key, toxic flow or the attack graph.
@@ -237,6 +273,8 @@ class SkillPackage:
         link: For a skill reached through a symlink directly under a skills
             directory, that link; *root* is then the resolved target
             (decision 2026-10-26, "Follow a symlinked skill folder one level").
+        client: The agent whose skills directory holds it (``Finding.client``;
+            see :data:`USER_SKILL_DIRS`).
     """
 
     root: Path
@@ -244,6 +282,7 @@ class SkillPackage:
     scan_root: Path
     is_plugin: bool = False
     link: Path | None = None
+    client: str = PACKAGE_CLIENT
 
     @property
     def name(self) -> str:
@@ -966,7 +1005,7 @@ def _finding(
         id=finding_id,
         severity=severity,
         analyzer="agent_files",
-        client=PACKAGE_CLIENT,
+        client=pkg.client,
         server=pkg.label,
         title=redact(title),
         description=redact(description),
@@ -2050,6 +2089,7 @@ def _follow_skill_link(
     scope: str,
     scan_root: Path,
     findings: list[Finding],
+    client: str = PACKAGE_CLIENT,
 ) -> SkillPackage | None:
     """The skill a symlink directly under a skills directory points at, or ``None``.
 
@@ -2076,13 +2116,13 @@ def _follow_skill_link(
         findings.append(build_project_symlink_finding(link, "agent-files", scan_root))
         return None
     root = Path(target)
-    is_plugin = _is_plugin_dir(root)
+    is_plugin = client == PACKAGE_CLIENT and _is_plugin_dir(root)
     if not (is_plugin or _has_skill_md(root)):
         findings.append(_untraversed(link))
         return None
     findings.append(_followed_link_finding(link, target))
     boundary = scan_root if scope == "project" else root
-    return SkillPackage(root, scope, boundary, is_plugin, link=link)
+    return SkillPackage(root, scope, boundary, is_plugin, link=link, client=client)
 
 
 def _packages_under(
@@ -2091,8 +2131,13 @@ def _packages_under(
     scan_root: Path,
     errors: list[str],
     findings: list[Finding],
+    client: str = PACKAGE_CLIENT,
 ) -> list[SkillPackage]:
     """Every skill and skills-directory plugin under *skills_root*.
+
+    Skills-directory plugins are Claude Code's: in another agent's skills
+    directory (*client* not ``claude-code``) a folder counts only when it
+    holds ``SKILL.md``.
 
     A symlink directly under *skills_root* that points at a skill is followed
     one level (:func:`_follow_skill_link`).  Any other symlinked directory is
@@ -2101,7 +2146,7 @@ def _packages_under(
     plugin_roots: set[str] = set()
     for entry in _scandir(skills_root, errors):
         path = Path(entry.path)
-        if _is_plugin_dir(path):
+        if client == PACKAGE_CLIENT and _is_plugin_dir(path):
             plugin_roots.add(str(path))
     found: list[SkillPackage] = []
     stack: list[tuple[Path, int]] = [(skills_root, 0)]
@@ -2112,7 +2157,11 @@ def _packages_under(
         ):
             found.append(
                 SkillPackage(
-                    directory, scope, scan_root, str(directory) in plugin_roots
+                    directory,
+                    scope,
+                    scan_root,
+                    str(directory) in plugin_roots,
+                    client=client,
                 )
             )
         if depth >= _DISCOVERY_MAX_DEPTH:
@@ -2123,7 +2172,7 @@ def _packages_under(
                 if entry.is_symlink():
                     if depth == 0:
                         followed = _follow_skill_link(
-                            path, skills_root, scope, scan_root, findings
+                            path, skills_root, scope, scan_root, findings, client
                         )
                         if followed is not None:
                             found.append(followed)
@@ -2143,10 +2192,14 @@ def _packages_under(
     return sorted(unique.values(), key=lambda p: str(p.root))
 
 
-def _repo_skills_dir(base: Path, findings: list[Finding]) -> Path | None:
-    """``base/.claude/skills`` when it exists and neither segment is a symlink."""
+def _repo_skills_dir(
+    base: Path,
+    findings: list[Finding],
+    segments: tuple[str, str] = (".claude", "skills"),
+) -> Path | None:
+    """``base/<segments>`` when it exists and neither segment is a symlink."""
     current = base
-    for segment in (".claude", "skills"):
+    for segment in segments:
         current = current / segment
         if _is_link(current):
             if _is_real_dir(Path(_realpath(current) or current)):
@@ -2157,17 +2210,33 @@ def _repo_skills_dir(base: Path, findings: list[Finding]) -> Path | None:
     return current
 
 
+def _first_per_skill(packages: list[SkillPackage]) -> list[SkillPackage]:
+    """Keep the first package for each resolved skill directory.
+
+    Several agents' directories can hold the same skill (the skills CLI
+    installs into ``.agents/skills`` and links it from ``.claude/skills``);
+    it is read once, under the first directory in the table that reached it.
+    """
+    unique: dict[str, SkillPackage] = {}
+    for pkg in packages:
+        unique.setdefault(_realpath(pkg.root) or str(pkg.root), pkg)
+    return list(unique.values())
+
+
 def default_skill_packages(
     cwd: Path | None = None,
     errors: list[str] | None = None,
     findings: list[Finding] | None = None,
 ) -> list[SkillPackage]:
-    """Skills under ``~/.claude/skills`` (user) and ``<cwd>/.claude/skills``.
+    """Skills in every agent's user and working-directory skills directories.
 
-    The user's ``~/.claude`` and ``~/.claude/skills`` may be links (dotfile
-    managers); the resolved skills directory is then the scan root.  The
-    cwd's are repository content and are skipped (TRUST-005) when either is a
-    link.  Nothing below a skills directory is followed through a link.
+    The directories are :data:`USER_SKILL_DIRS` under the home directory and
+    :data:`PROJECT_SKILL_DIRS` under the working directory (``~/.claude/skills``
+    and ``<cwd>/.claude/skills`` first).  A user's directories may be links
+    (dotfile managers); the resolved skills directory is then the scan root.
+    The cwd's are repository content and are skipped (TRUST-005) when either
+    segment is a link.  Nothing below a skills directory is followed through
+    a link.  A skill reached from more than one directory is read once.
 
     Args:
         cwd: The working directory; defaults to the current one.
@@ -2177,27 +2246,38 @@ def default_skill_packages(
     errs: list[str] = errors if errors is not None else []
     sink: list[Finding] = findings if findings is not None else []
     packages: list[SkillPackage] = []
-    user_dir = _skills_home() / ".claude" / "skills"
-    user_real = ""
-    try:
-        user_ok = user_dir.is_dir()
-    except OSError as exc:
-        errs.append(f"skill package: cannot read {user_dir}: {exc}")
-        user_ok = False
-    if user_ok:
+    user_reals: set[str] = set()
+    home = _skills_home()
+    for segments, client in USER_SKILL_DIRS:
+        user_dir = home.joinpath(*segments)
+        try:
+            user_ok = user_dir.is_dir()
+        except OSError as exc:
+            errs.append(f"skill package: cannot read {user_dir}: {exc}")
+            user_ok = False
+        if not user_ok:
+            continue
         user_real = _realpath(user_dir)
+        if user_real in user_reals:
+            continue
+        user_reals.add(user_real)
         packages.extend(
-            _packages_under(user_dir, "user", Path(user_real or user_dir), errs, sink)
+            _packages_under(
+                user_dir, "user", Path(user_real or user_dir), errs, sink, client
+            )
         )
     try:
         base = (cwd or Path.cwd()).resolve()
     except OSError as exc:
         errs.append(f"skill package: cannot resolve the working directory: {exc}")
-        return packages
-    project_dir = _repo_skills_dir(base, sink)
-    if project_dir is not None and _realpath(project_dir) != user_real:
-        packages.extend(_packages_under(project_dir, "project", base, errs, sink))
-    return packages
+        return _first_per_skill(packages)
+    for segments, client in PROJECT_SKILL_DIRS:
+        project_dir = _repo_skills_dir(base, sink, segments)
+        if project_dir is not None and _realpath(project_dir) not in user_reals:
+            packages.extend(
+                _packages_under(project_dir, "project", base, errs, sink, client)
+            )
+    return _first_per_skill(packages)
 
 
 def project_skill_packages(
@@ -2205,10 +2285,12 @@ def project_skill_packages(
     errors: list[str] | None = None,
     findings: list[Finding] | None = None,
 ) -> list[SkillPackage]:
-    """Skills under every ``.claude/skills`` in a repository tree.
+    """Skills under every agent's skills directory in a repository tree.
 
-    Same walk rules as the other ``--project`` walks: depth cap 8, the usual
-    skip list, symlinked directories never entered.
+    Each directory reached is checked for every entry of
+    :data:`PROJECT_SKILL_DIRS`.  Same walk rules as the other ``--project``
+    walks: depth cap 8, the usual skip list, symlinked directories never
+    entered.  A skill reached from more than one directory is read once.
     """
     errs: list[str] = errors if errors is not None else []
     sink: list[Finding] = findings if findings is not None else []
@@ -2221,9 +2303,12 @@ def project_skill_packages(
     stack: list[tuple[Path, int]] = [(root, 0)]
     while stack:
         directory, depth = stack.pop()
-        skills_dir = _repo_skills_dir(directory, sink)
-        if skills_dir is not None:
-            packages.extend(_packages_under(skills_dir, "project", root, errs, sink))
+        for segments, client in PROJECT_SKILL_DIRS:
+            skills_dir = _repo_skills_dir(directory, sink, segments)
+            if skills_dir is not None:
+                packages.extend(
+                    _packages_under(skills_dir, "project", root, errs, sink, client)
+                )
         if depth >= _PROJECT_MAX_DEPTH:
             continue
         for entry in _scandir(directory, errs):
@@ -2234,7 +2319,7 @@ def project_skill_packages(
                 continue
             if entry.name not in _PROJECT_SKIP_DIRS and entry.name != ".claude":
                 stack.append((Path(entry.path), depth + 1))
-    return sorted(packages, key=lambda p: str(p.root))
+    return sorted(_first_per_skill(packages), key=lambda p: str(p.root))
 
 
 def _skills_ancestor(path: Path) -> Path:
@@ -2372,7 +2457,7 @@ def scan_default_skills(
 def _sidecar_boundary(root: Path, scope: str) -> Path:
     if scope == "project":
         for parent in root.parents:
-            if parent.name == "skills" and parent.parent.name == ".claude":
+            if parent.name == "skills" and parent.parent.name in _SKILL_DIR_PARENTS:
                 return parent.parent.parent
     return _skills_ancestor(root)
 
