@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.31.0] - 2026-11-16
+
 ### Added
 
 - **`agent-files scan` now checks AGENTS.md, CLAUDE.md, GEMINI.md and .cursorrules left in Downloads and Desktop (MEM-007, MEDIUM), and flags instruction files that tell the agent to edit a machine-wide agent config, change the model base URL, or turn approvals off (MEM-008; HIGH outside a git repository, MEDIUM inside one).** Forever Security (Gal Weizman, Omer Samet; disclosed 2026-10-26) found an `AGENTS.md` planted in a customer's `~/Downloads` that told Codex to add an MCP server to `~/.codex/config.toml` and run `codex exec` with approvals and sandbox off; about half of their customers run a coding agent inside Downloads. mcp-audit saw the damage afterwards (COMM-006 on the new config entry) but not the cause. Only the top level of `~/Downloads` and `~/Desktop` is read; a symlinked file is reported and not read. MEM-008 reuses SKILL-006's approvals-off and base-URL patterns and adds an edit-instruction check for `~/.codex/config.toml`, `~/.claude/settings.json`, `~/.cursor/mcp.json` and `~/.gemini/settings.json`. 0 of 1,101 ordinary public instruction files fire; 23 of 703 files picked for containing its words fire, none an attack (`docs/research/mem008/results.json`). SKILL-006 no longer reads `npx -y` after `gemini` as Gemini CLI's `-y`.
