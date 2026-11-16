@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-11-04",
+  "last_updated": "2026-11-14",
   "entry_count": 56,
   "entries": [
     {
@@ -447,7 +447,8 @@
       "attestation_expected": true,
       "known_vulnerabilities": [
         "CVE-2025-49596",
-        "CVE-2025-58444"
+        "CVE-2025-58444",
+        "GHSA-q978-78c7-phqw"
       ],
       "known_vulns": [
         {
@@ -461,6 +462,12 @@
           "cvss": null,
           "description": "MCP Inspector is Vulnerable to Potential Command Execution via XSS When Connecting to an Untrusted MCP Server",
           "fixed_in": "0.16.6"
+        },
+        {
+          "cve": "GHSA-q978-78c7-phqw",
+          "cvss": null,
+          "description": "MCP Inspector: a remote MCP server can run code on the user's machine on Windows and WSL through the OAuth authorization URL (PowerShell subexpression injection). Affected >=2.0.0 <2.12.0. OSV lists the advisory as an alias of CVE-2026-119025, which is filed against the `open` package (a dependency of Inspector), not against Inspector itself. Write-up: Pillar Security, \"Inspecting the Inspector\" (https://www.pillar.security/blog/inspecting-the-inspector-rce-in-mcps-official-debugging-tool) - reported by Eilon Cohen (Pillar Security)",
+          "fixed_in": "2.12.0"
         }
       ]
     },

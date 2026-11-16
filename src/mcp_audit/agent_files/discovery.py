@@ -9,6 +9,15 @@ Confirmed file surfaces (2026-06-14; skills added 2026-09-08):
 **Claude Code — skills**
   - ``~/.claude/skills/**/SKILL.md``  (user-global)
   - ``.claude/skills/**/SKILL.md``    (project-level)
+
+**Other agents — skills** (added 2026-11-16, STORY-0159; vendor docs cited
+at ``skill_package.USER_SKILL_DIRS``)
+  - ``~/.agents/skills``, ``.agents/skills``    (Codex, Gemini CLI, Cursor,
+    Copilot; client ``agent-skills``)
+  - ``~/.gemini/skills``, ``.gemini/skills``    (Gemini CLI)
+  - ``~/.cursor/skills``, ``.cursor/skills``, ``~/.codex/skills``,
+    ``.codex/skills``                           (Cursor)
+  - ``~/.copilot/skills``, ``.github/skills``   (GitHub Copilot)
   Nesting is permitted by the skill spec — matched recursively, at any depth
   up to the same walk cap as the rest of this module. A symlinked skill
   directory or a symlinked ``SKILL.md`` is never silently dropped — see
@@ -34,6 +43,14 @@ Confirmed file surfaces (2026-06-14; skills added 2026-09-08):
     ``.md`` files are discovered recursively")
   Every Claude Code memory file, and the ``AGENTS.md`` files below, have
   their ``@path`` imports followed (see :mod:`mcp_audit.agent_files.imports`).
+
+**Dropped instruction files** (added 2026-11-14, STORY-0155)
+  - ``AGENTS.md``, ``CLAUDE.md``, ``GEMINI.md``, ``.cursorrules`` directly in
+    ``~/Downloads`` and ``~/Desktop`` (top level only, never a subfolder).
+    An agent started in one of those folders reads the file as its standing
+    instructions; the folders are where files arrive from a browser, a chat
+    attachment or a mail client.  A symlinked file or folder is reported
+    (TRUST-002/TRUST-005) and not read.
 
 **AGENTS.md** (added 2026-10-25, STORY-0098)
   - ``AGENTS.md`` in any directory (agents.md: Codex, Cursor, Copilot,
@@ -185,6 +202,38 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         "claude-code",
         "user",
     ),
+    # Other agents' skills directories (STORY-0159; vendor docs read 2026-11-16,
+    # see skill_package.USER_SKILL_DIRS).
+    AgentInstructionPathPattern(
+        ".agents/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "agent-skills",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".gemini/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "gemini-cli",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".cursor/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".codex/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".copilot/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "copilot",
+        "user",
+    ),
     AgentInstructionPathPattern(
         ".claude/CLAUDE.md",
         AgentFileSurface.CLAUDE_MEMORY,
@@ -256,6 +305,38 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         ".claude/skills/**/SKILL.md",
         AgentFileSurface.CLAUDE_SKILL,
         "claude-code",
+        "project",
+    ),
+    # Other agents' skills directories (STORY-0159; see
+    # skill_package.PROJECT_SKILL_DIRS).
+    AgentInstructionPathPattern(
+        ".agents/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "agent-skills",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".gemini/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "gemini-cli",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".cursor/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".codex/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "cursor",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".github/skills/**/SKILL.md",
+        AgentFileSurface.CLAUDE_SKILL,
+        "copilot",
         "project",
     ),
     AgentInstructionPathPattern(
@@ -605,6 +686,49 @@ def _read_agent_file(
 
 # ── User-global discovery ─────────────────────────────────────────────────────
 
+#: Folders where files arrive from outside the machine, and the instruction
+#: files an agent started there reads (STORY-0155).  ``(name, surface, client)``.
+DROPPED_FOLDERS: tuple[str, ...] = ("Downloads", "Desktop")
+DROPPED_FILES: tuple[tuple[str, AgentFileSurface, str], ...] = (
+    ("AGENTS.md", AgentFileSurface.AGENTS_MD, "agents-md"),
+    ("CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code"),
+    ("GEMINI.md", AgentFileSurface.AGENTS_MD, "gemini-cli"),
+    (".cursorrules", AgentFileSurface.AGENTS_MD, "cursor"),
+)
+
+
+def _discover_dropped(
+    skip_findings: list[Finding] | None = None,
+    *,
+    budget: ReadBudget | None = None,
+    errors: list[str] | None = None,
+) -> list[AgentFile]:
+    """Instruction files at the top of ``~/Downloads`` and ``~/Desktop``.
+
+    Top level only.  A symlinked file is reported (TRUST-002, against the
+    folder as the boundary) and not read; a symlinked folder is not entered
+    (TRUST-005).  Reads go through :func:`_read_agent_file`, so the size cap,
+    the budget and the encoding handling are the same as for every other
+    instruction file.
+    """
+    home = Path.home()
+    results: list[AgentFile] = []
+    for folder in DROPPED_FOLDERS:
+        base = home / folder
+        for name, surface, client in DROPPED_FILES:
+            for match in _resolve_relative_pattern(
+                home, f"{folder}/{name}", root=base, skip_findings=skip_findings
+            ):
+                if _is_symlink(match):
+                    continue
+                af = _read_agent_file(
+                    match, surface, client, "user", budget=budget, errors=errors
+                )
+                if af is not None:
+                    af.dropped = True
+                    results.append(af)
+    return results
+
 
 def _read_from_pattern(
     match: Path,
@@ -646,6 +770,7 @@ def _discover_user_global(
             if af is not None:
                 results.append(af)
 
+    results.extend(_discover_dropped(skip_findings, budget=budget, errors=errors))
     return results
 
 

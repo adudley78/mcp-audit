@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -93,7 +94,8 @@ class TestShippedFile:
 
     def test_no_invented_cve_or_package_names(self) -> None:
         text = SHIPPED.read_text(encoding="utf-8")
-        assert "CVE-" not in text
+        # Only CVE-2026-88968 (GHSA-5xjx-9qx6-jcrv, confirmed in OSV, STORY-0154).
+        assert set(re.findall(r"CVE-\d+-\d+", text)) == {"CVE-2026-88968"}
         assert "@anthropic-ai" not in text
         assert "@openai" not in text
 

@@ -54,6 +54,10 @@ _HINTS: dict[str, str] = {
         "Rotate the secret: deleting the rule does not remove it from git"
         " history, and every clone already has it."
     ),
+    "CRED-006": (
+        "Add **/.claude/ to .dockerignore (or .claude/ to .npmignore), rotate any"
+        " secret the file held, and rebuild or republish."
+    ),
     # Transport
     "TRANSPORT-001": "Run `mcp-audit fix --apply` to upgrade to HTTPS automatically.",
     "TRANSPORT-002": "Bind this server to 127.0.0.1 (localhost) instead of 0.0.0.0.",
@@ -76,6 +80,10 @@ _HINTS: dict[str, str] = {
     "SC-010": (
         "Archived upstream: move to the successor the finding names, or to a "
         "maintained server for the same service."
+    ),
+    "SC-011": (
+        "npx ran a release OSV lists as malicious: follow the advisory, rotate "
+        "credentials, then delete its folder under the npm cache's _npx."
     ),
     "SC-008": (
         "OSV lists malicious releases of this package; follow the finding: "
@@ -482,6 +490,15 @@ _HINTS: dict[str, str] = {
     "MEM-006": (
         "Don't run an agent in this folder until the line that sends secrets out is"
         " removed; if one already ran here, rotate what it could read."
+    ),
+    # Dropped instruction files (STORY-0155)
+    "MEM-007": (
+        "If you didn't put this file here, delete it, and don't start a coding"
+        " agent in this folder."
+    ),
+    "MEM-008": (
+        "Don't follow the instruction; remove it unless you wrote it. If an agent"
+        " already ran here, check the config file it names for entries you didn't add."
     ),
     "POISON-043": (
         "Remove the invisible zero-width characters; decoded, they spell text."

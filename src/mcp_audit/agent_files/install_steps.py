@@ -1300,7 +1300,7 @@ _SKIP_PERMISSIONS_RE = re.compile(
     r"|(?<![\w.-])codex(?![\w-])[^\n|;&]{0,300}?\s"
     r"(?:--dangerously-bypass-approvals-and-sandbox|--yolo)\b"
     r"|(?<![\w.-])(?:gemini|qwen)(?![\w-])[^\n|;&]{0,300}?\s"
-    r"(?:--yolo\b|-y(?![\w-])|--approval-mode[= ]{1,3}[\"']?yolo\b)"
+    r"(?:--yolo\b|(?<!npx\s)-y(?![\w-])|--approval-mode[= ]{1,3}[\"']?yolo\b)"
     r"|[\"']defaultMode[\"']\s{0,5}[:=]\s{0,5}[\"']bypassPermissions[\"']"
     r"|\[\s{0,3}[\"']defaultMode[\"']\s{0,3}\]\s{0,3}=\s{0,3}[\"']bypassPermissions"
     r"|^[ \t]{0,40}defaultMode[ \t]{0,5}:[ \t]{0,5}[\"']?bypassPermissions\b"

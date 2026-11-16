@@ -74,6 +74,7 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "SC-009",  # pinned version not comparable with the recorded fix
         "SC-010",  # archived upstream: a maintenance status, not a flaw (STORY-0140)
         # (STORY-0105) — INFO "undecidable", asserts no affected release
+        "SC-011",  # an npx cache hit on a package OSV already published (STORY-0158)
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself
         "INSTR-001",  # instruction file changed since the last scan (STORY-0113) —
@@ -151,6 +152,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "CRED-003": "hardcoded-secret",
     "CRED-004": "hardcoded-secret",
     "CRED-005": "hardcoded-secret",
+    "CRED-006": "hardcoded-secret",
     "CFHYG-003": "hardcoded-secret",
     "COMM-008": "hardcoded-secret",
     "COMM-009": "hardcoded-secret",

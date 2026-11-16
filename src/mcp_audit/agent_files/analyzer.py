@@ -69,6 +69,20 @@ MEM-005 (MEDIUM)
     an action verb, and a payload cue in it.  Runs with MEM-003/004 (default scan).  See
     :mod:`mcp_audit.agent_files.sleeper`.  STORY-0099.
 
+MEM-007 (MEDIUM)
+    An instruction file (``AGENTS.md``, ``CLAUDE.md``, ``GEMINI.md``,
+    ``.cursorrules``) sits at the top of ``~/Downloads`` or ``~/Desktop``.  An
+    agent started in that folder follows it, and the folders are where files
+    arrive from outside.  Forever Security (Gal Weizman, Omer Samet), 2026-10-26.
+    STORY-0155.
+
+MEM-008 (HIGH outside a git repository, MEDIUM inside one)
+    An instruction file tells the agent to edit a machine-wide agent config
+    (``~/.codex/config.toml``, ``~/.claude/settings.json``, ``~/.cursor/mcp.json``,
+    ``~/.gemini/settings.json``), to set a model base URL to a host that is not
+    the vendor's, or to run an agent with approvals off.  See
+    :mod:`mcp_audit.agent_files.instruction_shapes`.  STORY-0155.
+
 MEM-006 (HIGH in a project file, MEDIUM in the user's own)
     An always-applied instruction file (the MEM-005 files plus Cursor rules
     and Copilot instruction files) tells the agent, in one sentence, to send
@@ -135,6 +149,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mcp_audit._paths import find_git_root
 from mcp_audit.agent_files.exfil import find_exfil_directives
 from mcp_audit.agent_files.framing import (
     STATE_ITEM_PATTERN_IDS,
@@ -142,6 +157,7 @@ from mcp_audit.agent_files.framing import (
     Framing,
 )
 from mcp_audit.agent_files.heartbeat import find_suppression
+from mcp_audit.agent_files.instruction_shapes import find_instruction_hits
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
 from mcp_audit.agent_files.sleeper import find_sleepers
 from mcp_audit.analyzers.credentials import redact_secret_patterns
@@ -561,6 +577,116 @@ def _mem006_findings(af: AgentFile) -> list[Finding]:
     return findings
 
 
+def _in_git_repository(path: Path) -> bool:
+    """True when *path* sits inside a git working tree other than ``$HOME`` itself.
+
+    A dotfiles repository at ``$HOME`` would otherwise make every file under it
+    look reviewed.  Reads the filesystem for a ``.git`` entry only; never runs
+    git.
+    """
+    try:
+        root = find_git_root(path.parent)
+        home = Path.home().resolve()
+    except (OSError, RuntimeError):
+        return False
+    return root is not None and root != home
+
+
+def _mem007_findings(af: AgentFile) -> list[Finding]:
+    """MEM-007: an instruction file in Downloads or Desktop (STORY-0155)."""
+    if not af.dropped:
+        return []
+    folder = af.path.parent.name
+    return [
+        _redacted(
+            _skill_finding(
+                af,
+                "MEM-007",
+                Severity.MEDIUM,
+                f"Agent instruction file in {folder}",
+                (
+                    f"'{af.path.name}' sits at the top of your {folder} folder."
+                    " An agent (Codex, Claude Code, Gemini CLI, Cursor) started in"
+                    " this folder reads it as standing instructions, and"
+                    f" {folder} is where files arrive from a browser, a chat or a"
+                    " mail attachment. Forever Security (Gal Weizman, Omer Samet,"
+                    " disclosed 2026-10-26) found an AGENTS.md planted in a"
+                    " customer's Downloads that told Codex to add an MCP server"
+                    " to its config and then run with approvals and sandbox off."
+                    " mcp-audit looked only at this one folder level."
+                ),
+                f"~/{folder}/{af.path.name}",
+                (
+                    "Open the file. If you did not put it there, delete it, and"
+                    " do not start a coding agent in this folder. Start agents in"
+                    " a project folder instead."
+                ),
+                owasp_mcp_top_10=["MCP03", "MCP06"],
+                cwe="CWE-426",
+            )
+        )
+    ]
+
+
+_MEM008_KIND = {
+    "config-edit": "edit a machine-wide agent config",
+    "permissions": "run an agent with approvals off",
+    "base-url": "send model traffic to another host",
+}
+
+
+def _mem008_findings(af: AgentFile) -> list[Finding]:
+    """MEM-008: an instruction file reaches past its folder (STORY-0155)."""
+    if af.surface not in _MEM006_SURFACES:
+        return []
+    hits = find_instruction_hits(af.body)
+    if not hits:
+        return []
+    in_repo = _in_git_repository(af.path)
+    severity = Severity.MEDIUM if in_repo else Severity.HIGH
+    where = (
+        "inside a git repository, where a change would show in a diff"
+        if in_repo
+        else "outside any git repository, so nothing reviews it"
+    )
+    kinds = sorted({h.kind for h in hits}, key=lambda k: list(_MEM008_KIND).index(k))
+    what = "; ".join(_MEM008_KIND[k] for k in kinds)
+    first = hits[0]
+    detail = f"line {first.line}" + (
+        f" (and {len(hits) - 1} more)" if len(hits) > 1 else ""
+    )
+    return [
+        _redacted(
+            _skill_finding(
+                af,
+                "MEM-008",
+                severity,
+                "Instruction file changes machine-wide agent settings or approvals",
+                (
+                    f"'{af.path.name}' tells the agent to {what} ({detail}). Each"
+                    " reaches past the folder the agent runs in: a machine-wide"
+                    " config change stays after the session, a changed base URL"
+                    " sends prompts, code and the API key elsewhere, and approvals"
+                    " off lets every later step run unasked. This file is"
+                    f" {where}. Forever Security (Gal Weizman, Omer Samet,"
+                    " disclosed 2026-10-26) reported an AGENTS.md in Downloads that"
+                    " added an MCP server to ~/.codex/config.toml and ran codex"
+                    " with approvals and sandbox off. Setup guides can say the"
+                    " first of these on purpose; read the line."
+                ),
+                f"Line {first.line}: {redacted_snippet(first.source, 160)!r}",
+                (
+                    "Do not follow the instruction. If you did not write it,"
+                    " remove it. If an agent already ran here, check the config"
+                    " file it names for entries you did not add."
+                ),
+                owasp_mcp_top_10=["MCP03", "MCP02"],
+                cwe="CWE-269",
+            )
+        )
+    ]
+
+
 def _mem004_findings(af: AgentFile) -> list[Finding]:
     if af.surface != AgentFileSurface.HEARTBEAT:
         return []
@@ -606,7 +732,7 @@ def _mem004_findings(af: AgentFile) -> list[Finding]:
 def analyze_instruction_reach(
     files: list[AgentFile], home: Path | None = None
 ) -> list[Finding]:
-    """MEM-003, MEM-004, MEM-005 and MEM-006 only: the checks the default scan runs.
+    """MEM-003 to MEM-008 only: the checks the default scan runs.
 
     Args:
         files: Agent files with their import edges filled in by discovery.
@@ -633,6 +759,8 @@ def analyze_instruction_reach(
         seen_bodies.add(key)
         findings.extend(_mem005_findings(af))
         findings.extend(_mem006_findings(af))
+        findings.extend(_mem007_findings(af))
+        findings.extend(_mem008_findings(af))
     return findings
 
 

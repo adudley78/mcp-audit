@@ -1360,6 +1360,22 @@ def _apply_project_scan(
             seen_history.add(history_key)
             result.findings.append(finding)
 
+    # ── CRED-006: settings files a Dockerfile or npm package ships ──────────
+    # STORY-0157. The default scan already walked the cwd's work tree; keep
+    # one copy when the project is the same tree. Never raises.
+    from mcp_audit.analyzers import shipped_settings as _shipped  # noqa: PLC0415
+
+    seen_shipped = {
+        (f.id, f.finding_path, f.evidence)
+        for f in result.findings
+        if f.id == _shipped.FINDING_ID
+    }
+    for finding in _shipped.scan_tree(project_dir, result.errors):
+        shipped_key = (finding.id, finding.finding_path, finding.evidence)
+        if shipped_key not in seen_shipped:
+            seen_shipped.add(shipped_key)
+            result.findings.append(finding)
+
     # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
     # The default scan already read <cwd>/.github/workflows; when cwd is the
     # project root the same findings would arrive twice, so keep one copy.
@@ -1502,6 +1518,22 @@ def _apply_project_scan(
         if managed_key not in seen_managed:
             seen_managed.add(managed_key)
             result.findings.append(finding)
+
+    # ── Cursor project hooks.json (STORY-0156): HOOK-001/002/004/005 ──────────
+    from mcp_audit.analyzers import hook_runnable as _hook_runnable  # noqa: PLC0415
+
+    seen_hooks = {
+        (f.id, f.finding_path)
+        for f in result.findings
+        if f.id.startswith("HOOK-") and f.client == "cursor"
+    }
+    for hook_finding in _hook_runnable.cursor_hook_findings(
+        result.errors, project=project_dir, user=False
+    ):
+        hook_key = (hook_finding.id, hook_finding.finding_path)
+        if hook_key not in seen_hooks:
+            seen_hooks.add(hook_key)
+            result.findings.append(hook_finding)
 
     # ── TRUST-001: fires for every project-scoped server ───────────────────────
     # Logic is deliberately dumb — origin (is_project_scoped) is the only

@@ -13,6 +13,7 @@ from mcp_audit.agent_files import drift as _drift
 from mcp_audit.agent_files import skill_package as _skill_package
 from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers import rule_secret_history as _rule_secret_history
+from mcp_audit.analyzers import shipped_settings as _shipped_settings
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -639,6 +640,11 @@ def _discover_and_parse(
             result.findings.extend(
                 _rule_secret_history.scan_repository_history(cwd, result.errors)
             )
+            # Settings files a Dockerfile or npm package ships (CRED-006,
+            # STORY-0157): reads files only; never raises.
+            result.findings.extend(
+                _shipped_settings.scan_cwd_repository(cwd, result.errors)
+            )
 
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
@@ -760,12 +766,25 @@ def _discover_and_parse(
                 all_servers, configs, Path.cwd(), result.errors
             )
         )
+        # Guard hooks that will never run (STORY-0156): HOOK-004 in managed
+        # settings (MEDIUM), and Cursor hooks.json files (HOOK-001/002/004/005).
+        # Command strings only; never runs a hook.  Never raises.
+        from mcp_audit.analyzers import hook_runnable as _hook_runnable  # noqa: PLC0415
+
+        result.findings.extend(_hook_runnable.managed_hook_findings(result.errors))
+        result.findings.extend(_hook_runnable.cursor_hook_findings(result.errors))
         # Credential files a Claude Code session can read without asking
         # (STORY-0114, REACH-001..003): stat() and settings JSON only; no
         # credential store is ever opened.  Never raises.
         from mcp_audit.analyzers import secret_reach as _secret_reach  # noqa: PLC0415
 
         result.findings.extend(_secret_reach.secret_reach_findings(result.errors))
+        # Known-malicious packages npx downloaded (STORY-0158, SC-011): reads
+        # name and version from package.json files in the npm cache's _npx
+        # folder; exact-name match against the SC-008 mirror.  Never raises.
+        from mcp_audit.analyzers import npx_cache as _npx_cache  # noqa: PLC0415
+
+        result.findings.extend(_npx_cache.npx_cache_findings(result.errors))
         # Editor extension allowlists (STORY-0144, EXTPOL-001..003): is the
         # AllowedExtensions policy enforced, or only a user setting?  Reads the
         # vendors' documented policy locations; read-only, never raises.

@@ -232,6 +232,17 @@
       "notes": "HIGH. A permissions.allow/ask/deny string holding a credential in a version of the repository's root .claude/settings.json or .claude/settings.local.json that a commit reachable from a ref or HEAD contains, and that is not in today's file (CRED-004 reports today's). Read from git's object files (loose and packed), never by running git; one finding per file, rules quoted with the secret redacted. CWE-312. Source: Apiiro via The Hacker News (2026-11-07: 215 of 1,122 secrets in public settings.local.json copies missed by gitleaks and TruffleHog); GAPS.md CRED-004 entry. Default scan and scan --project (STORY-0153)."
     },
     {
+      "finding_id": "CRED-006",
+      "finding_title": "Claude Code settings file copied into a container image or npm package",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "HIGH when the shipped .claude/settings.json or .claude/settings.local.json holds a credential in a permission rule (CRED-004's detector); LOW for a settings.local.json with no recognised secret; a shared settings.json with no secret is not reported. A Dockerfile whose final image (final stage, its FROM chain, and COPY --from of a stage that copied the context) takes the file from the build context because .dockerignore (or <Dockerfile>.dockerignore, or COPY --exclude) does not exclude it, matched with BuildKit's rules; or a non-private npm package whose files field includes it, or whose .npmignore/.gitignore files do not exclude it (npm does not read git's global excludes or .git/info/exclude). CWE-538. Source: GitGuardian (Guillaume Valadon, 2026-11-09: 613 secrets from Claude Code settings files in public Docker Hub images, 99 valid); reported by Tich Kadandara. Default scan and scan --project (STORY-0157)."
+    },
+    {
       "finding_id": "TRANSPORT-001",
       "finding_title": "Unencrypted remote endpoint (HTTP)",
       "owasp_codes": [
@@ -368,6 +379,17 @@
         "Software Supply Chain Attacks"
       ],
       "notes": "Exact-name match, per ecosystem, against registry/known-malicious.json, a bundled mirror of OSV MAL-* records for npm/PyPI packages whose name contains 'mcp' or that the registry lists. CRITICAL when the launch installs a listed release (pinned to one, or OSV marks every release / every release from a version on); MEDIUM when only past releases are listed and the launch is unpinned. Offline (STORY-0097)."
+    },
+    {
+      "finding_id": "SC-011",
+      "finding_title": "Known malicious package in the npx cache",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a package.json under the npm cache's _npx/*/node_modules (top level, scoped names included) has a name and version that an OSV MAL-* record in registry/known-malicious.json covers: the same exact-name mirror as SC-008, assessed as a pin. Catches skill collections installed from a shell (npx <pkg>), which leave no MCP config entry. CRITICAL. Default scan only (no explicit path). Offline. An empty or cleared cache proves nothing (STORY-0158)."
     },
     {
       "finding_id": "VULN-UNPINNED",
@@ -1451,6 +1473,32 @@
       "notes": "Fires when a Claude Code hook command references an MCP/agent config file path (CVE-2026-30615 persistence channel). Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
     },
     {
+      "finding_id": "HOOK-004",
+      "finding_title": "Guard hook command may never run on Windows",
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication Controls"
+      ],
+      "notes": "Fires when a PreToolUse or UserPromptSubmit hook command in a Claude Code settings file (or a Cursor before* hook in hooks.json) has an unquoted path containing a space or single-backslash path segments, so Git Bash cannot start it, the hook exits 127 and the call proceeds (anthropics/claude-code#109103). LOW; MEDIUM in managed settings. CWE-754. Analyzer: config_hygiene (hook_runnable.py)."
+    },
+    {
+      "finding_id": "HOOK-005",
+      "finding_title": "Cursor hooks file can't be read, so its hooks never run",
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication Controls"
+      ],
+      "notes": "Fires when ~/.cursor/hooks.json or a project .cursor/hooks.json is unreadable, over 1 MiB, not valid JSON or not a JSON object. Cursor skips such a file silently (forum.cursor.com/t/177989, staff-confirmed). MEDIUM. CWE-754. Analyzer: config_hygiene (hook_runnable.py)."
+    },
+    {
       "finding_id": "HARNESS-001",
       "finding_title": "Claude Code sessions start with permission prompts skipped",
       "owasp_codes": [
@@ -2336,6 +2384,32 @@
         "Token Mismanagement and Secret Exposure"
       ],
       "notes": "HIGH in a repository file, MEDIUM in the user's own. An always-applied instruction file (CLAUDE.md tiers, rules, AGENTS.md, OpenClaw files, Cursor rules, Copilot instruction files) has one sentence with a send verb (not negated), a bulk or local secret object (environment variables, .env, ~/.ssh, ~/.aws, id_rsa, .netrc, private keys, all/every ... secrets/tokens/keys) and a destination (URL, IP, email address, a named server/endpoint/webhook). CWE-200. 0 of 486 project instruction files and 0 of 3,083 skill-repository files fire (docs/research/mem006/results.json)."
+    },
+    {
+      "finding_id": "MEM-007",
+      "finding_title": "Agent instruction file in Downloads or Desktop",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "MEDIUM. AGENTS.md, CLAUDE.md, GEMINI.md or .cursorrules directly in ~/Downloads or ~/Desktop (top level only; a subfolder is not read; a symlinked file or folder is reported as TRUST-002/TRUST-005 and not read). An agent started there follows the file, and the folders are where files arrive from outside. Read by the user-global agent-files scan. CWE-426. Research: Forever Security (Gal Weizman, Omer Samet), disclosed 2026-10-26. Analyzer: agent_files (STORY-0155)."
+    },
+    {
+      "finding_id": "MEM-008",
+      "finding_title": "Instruction file changes machine-wide agent settings or approvals",
+      "owasp_codes": [
+        "MCP03",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "HIGH outside a git repository, MEDIUM inside one. An always-applied instruction file (CLAUDE.md tiers, rules, AGENTS.md, OpenClaw files, Cursor rules, Copilot instruction files) opens a sentence with an edit verb aimed at a machine-wide agent config (~/.codex/config.toml, ~/.claude/settings.json, ~/.cursor/mcp.json, ~/.gemini/settings.json) with an MCP server, hook, command or approval/sandbox/trust change near it; or tells the agent to run with approvals off (SKILL-006's pattern); or sets a model base URL to a host that is not the vendor's (SKILL-006's check). CWE-269. 0 of 1,101 ordinary public instruction files fire; 23 of 703 files selected for the matcher's words, none an attack (docs/research/mem008/results.json). Research: Forever Security (Gal Weizman, Omer Samet), disclosed 2026-10-26. Analyzer: agent_files (STORY-0155)."
     },
     {
       "finding_id": "GUARD-001",

@@ -97,6 +97,7 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 - **OpenSSF malicious-packages** ([GitHub](https://github.com/ossf/malicious-packages)) via **OSV's data dumps** ([OSV docs](https://google.github.io/osv.dev/data/): per-ecosystem `all.zip` in `gs://osv-vulnerabilities`, "including withdrawn records") — the source of `registry/known-malicious.json`. `scripts/sync_registry_advisories.py` keeps non-withdrawn `MAL-*` records whose package name contains `mcp`, that the registry lists, or (STORY-0152, 2026-11-11) that has a token naming a coding agent mcp-audit reads or an agent skill.
 - **Knostic, Tamir Isaschar, "More Than Markdown: Hidden Data Collection in Two MCP Packages"** (2026-11-09, [knostic.ai](https://www.knostic.ai/blog/more-than-markdown-hidden-data-collection-in-two-mcp-packages)), a static review of `@ifasn/mmdd-doc-mcp` and `@ifasn/ms-doc-mcp` 2.1.1 (npm account `ifasn`): the first runs `deepAudit()` at launch and sends the names and value lengths of credential-like environment variables, plus matching command lines, over plain HTTP to 121.199.24.94; the second runs `envAudit()` and writes full credential-like values to stderr and `output/env_audit.txt`, with no external transmission found. The source of the `note` on OSV MAL-2026-18489 and MAL-2026-18603 in `registry/known-malicious.json` (`NOTES` in `scripts/sync_registry_advisories.py`; STORY-0152). The records themselves were already mirrored (STORY-0148).
 - **OSV MAL-2026-18192 (`agentic-awesome-skills`, GHSA-rgwm-3jj9-h563) and MAL-2026-18193 (`opencode-skills-collection`, GHSA-9855-prwc-mfp2)**, both published 2026-10-22 and crediting **Amazon Inspector** as finder ([OSV](https://osv.dev/vulnerability/MAL-2026-18192), [OSV](https://osv.dev/vulnerability/MAL-2026-18193)) — malicious agent-skill collections on npm, the cases that widened the mirror to the agent stack (STORY-0152). The token list (`AGENT_STACK_TOKENS`) is mcp-audit's own, taken from the agents mcp-audit reads (`docs/clients.md`, `docs/agent-files.md`) and measured on OSV's 2026-11-11 export (`docs/supply-chain.md`). The mirror keeps OSV's `id`, `aliases` and `summary`, not its `credits` field, so the finder is credited here; mcp-audit adds no note to these records.
+- **OSV MAL-2026-19148 (`@rfewqa-fes/mnm-doc-mcp`), MAL-2026-19159 (`@go-gost/mcp-darwin-x64`, GHSA-gfpg-48q7-c68h), MAL-2026-19204 (PyPI `my-mcp-server-driving-license-ocr`) and MAL-2026-19235 (`karma365-mcp`, GHSA-72xc-q3v8-7grp)**, published 2026-11-12 and 2026-11-13 ([OSV](https://osv.dev/vulnerability/MAL-2026-19148)), plus MAL-2026-19792 and MAL-2026-19539, two `dowload_ebok_*` npm names that the sync keeps only because they contain the letters `mcp` ("mcphee"). Read from OSV on 2026-11-14 and mirrored by `scripts/sync_registry_advisories.py --write` (STORY-0154); mcp-audit adds no note and states nothing beyond OSV's summary, versions and ranges.
 - **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
 - **PEP 503** ([peps.python.org](https://peps.python.org/pep-0503/)) — the name folding SC-007 applies to both ecosystems' names before comparing.
 
@@ -1756,6 +1757,29 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
   (`url`, `headers`) entry shapes are from the same verification; the `~/.opencode/bin`
   installer keeps no version file. The platform rule (WSL = a Linux kernel that names
   `microsoft`) uses the kernel's own `osrelease` / `version` text.
+- **MCP Inspector remote code execution, GHSA-q978-78c7-phqw (STORY-0154).** Eilon Cohen,
+  Pillar Security, "Inspecting the Inspector"
+  (https://www.pillar.security/blog/inspecting-the-inspector-rce-in-mcps-official-debugging-tool).
+  The GitHub advisory (`modelcontextprotocol/inspector`, published 2026-10-21, read
+  2026-11-14) gives `@modelcontextprotocol/inspector` >= 2.0.0, <= 2.11.0 as affected and
+  2.12.0 as the patched version, credits reporter `eilonc-pillar`, and carries no CVE of
+  its own. OSV (read 2026-11-14) resolves the GHSA only as an alias of CVE-2026-119025,
+  which VulnCheck filed against the `open` package (7.2.0 before 11.0.0, a dependency of
+  Inspector); that OSV record has no npm Inspector range, so the Inspector range and fix are
+  the GitHub advisory's, not OSV's. In `registry/known-servers.json` the record is a
+  `known_vulns` item with `fixed_in` 2.12.0; the registry shape has no lower bound, so the
+  `>=2.0.0` floor is in its description only.
+- **Claude Code Edit-tool TOCTOU, CVE-2026-88968 / GHSA-5xjx-9qx6-jcrv (STORY-0154).**
+  OSV (read 2026-11-14): `@anthropic-ai/claude-code`, fixed in 2.1.251, finder
+  hackerone.com/mahoraga007 (Sunder Singh), published 2026-11-09. Research record
+  `x_MCPRS-1fec894b3c53`; `introduced` and `platforms` are left unset because OSV lists all
+  releases before the fix and the text does not limit the flaw to one platform.
+- **`@modelcontextprotocol/server-everything` environment-variable leak, GHSA-mvf5-2qqv-rg3c
+  (credit: GitHub user `ehudmelzer`) is not in the registry yet.** The GitHub advisory
+  exists (published 2026-10-25: affected >= 2025.9.24 <= 2026.8.31 and >= 1.0.0 < 2.0.1,
+  fixed 2.0.1, credit `ehudmelzer`), but `api.osv.dev` returned "not found" for the ID on
+  2026-11-14 and the package has no OSV record, so STORY-0154's confirm-in-OSV rule kept
+  it out. It goes in once OSV carries it.
 
 ## `mcp-audit affected` (STORY-0121)
 
@@ -1911,6 +1935,29 @@ exfiltration sentence, so MEM-006 does not claim to detect them (GAPS.md); they
 are cited for the delivery route, a planted instruction file in a repository.
 Measurement: `docs/research/mem006/results.json`.
 
+## Instruction files in Downloads and Desktop (MEM-007, MEM-008, agent_files/discovery.py, agent_files/instruction_shapes.py)
+
+Original implementation; regexes written for this project, and every fixture
+sentence in `tests/test_agent_files_dropped.py` is written in our own words (no
+text from the report is copied). Source read 2026-11-14:
+
+- **Forever Security (Gal Weizman, Omer Samet), disclosed 2026-10-26**, as
+  reported by BleepingComputer, "AI coding agents hijacked using AGENTS.md file
+  in Downloads folder"
+  (https://bleepingcomputer.com/news/security/ai-coding-agents-hijacked-using-agentsmd-file-in-downloads-folder):
+  an `AGENTS.md` planted in a customer's `~/Downloads` told Codex to add an MCP
+  server to `~/.codex/config.toml` and then run `codex exec` with approvals and
+  sandbox off; per their telemetry about half of their customers run a coding
+  agent inside Downloads. We did not find Forever Security's own write-up by
+  name and cite the press report. The shapes MEM-008 matches (edit a
+  machine-wide agent config, approvals off, a changed base URL) and the folders
+  MEM-007 reads come from it; SKILL-006's patterns (USENIX Security 2026,
+  arXiv 2602.06547; CVE-2026-21852) are reused unchanged apart from not reading
+  `npx -y` as Gemini CLI's `-y`.
+
+Measurement: `docs/research/mem008/results.json` (public GitHub files; contents
+not committed).
+
 ## Policy that's actually enforced: policy sources and editor allowlists (MANAGED-006/007, EXTPOL-001..003, STORY-0144)
 
 Vendor documentation read on 2026-11-04; no code was copied from any scanner. Locations
@@ -1940,6 +1987,20 @@ are only those the pages name.
 ## Head-to-head benchmark corpus (STORY-0146, docs/research/head-to-head/corpus/)
 
 Every file in the committed corpus was written for this benchmark and is generated by `scripts/bench_competitors.py`; none is copied from a scanner's test suite or from a real malicious skill. The payload in every malicious case is the same inert test string aimed at the reserved domain `attacker.example`. The hiding techniques follow VirusTotal's report of malicious skills hiding instructions after 78 to 825 blank lines (Bernardo Quintero, 2026-10-21, via @IntCyberDigest on X), and the HTML-comment, Unicode TAG-character and zero-width encodings already described under the concealment channels (POISON-041..045). The benign checklist skills are original text. MCPTox (arXiv 2508.14925, AAAI 2026) has no stated licence and is never committed: the harness reads it from a local path and commits only SHA-256 hashes. Competitor output shapes in the parsers come from each project's public README and docs and are marked unverified in the script until a real run confirms them.
+
+## HOOK-004 / HOOK-005: guard hooks that will never run (STORY-0156, 2026-11-15)
+
+- **HOOK-004:** [anthropics/claude-code#109103](https://github.com/anthropics/claude-code/issues/109103), reported by `daniels-zenity` (Zenity). On Windows a hook `command` runs through Git Bash; backslash paths lose their backslashes and an unquoted space splits the path, so the hook exits 127, Claude Code treats that as non-blocking and the call proceeds. The report measures which command shapes run (forward slashes, double quotes, doubled backslashes) and which do not (unquoted backslashes, unquoted space, single-quoted backslashes); the check matches exactly those shapes and nothing broader. The measurement it replaced is the HOOK-003 corpus result in mcp-audit PR 247 (65% of hook-bearing files fired, so that check was dropped).
+- **HOOK-005 and the Cursor reader:** Cursor's hooks documentation ([cursor.com/docs/hooks](https://cursor.com/docs/hooks), read 2026-11-15) for the file locations, the `version` and `hooks` keys, the event names, the flat per-hook fields (`command`, `type`, `matcher`, `failClosed`) and the exit-code rule that lets the action proceed unless `failClosed` is true. The silent skip is from the Cursor forum thread [177989](https://forum.cursor.com/t/177989) (Maciej_Malysz, Cursor CLI 2026.11.05; Cursor staff: the CLI "can skip that file silently if it can't read it at the path it resolves"). The docs do not say what Cursor does with a malformed file, so HOOK-005's text claims only what the staff reply confirms.
+- Original implementation; no code copied.
+
+## CRED-006: settings files a container image or npm package ships (STORY-0157, 2026-11-16)
+
+- **Prompt:** Tich Kadandara, in a LinkedIn comment on the CRED-004/CRED-005 release post (2026-11-15), asked whether mcp-audit checks that `.dockerignore` excludes `.claude/`, citing GitGuardian's Docker Hub numbers.
+- **GitGuardian, Guillaume Valadon** (https://blog.gitguardian.com/claude-code-settings-local-json-secrets-docker-hub/, 2026-11-09; figures cross-checked 2026-11-16 in CSO Online, https://www.csoonline.com/article/4247336/claude-codes-dont-ask-again-button-has-a-secrets-spilling-problem.html, and InfoWorld, https://www.infoworld.com/article/4247344/claude-codes-dont-ask-again-button-has-a-secrets-spilling-problem-2.html): 613 distinct secrets from Claude Code settings files in public Docker Hub images, 99 valid at detection, across 543 image repositories and 7,625 tags; one valid Cloudflare API token in 559 tags; Docker does not read `.gitignore`.
+- **Docker build context documentation** (https://docs.docker.com/build/concepts/context/, read 2026-11-16): a Dockerfile-specific ignore file is named by prefixing the Dockerfile's name (`build.Dockerfile.dockerignore`), sits next to the Dockerfile and takes precedence over the context root's `.dockerignore`; leading and trailing slashes are disregarded; `**` matches any number of directories including zero; `!` makes exceptions; the last matching line decides; matching follows Go's `filepath.Match`. The preprocessing (a line whose first character is `#` is a comment, trim, `filepath.Clean`, one leading `/` dropped) and the path-or-parent rule follow `moby/patternmatcher` v0.6.1 (`ignorefile.ReadAll`, `PatternMatcher.MatchesOrParentMatches`), Apache 2.0. No code was copied: the matcher reuses mcp-audit's own linear-time wildcard code from `_gitignore.py`. A parity script compared 136 pattern/path pairs (34 patterns, 4 paths) against `moby/patternmatcher` v0.6.1 on 2026-11-16 with no differences; the pairs and BuildKit's answers are in `tests/golden/dockerignore_buildkit.json`, which `tests/test_shipped_settings.py::test_parity_with_buildkit` checks.
+- **npm `package.json` documentation, "files"** (https://docs.npmjs.com/cli/v10/configuring-npm/package-json, read 2026-11-16): a `.npmignore` in the package root "will not override the "files" field, but in subdirectories it will"; `.npmignore` works like `.gitignore`; when `.npmignore` is missing, `.gitignore`'s contents are used. Checked with `npm pack --dry-run --json` (npm 10.9) on 2026-11-16 for seven layouts (no ignore file, `.gitignore` only, `.npmignore` without `.claude`, `files: ["index.js"]`, `files: ["*"]`, `files: [".claude"]`, and a subfolder `.gitignore` under a `files` entry); CRED-006 gave the same answer as npm for each. `files: ["*"]` does include `.claude/`.
+- **Severity** follows CRED-004: HIGH when the shipped file holds a credential in a permission rule. A `settings.local.json` with none is LOW (approvals and home paths, not a credential); a shared `settings.json` with none is silent because it is committed with the repository anyway. CWE-538 (Insertion of Sensitive Information into Externally-Accessible File or Directory).
 
 ## CRED-005: secrets in permission rules that git history still holds (STORY-0153, 2026-11-12)
 
