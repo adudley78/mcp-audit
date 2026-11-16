@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Known-malicious packages that npx ran on this machine (SC-011, CRITICAL; STORY-0158).** SC-008 matches OSV `MAL-*` records by exact name, but only for a package an MCP config launches, so a skill collection installed from a shell (`npx agentic-awesome-skills`, MAL-2026-18192) left nothing to match: only its skill files stay on disk. npx keeps what it ran in `<npm cache>/_npx/<hash>/node_modules`, one `package.json` per package and dependency, with the exact name and version. A default scan now reads those two fields (top level of `node_modules`, scoped names included; regular files only, never through a symlink, 64 KiB per file, 2,000 install directories and 50,000 packages per scan) and matches them against the same bundled mirror with the same exact-name rule, so a name without a record cannot fire. The cache is `$npm_config_cache`, else `%LocalAppData%\npm-cache` on Windows, else `~/.npm`. A cleared cache, a cache set only in `.npmrc`, `pnpm dlx`/`bunx`, and PyPI runners (`uvx`, `pipx run`) are not covered; see GAPS.md. Raised by Carl Sue (@carlsue) on X, 2026-11-16.
+
 ---
 
 ## [0.31.0] - 2026-11-16

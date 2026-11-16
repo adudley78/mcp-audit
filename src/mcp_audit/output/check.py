@@ -81,6 +81,10 @@ _HINTS: dict[str, str] = {
         "Archived upstream: move to the successor the finding names, or to a "
         "maintained server for the same service."
     ),
+    "SC-011": (
+        "npx ran a release OSV lists as malicious: follow the advisory, rotate "
+        "credentials, then delete its folder under the npm cache's _npx."
+    ),
     "SC-008": (
         "OSV lists malicious releases of this package; follow the finding: "
         "remove it, or pin a release the record does not list."
