@@ -1,6 +1,6 @@
 # Supported clients
 
-Where mcp-audit looks for MCP servers, per client, and how each file is read.
+Where Credenzo looks for MCP servers, per client, and how each file is read.
 A default `scan` / `check` reads the user-level files below plus the project
 files at the root of the working directory; `scan --project <dir>` walks a
 repository for the project files (depth 8, skipping `node_modules`, `.git`
@@ -37,7 +37,7 @@ Confirmed from Codex's own source (openai/codex, `main`, 2026-10-28):
   lists the layers: system `/etc/codex/config.toml`, user
   `${CODEX_HOME}/config.toml`, then "parent directories up to root looking for
   `./.codex/config.toml` (loaded but disabled when untrusted)". A project's
-  `.codex/` directory that *is* `CODEX_HOME` is skipped; mcp-audit does the
+  `.codex/` directory that *is* `CODEX_HOME` is skipped; Credenzo does the
   same (a scan from `$HOME` reads `~/.codex/config.toml` once, as the user's).
   `mcp_servers` is not on Codex's `PROJECT_LOCAL_CONFIG_DENYLIST`, so a
   trusted repository can add MCP servers.
@@ -45,7 +45,7 @@ Confirmed from Codex's own source (openai/codex, `main`, 2026-10-28):
   `command` makes a stdio server (`args`, `env`, `cwd`; `env_vars` names
   variables to pass through). Otherwise `url` makes a streamable-HTTP server;
   Codex has no SSE transport, so a `/sse` path is still read as HTTP.
-  mcp-audit records `http_headers` as headers, `env_http_headers` as
+  Credenzo records `http_headers` as headers, `env_http_headers` as
   `Header: ${VAR}`, `bearer_token_env_var` as `Authorization: Bearer ${VAR}`,
   and the retired literal `bearer_token` (which Codex now refuses) as
   `Authorization: Bearer <value>`, because the secret is still in the file:
@@ -82,7 +82,7 @@ Confirmed from Gemini CLI's docs and source (google-gemini/gemini-cli,
   `command` beside a URL never runs, but it is still analysed.
 - **Comments.** Gemini CLI reads the file with `JSON.parse(stripJsonComments(…))`
   (`packages/cli/src/config/settings.ts`): `//` and `/* */` comments are
-  allowed, trailing commas are not. mcp-audit reads it the same way; a file
+  allowed, trailing commas are not. Credenzo reads it the same way; a file
   Gemini CLI would reject is reported in the scan's errors.
 - **Auth.** `authProviderType` counts as authentication for AUTH-001, like
   `oauth`; `oauth.audiences` (a list with at least one non-wildcard value)
@@ -123,7 +123,7 @@ Confirmed from Gemini CLI's docs and source (google-gemini/gemini-cli,
   an inline `Bearer`/`Basic`/`Token`) in `raw`, and
   credentials in launch arguments and URLs (STORY-0108). `env` values are
   printed as written, as for every client (GAPS.md).
-- `mcp-audit fix` edits JSON only: it refuses Codex's `config.toml` and tells
+- `credenzo fix` edits JSON only: it refuses Codex's `config.toml` and tells
   you to edit it by hand, and `check` never offers `fix` for it. A Gemini CLI
   `settings.json` with comments is refused too (rewriting it would drop them).
 - See `GAPS.md` ("Codex and Gemini CLI MCP servers") for what is not read:

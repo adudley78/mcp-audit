@@ -1,4 +1,4 @@
-"""Launch gate for ``mcp-audit run`` (EPIC-0009 Story 1.3).
+"""Launch gate for ``credenzo run`` (EPIC-0009 Story 1.3).
 
 Before the server starts, the gate checks the command about to run against
 the server's entry in the nearest ``mcp-lock.json``:
@@ -10,7 +10,7 @@ LOCK-002   The server is not in the lock (never approved).
 LOCK-001   The launch differs from the approved launch (drift).
 RUN-001    No ``mcp-lock.json`` covers the server's config file.
 RUN-002    The lock exists but can't be read, isn't valid, is a newer
-           ``lock_version`` than this mcp-audit understands, or its
+           ``lock_version`` than this Credenzo understands, or its
            ``tools`` section fails its own checksum.
 =========  ==========================================================
 
@@ -169,7 +169,7 @@ def check_launch(
         return GateResult(
             "RUN-001",
             f"no mcp-lock.json covers {config_path.name}",
-            "run `mcp-audit lock` in the project, or pass --lock",
+            "run `credenzo lock` in the project, or pass --lock",
         )
 
     try:
@@ -178,7 +178,7 @@ def check_launch(
         return GateResult(
             "RUN-002",
             f"{lock.name} can't be read or isn't valid JSON",
-            "restore it from version control or run `mcp-audit lock`",
+            "restore it from version control or run `credenzo lock`",
         )
     servers = doc.get("servers") if isinstance(doc, dict) else None
     if not isinstance(servers, dict) or not all(
@@ -187,13 +187,13 @@ def check_launch(
         return GateResult(
             "RUN-002",
             f"{lock.name} has no valid servers section",
-            "restore it from version control or run `mcp-audit lock`",
+            "restore it from version control or run `credenzo lock`",
         )
     newer = unsupported_version(doc)
     if newer is not None:
         return GateResult(
             "RUN-002",
-            f"{lock.name} is lock_version {newer}, newer than this mcp-audit reads",
+            f"{lock.name} is lock_version {newer}, newer than this Credenzo reads",
             "upgrade mcp-audit",
         )
 
@@ -202,7 +202,7 @@ def check_launch(
         return GateResult(
             "RUN-001",
             f"{config_path.name} is outside the scope of {lock}",
-            "run `mcp-audit lock` where the config lives, or pass --lock",
+            "run `credenzo lock` where the config lives, or pass --lock",
         )
 
     found = index_locked_entries(servers).get(key)
@@ -210,7 +210,7 @@ def check_launch(
         return GateResult(
             "LOCK-002",
             f"server {server_name!r} is not in mcp-lock.json",
-            "review it, then run `mcp-audit lock` to approve it",
+            "review it, then run `credenzo lock` to approve it",
         )
 
     entry_key, entry = found
@@ -224,7 +224,7 @@ def check_launch(
                 "RUN-002",
                 f"the tools section of {lock.name} fails its checksum "
                 "(lock --verify reports this as LOCK-005)",
-                "restore it from version control or run `mcp-audit lock --connect`",
+                "restore it from version control or run `credenzo lock --connect`",
             )
         record = section["servers"].get(entry_key)
         return GateResult(
@@ -234,5 +234,5 @@ def check_launch(
         "LOCK-001",
         f"server {server_name!r} drifted from mcp-lock.json: "
         f"{_describe_change(identity, argv)}",
-        "review the change; if approved, run `mcp-audit lock --accept`",
+        "review the change; if approved, run `credenzo lock --accept`",
     )

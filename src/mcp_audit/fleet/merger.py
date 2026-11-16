@@ -2,9 +2,9 @@
 """Fleet merger — consolidates JSON scan outputs from multiple machines.
 
 Typical workflow:
-1. Each machine runs: mcp-audit scan --format json --output-file results.json
+1. Each machine runs: credenzo scan --format json --output-file results.json
 2. Collect all JSON files to a central directory.
-3. Run: mcp-audit merge --dir ./results/
+3. Run: credenzo merge --dir ./results/
 
 The merger deduplicates findings across machines by grouping on
 (analyzer, server_name, title). A finding that appears on 12 of 15
@@ -38,7 +38,7 @@ _SEVERITY_ORDER: dict[Severity, int] = {
     Severity.INFO: 4,
 }
 
-# Required top-level keys that identify a file as mcp-audit JSON output.
+# Required top-level keys that identify a file as Credenzo JSON output.
 # Accept both "machine_info" (current) and legacy "machine" for backward
 # compatibility with scan files produced before the key rename.
 _REQUIRED_KEYS: frozenset[str] = frozenset({"version", "timestamp", "findings"})
@@ -141,14 +141,14 @@ class FleetMerger:
         """Load a single JSON scan output file and return a :class:`MachineReport`.
 
         Args:
-            path: Path to the JSON file produced by ``mcp-audit scan --format json``.
+            path: Path to the JSON file produced by ``credenzo scan --format json``.
 
         Returns:
             A :class:`MachineReport` populated from the file.
 
         Raises:
             ValueError: If the file is not readable, not valid JSON, or does not
-                contain the required mcp-audit fields.
+                contain the required Credenzo fields.
         """
         try:
             raw = path.read_text(encoding="utf-8")
@@ -162,14 +162,14 @@ class FleetMerger:
 
         if not isinstance(data, dict):
             raise ValueError(
-                f"{path} is not a valid mcp-audit JSON output "
+                f"{path} is not a valid Credenzo JSON output "
                 f"(expected object, got {type(data).__name__})"
             )
 
         missing = _REQUIRED_KEYS - data.keys()
         if missing:
             raise ValueError(
-                f"{path} is missing required mcp-audit fields: "
+                f"{path} is missing required Credenzo fields: "
                 f"{', '.join(sorted(missing))}"
             )
 
@@ -473,7 +473,7 @@ _FLEET_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>mcp-audit — Fleet Dashboard</title>
+<title>Credenzo — Fleet Dashboard</title>
 <style>
 [data-theme="dark"]{
   --bg-deep:#0c0c1a;--bg-panel:#13132a;--bg-card:#1a1a38;--bg-hover:#222250;
@@ -659,7 +659,7 @@ body{
 <!-- Top bar -->
 <header class="top-bar">
   <div class="logo">
-    <span class="logo-name">mcp-audit</span>
+    <span class="logo-name">Credenzo</span>
     <span class="logo-sub">Fleet Dashboard</span>
   </div>
   <div class="top-center" id="top-center"></div>
@@ -787,7 +787,7 @@ function initHeader(){
   if(D.version_mismatches && D.version_mismatches.length)
     parts.push(D.version_mismatches.length + ' version mismatch(es)');
   document.getElementById('summary-bar').textContent =
-    parts.length ? parts.join('  \u00b7  ') : 'mcp-audit v' + D.scanner_version;
+    parts.length ? parts.join('  \u00b7  ') : 'Credenzo v' + D.scanner_version;
 
   // Fleet grade badge
   if(D.fleet_grade){

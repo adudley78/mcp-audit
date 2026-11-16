@@ -6,9 +6,9 @@ overwhelming common case, which means they embed the operator's OS username.
 That is correct and useful in terminal output and the HTML dashboard, where
 the reader is looking at their own machine. It is a defect in any output
 sink designed to be published, uploaded, or ingested somewhere else: the
-advisory feed (``mcp-audit advise``), SARIF (``scan --format sarif``),
+advisory feed (``credenzo advise``), SARIF (``scan --format sarif``),
 Nucleus FlexConnect (``push-nucleus`` / ``scan --format nucleus``), and the
-forensic snapshot export (``mcp-audit snapshot``) all copy ``Finding`` text
+forensic snapshot export (``credenzo snapshot``) all copy ``Finding`` text
 and paths verbatim into a document meant to leave the machine.
 
 :func:`redact_local_paths` is the one shared implementation every one of
@@ -42,7 +42,7 @@ def redact_local_paths(text: str, config_path: Path) -> str:
     absolute paths, so the same finding canonicalizes (and, for the advisory feed,
     signs) differently depending on where the scanning machine happens to keep its
     checkout — on top of leaking the operator's home-directory username, which
-    contradicts mcp-audit's own privacy-first premise in the components designed to
+    contradicts Credenzo's own privacy-first premise in the components designed to
     leave the machine.
 
     *config_path*, and each of its ancestors up to (but not including) ``$HOME``,
@@ -70,7 +70,7 @@ def redact_local_paths(text: str, config_path: Path) -> str:
     would carry there.
 
     Scope: this protects *this* invocation's own operator (``$HOME``), which is
-    what "mcp-audit leaks the local username" means for the overwhelmingly common
+    what "Credenzo leaks the local username" means for the overwhelmingly common
     case of scanning your own client configs. It does not scrub an unrelated
     username that happens to appear in a *different* user's directory named in an
     explicitly-scanned path outside ``$HOME`` (e.g. ``--project`` pointed at

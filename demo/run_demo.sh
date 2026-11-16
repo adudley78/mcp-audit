@@ -1,8 +1,8 @@
 #!/bin/bash
-# mcp-audit demo — runs every command against the demo config directory
+# Credenzo demo — runs every command against the demo config directory
 # and writes SARIF, JSON, and Nucleus output to demo/output/.
 #
-# mcp-audit scan exits with code 1 when findings are found, so each scan
+# credenzo scan exits with code 1 when findings are found, so each scan
 # command is followed by "|| true" to let the script continue.
 
 DEMO_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,20 +11,20 @@ OUTPUT="$DEMO_DIR/output"
 
 mkdir -p "$OUTPUT"
 
-# Detect how to invoke mcp-audit (installed globally vs. development venv).
-if command -v mcp-audit >/dev/null 2>&1; then
-    MCP_AUDIT="mcp-audit"
-elif command -v uv >/dev/null 2>&1 && uv run mcp-audit --help >/dev/null 2>&1; then
-    MCP_AUDIT="uv run mcp-audit"
+# Detect how to invoke Credenzo (installed globally vs. development venv).
+if command -v credenzo >/dev/null 2>&1; then
+    MCP_AUDIT="credenzo"
+elif command -v uv >/dev/null 2>&1 && uv run credenzo --help >/dev/null 2>&1; then
+    MCP_AUDIT="uv run credenzo"
 else
-    echo "Error: mcp-audit not found."
-    echo "  Install globally: pip install mcp-audit-scanner"
+    echo "Error: credenzo not found."
+    echo "  Install globally: pip install credenzo"
     echo "  Dev mode:         uv sync --all-extras  (then re-run this script)"
     exit 1
 fi
 
 echo "========================================"
-echo "  mcp-audit Demo Environment"
+echo "  Credenzo Demo Environment"
 echo "========================================"
 echo ""
 echo "Config directory: $CONFIGS"

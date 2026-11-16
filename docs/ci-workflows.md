@@ -9,7 +9,7 @@ Security Review put its environment in a pull-request comment, the Gemini CLI
 action posted `GEMINI_API_KEY` as an issue comment, and the Copilot agent pushed
 it in a commit.
 
-mcp-audit reads `.github/workflows/*.yml` and `*.yaml` and reports that shape
+Credenzo reads `.github/workflows/*.yml` and `*.yaml` and reports that shape
 before the first malicious comment arrives. It parses the files with
 `yaml.safe_load`; it never runs them, and it never calls `git` or `gh`.
 
@@ -17,9 +17,9 @@ before the first malicious comment arrives. It parses the files with
 
 | Command | What is read |
 |---|---|
-| `mcp-audit scan`, `mcp-audit check` (no path) | `<working directory>/.github/workflows/`. This is what the mcp-audit GitHub Action's default run sees, because it scans from the checkout. |
-| `mcp-audit scan --project DIR` | `DIR/.github/workflows/`, plus the same directory under every nested folder that is itself a repository root (has a `.git` entry, such as a submodule or a folder of checkouts). Copies of workflows inside one repository (vendored code, test data) are not read, because GitHub would not run them. |
-| `mcp-audit scan PATH` / `--path` | Nothing: an explicit path scans exactly what it names. |
+| `credenzo scan`, `credenzo check` (no path) | `<working directory>/.github/workflows/`. This is what the Credenzo GitHub Action's default run sees, because it scans from the checkout. |
+| `credenzo scan --project DIR` | `DIR/.github/workflows/`, plus the same directory under every nested folder that is itself a repository root (has a `.git` entry, such as a submodule or a folder of checkouts). Copies of workflows inside one repository (vendored code, test data) are not read, because GitHub would not run them. |
+| `credenzo scan PATH` / `--path` | Nothing: an explicit path scans exactly what it names. |
 
 Only the top level of `.github/workflows/` is read, as GitHub does. When the
 working directory is also the `--project` directory, each finding is reported
@@ -39,11 +39,11 @@ under the scan's errors, so a clean result never hides what was not read.
 A step is an **agent step** when its `uses:` names one of these actions (exact
 `owner/repo`, any version):
 
-| Action | How mcp-audit reads its tool limits |
+| Action | How Credenzo reads its tool limits |
 |---|---|
 | `anthropics/claude-code-action` | By default Claude gets file operations, comments and basic GitHub operations and **cannot run arbitrary shell commands** (the action's `docs/configuration.md`). `--allowedTools` adds tools to that set. So the default counts as limited, and the step counts as open only when `claude_args` (or the v0.x `allowed_tools` input, or `permissions` in the `settings` JSON) allows every shell command (`Bash`, `Bash(*)`), allows a broad command such as `Bash(cat:*)`, `Bash(python3:*)` or `Bash(gh:*)` (the HARNESS-005 list), or sets `--dangerously-skip-permissions` / `--permission-mode bypassPermissions` / `defaultMode: bypassPermissions`. |
 | `anthropics/claude-code-security-review` | Has no input that limits Claude's tools. Its README says it "is not hardened against prompt injection attacks and should only be used to review trusted PRs". Always open. |
-| `google-github-actions/run-gemini-cli` | Always runs `gemini --yolo`, which approves every tool call. Limited only by a `tools.core` allowlist in the `settings` input (the older flat `coreTools` key is read too); Google's own example workflows use `"tools": {"core": []}`. A bare `run_shell_command` or a broad command such as `run_shell_command(cat)` in that list opens it again. `security.disableYoloMode: true` counts as limited. A `settings` value mcp-audit cannot read as JSON (for example a file path) produces no finding. |
+| `google-github-actions/run-gemini-cli` | Always runs `gemini --yolo`, which approves every tool call. Limited only by a `tools.core` allowlist in the `settings` input (the older flat `coreTools` key is read too); Google's own example workflows use `"tools": {"core": []}`. A bare `run_shell_command` or a broad command such as `run_shell_command(cat)` in that list opens it again. `security.disableYoloMode: true` counts as limited. A `settings` value Credenzo cannot read as JSON (for example a file path) produces no finding. |
 
 Then four facts from the file:
 

@@ -1,9 +1,9 @@
 #!/bin/bash
-# demo/lock/run.sh — reproducible demo of `mcp-audit lock`:
+# demo/lock/run.sh — reproducible demo of `credenzo lock`:
 #   lock -> one-line drift -> `lock --verify` fails (LOCK-001) -> `lock --accept`
 #   -> `lock --verify` passes.
 #
-# Requires network: `mcp-audit lock` resolves each server's package version
+# Requires network: `credenzo lock` resolves each server's package version
 # against the npm registry. Run with MCP_AUDIT_DEMO_NETWORK=1 in CI
 # (tests/test_demo_lock.py gates on the same variable). See docs/lock.md.
 #
@@ -16,14 +16,14 @@ CONFIG="$DEMO_DIR/.cursor/mcp.json"
 LOCK_FILE="$DEMO_DIR/mcp-lock.json"
 BACKUP_CONFIG="$(mktemp)"
 
-# Detect how to invoke mcp-audit (installed globally vs. development venv).
-if command -v mcp-audit >/dev/null 2>&1; then
-    MCP_AUDIT="mcp-audit"
-elif command -v uv >/dev/null 2>&1 && uv run mcp-audit --help >/dev/null 2>&1; then
-    MCP_AUDIT="uv run mcp-audit"
+# Detect how to invoke Credenzo (installed globally vs. development venv).
+if command -v credenzo >/dev/null 2>&1; then
+    MCP_AUDIT="credenzo"
+elif command -v uv >/dev/null 2>&1 && uv run credenzo --help >/dev/null 2>&1; then
+    MCP_AUDIT="uv run credenzo"
 else
-    echo "Error: mcp-audit not found."
-    echo "  Install globally: pip install mcp-audit-scanner"
+    echo "Error: credenzo not found."
+    echo "  Install globally: pip install credenzo"
     echo "  Dev mode:         uv sync --all-extras  (then re-run this script)"
     exit 1
 fi
@@ -38,16 +38,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== a. mcp-audit lock demo/lock ==="
+echo "=== a. credenzo lock demo/lock ==="
 $MCP_AUDIT lock "$DEMO_DIR"
 
 if [ ! -f "$LOCK_FILE" ]; then
-    echo "FAIL: $LOCK_FILE was not written by 'mcp-audit lock'" >&2
+    echo "FAIL: $LOCK_FILE was not written by 'credenzo lock'" >&2
     exit 1
 fi
 
 echo ""
-echo "=== a2. mcp-audit scan demo/lock (expect no LOCK-* on a just-locked repo) ==="
+echo "=== a2. credenzo scan demo/lock (expect no LOCK-* on a just-locked repo) ==="
 SCAN_OUTPUT="$($MCP_AUDIT scan "$DEMO_DIR" 2>&1 || true)"
 if printf '%s\n' "$SCAN_OUTPUT" | grep -q "LOCK-"; then
     echo "FAIL: scan of a just-locked repo reported LOCK findings:" >&2
@@ -92,7 +92,7 @@ PY
 cat "$CONFIG"
 
 echo ""
-echo "=== c. mcp-audit lock --verify demo/lock (expect exit 1 on drift) ==="
+echo "=== c. credenzo lock --verify demo/lock (expect exit 1 on drift) ==="
 set +e
 VERIFY_OUTPUT="$($MCP_AUDIT lock --verify "$DEMO_DIR" 2>&1)"
 VERIFY_EXIT=$?
@@ -119,11 +119,11 @@ if printf '%s\n' "$VERIFY_OUTPUT" | grep -q "LOCK-005"; then
 fi
 
 echo ""
-echo "=== d. mcp-audit lock --accept demo/lock (expect exit 0) ==="
+echo "=== d. credenzo lock --accept demo/lock (expect exit 0) ==="
 $MCP_AUDIT lock --accept "$DEMO_DIR"
 
 echo ""
-echo "=== e. mcp-audit lock --verify demo/lock (expect exit 0) ==="
+echo "=== e. credenzo lock --verify demo/lock (expect exit 0) ==="
 $MCP_AUDIT lock --verify "$DEMO_DIR"
 
 echo ""

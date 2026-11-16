@@ -1,11 +1,11 @@
 """Pure builder: package name + RegistryEntry → verdict document.
 
 This module is the **single source of truth** for the verdict document shape
-used by ``mcp-audit vet``.  It has no I/O and no network calls — the function
+used by ``credenzo vet``.  It has no I/O and no network calls — the function
 is deterministic given the same inputs and is therefore trivial to unit-test.
 
 Consumers:
-- ``mcp_audit.cli.vet`` (the ``mcp-audit vet`` CLI command)
+- ``mcp_audit.cli.vet`` (the ``credenzo vet`` CLI command)
 - The mcp-audit.dev static-site generator (future)
 
 Verdict schema: ``https://mcp-audit.dev/v1/schema.json`` (schema_version 1.0.0).

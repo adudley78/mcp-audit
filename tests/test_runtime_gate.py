@@ -1,6 +1,6 @@
-"""Tests for the ``mcp-audit run`` launch gate (EPIC-0009 Story 1.3).
+"""Tests for the ``credenzo run`` launch gate (EPIC-0009 Story 1.3).
 
-Every lock here is written by the real ``mcp-audit lock`` command, so the
+Every lock here is written by the real ``credenzo lock`` command, so the
 gate is tested against the file format ``lock`` actually produces, not a
 hand-built copy of it.
 """
@@ -79,7 +79,7 @@ class TestCheckLaunch:
         _config(repo, {"srv": _server(SERVER), "other": _server(SERVER)})
         result = check_launch(SERVER, config_path=config, server_name="other")
         assert result.finding_id == "LOCK-002"
-        assert "mcp-audit lock" in result.fix
+        assert "credenzo lock" in result.fix
 
     def test_changed_args_are_lock_001(self, repo: Path) -> None:
         config = _config(repo, {"srv": _server([PY, "-c", "print(1)"])})
@@ -242,7 +242,7 @@ class TestCli:
         assert enforce.returncode == EXIT_REFUSED
         lines = enforce.stderr.splitlines()
         assert len(lines) == 1
-        assert lines[0].startswith(f"mcp-audit run: refused: {finding} ")
+        assert lines[0].startswith(f"credenzo run: refused: {finding} ")
         assert "Fix: " in lines[0]
 
         monitor = _run("--config", str(config), "--server", name, "--", *argv)

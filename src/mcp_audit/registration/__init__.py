@@ -1,4 +1,4 @@
-"""Opt-in registration package for mcp-audit.
+"""Opt-in registration package for Credenzo.
 
 Users who choose to register share contact details so they can be contacted
 about project updates, and may opt in to a follow-up when their scan grade is

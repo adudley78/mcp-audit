@@ -63,8 +63,7 @@ def baseline_list() -> None:
 
     if not baselines:
         console.print(
-            "No baselines saved. "
-            "Run [bold]mcp-audit baseline save[/bold] to create one."
+            "No baselines saved. Run [bold]credenzo baseline save[/bold] to create one."
         )
         return
 
@@ -116,7 +115,7 @@ def baseline_compare(
         if bl is None:
             console.print(
                 "[red]No baselines found.[/red]  "
-                "Run [bold]mcp-audit baseline save[/bold] to create one."
+                "Run [bold]credenzo baseline save[/bold] to create one."
             )
             raise typer.Exit(2)  # noqa: B904
 

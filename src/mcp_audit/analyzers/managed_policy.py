@@ -217,7 +217,7 @@ class ManagedPolicy:
         """True when a managed settings file or the drop-in list couldn't be read.
 
         Claude Code then drops the source or refuses to start, so verdicts
-        built from the rest would be claims mcp-audit can't back.
+        built from the rest would be claims Credenzo can't back.
         """
         return bool(
             self.unparsable_files or self.dropins_unlisted or self.malformed_sources
@@ -256,7 +256,7 @@ class SourceDoc:
         problem: Why it is not a usable JSON object, else ``None``.
         problem_kind: ``malformed`` (Claude Code refuses to start), ``denied``
             (the OS refused the read: Claude Code starts without the source) or
-            ``unreadable`` (any other failure, or mcp-audit's own limits).
+            ``unreadable`` (any other failure, or Credenzo's own limits).
     """
 
     label: str
@@ -1160,7 +1160,7 @@ def url_matches(pattern: str, url: str) -> bool | None:
     hostname with a ``*`` in it matches every port.  Returns ``None``
     (undecidable) when either side has a ``${VAR}`` reference, isn't a
     ``scheme://`` URL, is too long, has a non-numeric port, or the server's
-    scheme has no default port mcp-audit knows when one is needed.
+    scheme has no default port Credenzo knows when one is needed.
     """
     if "${" in pattern or "${" in url:
         return None
@@ -1380,7 +1380,7 @@ def _finding(
 
 
 _SOURCE_CAVEAT = (
-    " mcp-audit reads only the managed files in the system directory. An MDM"
+    " Credenzo reads only the managed files in the system directory. An MDM"
     " profile, an HKLM registry policy or server-managed settings from the"
     " claude.ai console rank above these files and are not visible to it; under"
     " Claude Code's default first-wins rule a higher source that delivers any"
@@ -1389,7 +1389,7 @@ _SOURCE_CAVEAT = (
     " Claude Code 2.1.273 or later; managed-mcp.json always applies)."
 )
 _SOURCE_CAVEAT_READ = (
-    " mcp-audit read the managed files and this platform's MDM / registry"
+    " Credenzo read the managed files and this platform's MDM / registry"
     " sources and ranks them as Claude Code does. Server-managed settings from"
     " the claude.ai console rank above all of them and have no local copy, so"
     " they are not visible; under Claude Code's default first-wins rule a higher"
@@ -1498,14 +1498,14 @@ def _inventory(policy: ManagedPolicy) -> Finding:
     elif policy.strict_plugin_only_mcp:
         parts.append(
             "strictPluginOnlyCustomization is set to a value whose effect on MCP"
-            " mcp-audit can't decide (a quoted boolean or an object)"
+            " Credenzo can't decide (a quoted boolean or an object)"
         )
     if policy.incomplete:
         if not policy.malformed_sources:
             parts.append(
                 "verdicts withheld (no MANAGED-002/003/004/005): a managed settings"
                 " file or the managed-settings.d directory could not be read or"
-                " parsed, so mcp-audit can't tell what Claude Code enforces (it"
+                " parsed, so Credenzo can't tell what Claude Code enforces (it"
                 " drops a source it can't read and refuses to start on a document"
                 " it can't parse)"
             )
@@ -1519,7 +1519,7 @@ def _inventory(policy: ManagedPolicy) -> Finding:
             parts.append(
                 "verdicts withheld (no MANAGED-002/003/004/005): "
                 + " and ".join(causes)
-                + " could not be read or parsed, so mcp-audit can't tell what"
+                + " could not be read or parsed, so Credenzo can't tell what"
                 " Claude Code enforces"
             )
     if policy.unparsable_files:
@@ -1541,8 +1541,8 @@ def _inventory(policy: ManagedPolicy) -> Finding:
         ),
         (
             "unreadable",
-            "an admin source mcp-audit could not read (Claude Code may exit at"
-            " startup, or mcp-audit's own limit applied)",
+            "an admin source Credenzo could not read (Claude Code may exit at"
+            " startup, or Credenzo's own limit applied)",
         ),
     ):
         group = [m for m in policy.malformed_sources if m.problem_kind == kind]
@@ -1574,12 +1574,12 @@ def _inventory(policy: ManagedPolicy) -> Finding:
 _VERDICT_CAVEAT = (
     " This holds when the managed settings files are the source Claude Code"
     " applies: an MDM profile or server-managed settings that deliver any policy"
-    " key replace them, and mcp-audit can't read those."
+    " key replace them, and Credenzo can't read those."
 )
 _VERDICT_CAVEAT_READ = (
     " This holds when the source named in the evidence is the one Claude Code"
     " applies: server-managed settings from the claude.ai console rank above it,"
-    " and mcp-audit can't read those."
+    " and Credenzo can't read those."
 )
 
 
@@ -1662,7 +1662,7 @@ def _verdict(
         extra_note = (
             " The allowlist isn't locked (allowManagedMcpServersOnly), so"
             " another project's settings file could still add this server;"
-            " none mcp-audit read does."
+            " none Credenzo read does."
         )
     if _allow_verdict(entries, server) != "blocked":
         return None
@@ -1747,10 +1747,10 @@ def _broadened(policy: ManagedPolicy, allowlist: SettingsAllowlist) -> Finding |
         " repository's committed settings broaden it for everyone who opens"
         " the repository. "
         + (
-            "mcp-audit read the managed files and this platform's MDM/registry"
+            "Credenzo read the managed files and this platform's MDM/registry"
             " sources, but not server-managed settings"
             if policy.platform_sources_read
-            else "mcp-audit reads only the managed files"
+            else "Credenzo reads only the managed files"
         )
         + ": Claude Code turns the lock on from a true in any admin source"
         " (2.1.273 or later), so "
@@ -1999,7 +1999,7 @@ def _malformed_finding(doc: SourceDoc) -> Finding:
         f"The admin policy source {doc.label} ({doc.location}) could not be used:"
         f" {doc.problem}. Anthropic: Claude Code refuses to start on an admin"
         " managed document it can't parse, so developers on this machine see"
-        " Claude Code fail to launch until the value is fixed. mcp-audit builds"
+        " Claude Code fail to launch until the value is fixed. Credenzo builds"
         " no allowlist or denylist verdict while an admin source is unreadable.",
         f"source: {doc.label} | location: {doc.location} | problem: {doc.problem}",
         "Fix the profile or registry value so it holds a JSON object of settings"

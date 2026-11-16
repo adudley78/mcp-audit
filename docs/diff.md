@@ -1,6 +1,6 @@
-# `mcp-audit diff` — MCP-aware diff for PRs and CI gates
+# `credenzo diff` — MCP-aware diff for PRs and CI gates
 
-`mcp-audit diff <base> <head>` compares two MCP configuration states and surfaces
+`credenzo diff <base> <head>` compares two MCP configuration states and surfaces
 what changed in MCP terms — servers, tools, capabilities, environment-variable
 references, external endpoints, and credentials — with risk classification.
 
@@ -13,10 +13,10 @@ just the engineer who ran the scanner.
 
 ```bash
 # One-liner for local preview
-mcp-audit diff HEAD~1 HEAD --format pr-comment
+credenzo diff HEAD~1 HEAD --format pr-comment
 
 # Pipe straight into gh CLI
-mcp-audit diff HEAD~1 HEAD --format pr-comment | gh pr comment --body-file -
+credenzo diff HEAD~1 HEAD --format pr-comment | gh pr comment --body-file -
 ```
 
 Output is capped at 100 lines with each changed server wrapped in a collapsible
@@ -56,16 +56,16 @@ jobs:
       - name: Scan base commit
         run: |
           git checkout ${{ github.event.pull_request.base.sha }}
-          mcp-audit scan --format json -o base.json || true
+          credenzo scan --format json -o base.json || true
 
       - name: Scan head commit
         run: |
           git checkout ${{ github.event.pull_request.head.sha }}
-          mcp-audit scan --format json -o head.json || true
+          credenzo scan --format json -o head.json || true
 
       - name: MCP-aware diff
         run: |
-          mcp-audit diff base.json head.json \
+          credenzo diff base.json head.json \
             --format pr-comment \
             --severity-threshold medium \
             > diff-output.md
@@ -103,7 +103,7 @@ The `--format json` output is a flat JSON array — one record per changed entit
 Pipe it into `jq`, syslog, or your SIEM.
 
 ```bash
-mcp-audit diff HEAD~1 HEAD --format json | jq '.[] | select(.severity == "HIGH")'
+credenzo diff HEAD~1 HEAD --format json | jq '.[] | select(.severity == "HIGH")'
 ```
 
 ### JSON record schema
@@ -142,9 +142,9 @@ Each record has:
 
 | Use case | Command |
 |----------|---------|
-| Full security audit of the current state | `mcp-audit scan` |
-| "What did this PR change, and how risky is it?" | `mcp-audit diff base head` |
-| Continuous monitoring on every config write | `mcp-audit watch` |
+| Full security audit of the current state | `credenzo scan` |
+| "What did this PR change, and how risky is it?" | `credenzo diff base head` |
+| Continuous monitoring on every config write | `credenzo watch` |
 
 `diff` is additive — it does not replace `scan`. AppSec teams typically run both:
 `scan` in the baseline CI workflow and `diff` on every pull request.
@@ -154,25 +154,25 @@ Each record has:
 Each of `<base>` and `<head>` can be:
 
 - **A directory path** — all MCP configs discovered under that directory (same
-  discovery logic as `mcp-audit scan --path`).
-- **A JSON file path** — either a `mcp-audit scan --output-file` ScanResult JSON
+  discovery logic as `credenzo scan --path`).
+- **A JSON file path** — either a `credenzo scan --output-file` ScanResult JSON
   or a raw MCP config JSON (`mcpServers` / `servers` root key). A `.toml` file
   is read as Codex's `config.toml` and `.gemini/settings.json` as Gemini CLI's
   settings (see [clients.md](clients.md)).
 - **A git ref** — any ref that `git show` can resolve: a SHA, `HEAD~3`, a branch
-  name, a tag. mcp-audit checks each known MCP config path at that ref,
+  name, a tag. Credenzo checks each known MCP config path at that ref,
   including `.codex/config.toml` and `.gemini/settings.json`.
 
 ```bash
 # Compare two directories
-mcp-audit diff configs/before/ configs/after/
+credenzo diff configs/before/ configs/after/
 
 # Compare a saved scan against the current state
-mcp-audit diff scan-baseline.json configs/
+credenzo diff scan-baseline.json configs/
 
 # Compare two git commits (most useful in CI)
-mcp-audit diff HEAD~1 HEAD
-mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF
+credenzo diff HEAD~1 HEAD
+credenzo diff $GITHUB_BASE_REF $GITHUB_HEAD_REF
 ```
 
 **Scan files hold redacted launch arguments (since STORY-0108).** A ScanResult
@@ -191,7 +191,7 @@ references are left alone. What a scan file can no longer show:
   read `[REDACTED]`, so replacing one credential with another is not a change.
   Compare directories or git refs to see it.
 - **Scans from before and after the change don't compare cleanly.** A scan file
-  written by an older mcp-audit has the secret in clear; diffing it against a
+  written by an older Credenzo has the secret in clear; diffing it against a
   newer one reports the argument as changed. Re-run the older scan, or compare
   config directories.
 - **Scan file against a directory** (or git ref): when exactly one side holds
@@ -237,7 +237,7 @@ references are left alone. What a scan file can no longer show:
 ## Severity threshold and exit codes
 
 `--severity-threshold <level>` filters changes to only those at or above the
-given level. Exit codes mirror `mcp-audit scan`:
+given level. Exit codes mirror `credenzo scan`:
 
 - `0` — no changes at or above the threshold.
 - `1` — one or more changes at or above the threshold.
@@ -245,7 +245,7 @@ given level. Exit codes mirror `mcp-audit scan`:
 
 ```bash
 # Block the build only on HIGH+ MCP changes
-mcp-audit diff HEAD~1 HEAD --severity-threshold high
+credenzo diff HEAD~1 HEAD --severity-threshold high
 ```
 
 ## GitHub Action integration
@@ -254,7 +254,7 @@ Add `mode: diff` to the existing action — no separate workflow needed:
 
 ```yaml
 - name: MCP diff
-  uses: adudley78/mcp-audit@v0.32.0
+  uses: adudley78/mcp-audit@v0.33.0
   with:
     mode: diff
     severity-threshold: medium

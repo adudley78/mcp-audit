@@ -150,7 +150,7 @@ def build_identity(server: ServerConfig) -> dict[str, str | list[str]]:
     header, ``?token=…``; :func:`~mcp_audit.analyzers.supply_chain.redact_args`)
     is replaced by ``[REDACTED]``/``[REDACTED-FLAG]`` before it reaches the
     committed lock (STORY-0118).  A launch without a credential is recorded
-    exactly as before, so a lock written by an earlier mcp-audit still verifies.
+    exactly as before, so a lock written by an earlier Credenzo still verifies.
 
     Args:
         server: A parsed MCP server configuration.

@@ -181,7 +181,7 @@ def allowlist_shape(value: dict) -> Shape:
 
 @dataclass
 class EditorPolicy:
-    """What mcp-audit learned about one editor's extension allowlist."""
+    """What Credenzo learned about one editor's extension allowlist."""
 
     editor: str
     # "enforced" | "user-only" | "absent" | "unknown"
@@ -442,7 +442,7 @@ def _user_only(pol: EditorPolicy) -> Finding:
     name = DISPLAY[pol.editor]
     assert pol.user_shape is not None  # noqa: S101
     caveat = (
-        f" mcp-audit could not look for a policy: {'; '.join(pol.unread)}, so a"
+        f" Credenzo could not look for a policy: {'; '.join(pol.unread)}, so a"
         " policy delivered that way would not be seen."
         if pol.unread
         else ""

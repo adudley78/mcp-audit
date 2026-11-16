@@ -1,12 +1,12 @@
-"""``mcp-audit killchain`` — opinionated remediation view of the attack-path graph.
+"""``credenzo killchain`` — opinionated remediation view of the attack-path graph.
 
 Find the 2–3 changes that cut your blast radius.  Decision engine on top of
-the attack-path graph mcp-audit already computes.
+the attack-path graph Credenzo already computes.
 
 This command:
 
 1. Runs the existing static analysis pipeline (or accepts a previously-generated
-   ``mcp-audit scan --output-file scan.json`` via ``--input``).
+   ``credenzo scan --output-file scan.json`` via ``--input``).
 2. Identifies the top N "kill switches" — specific configuration changes that,
    applied in order, cut the largest blast radius from the attack-path graph.
 3. Outputs a short, prescriptive Markdown report (default) or JSON payload
@@ -75,7 +75,7 @@ def _load_scan_result(path: Path) -> ScanResult:
         _err.print(
             f"[red]Error:[/red] scan file version {file_version!r} is below "
             f"minimum supported version {min_v}. "
-            "Re-generate the scan file with a current mcp-audit version."
+            "Re-generate the scan file with a current Credenzo version."
         )
         raise typer.Exit(2)
 
@@ -107,7 +107,7 @@ def killchain(
             "-i",
             help=(
                 "Path to a previously-generated scan JSON file "
-                "(``mcp-audit scan --output-file scan.json``). "
+                "(``credenzo scan --output-file scan.json``). "
                 "When omitted, a fresh scan is run automatically."
             ),
             show_default=False,
@@ -162,7 +162,7 @@ def killchain(
 ) -> None:
     """Find the 2–3 changes that cut your blast radius.
 
-    Decision engine on top of the attack-path graph mcp-audit already
+    Decision engine on top of the attack-path graph Credenzo already
     computes.  Runs a fresh scan by default; pass ``--input scan.json``
     to consume an existing scan result.
     """
@@ -188,7 +188,7 @@ def killchain(
         scan_result = _load_scan_result(input_file)
     else:
         if output_format == "markdown":
-            _err.print(f"[dim]mcp-audit killchain v{__version__} — running scan…[/dim]")
+            _err.print(f"[dim]credenzo killchain v{__version__} — running scan…[/dim]")
         scan_result = _run_inline_scan(path)
 
     # ── Check for attack paths ────────────────────────────────────────────────

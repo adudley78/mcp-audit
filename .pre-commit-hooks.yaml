@@ -1,5 +1,30 @@
+- id: credenzo
+  name: Credenzo MCP Security Scanner
+  description: Scan MCP server configuration files for security vulnerabilities
+  language: python
+  entry: credenzo
+  args: [scan, --severity-threshold, high]
+  types: [json]
+  pass_filenames: false
+  always_run: false
+
+- id: credenzo-lock-verify
+  name: Credenzo Lock Verify
+  description: Block a commit that drifts from the reviewed mcp-lock.json
+  language: python
+  entry: credenzo
+  # --if-present (STORY-0070): a repo that has never run `credenzo lock`
+  # must not have this hook fail — it only blocks once a lock exists and
+  # has drifted. Run `credenzo lock --accept` to unblock after review.
+  args: [lock, --verify, --if-present]
+  files: (\.mcp\.json|\.cursor/mcp\.json|\.claude/settings(\.local)?\.json|\.vscode/mcp\.json|\.amazonq/mcp\.json|mcp-lock\.json)$
+  pass_filenames: false
+  always_run: false
+
+# The old hook ids. They run the same checks. Existing configurations that
+# name `mcp-audit` or `mcp-audit-lock-verify` continue to work.
 - id: mcp-audit
-  name: mcp-audit MCP Security Scanner
+  name: Credenzo MCP Security Scanner (old hook id)
   description: Scan MCP server configuration files for security vulnerabilities
   language: python
   entry: mcp-audit
@@ -9,13 +34,13 @@
   always_run: false
 
 - id: mcp-audit-lock-verify
-  name: mcp-audit Lock Verify
+  name: Credenzo Lock Verify (old hook id)
   description: Block a commit that drifts from the reviewed mcp-lock.json
   language: python
   entry: mcp-audit
-  # --if-present (STORY-0070): a repo that has never run `mcp-audit lock`
+  # --if-present (STORY-0070): a repo that has never run `credenzo lock`
   # must not have this hook fail — it only blocks once a lock exists and
-  # has drifted. Run `mcp-audit lock --accept` to unblock after review.
+  # has drifted. Run `credenzo lock --accept` to unblock after review.
   args: [lock, --verify, --if-present]
   files: (\.mcp\.json|\.cursor/mcp\.json|\.claude/settings(\.local)?\.json|\.vscode/mcp\.json|\.amazonq/mcp\.json|mcp-lock\.json)$
   pass_filenames: false

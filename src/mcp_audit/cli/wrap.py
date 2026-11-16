@@ -1,14 +1,14 @@
-"""``mcp-audit wrap`` / ``unwrap``: put MCP servers behind ``mcp-audit run``.
+"""``credenzo wrap`` / ``unwrap``: put MCP servers behind ``credenzo run``.
 
 EPIC-0009 Story 1.2. ``wrap`` rewrites each local (stdio) server entry in the
-discovered MCP config files so the client launches ``mcp-audit run ... --
+discovered MCP config files so the client launches ``credenzo run ... --
 <original command>`` instead of the server (see
 :mod:`mcp_audit.runtime.wrapping` for the exact shape). ``unwrap`` restores
 each entry and checks it against the digest recorded at wrap time.
 
 Both are dry runs by default: they print the diff and, for ``wrap``, what
 the launch gate would decide for each server today. ``--apply`` writes, with
-the same backup-then-atomic-write path as ``mcp-audit fix``.
+the same backup-then-atomic-write path as ``credenzo fix``.
 
 First batch of clients (JSON configs): Claude Code, Cursor, Claude Desktop,
 VS Code, plus Windsurf, Copilot CLI and Augment, which share the format, and
@@ -54,18 +54,18 @@ class _Plan:
 
 
 def _default_exe() -> str:
-    """Absolute path of the mcp-audit executable clients should launch.
+    """Absolute path of the Credenzo executable clients should launch.
 
     Absolute because GUI clients (Claude Desktop, Cursor) don't inherit the
     shell's PATH.
     """
     if getattr(sys, "frozen", False):
         return str(Path(sys.executable).resolve())
-    found = shutil.which("mcp-audit")
+    found = shutil.which("credenzo") or shutil.which("mcp-audit")
     if found:
         return str(Path(found).resolve())
     raise typer.BadParameter(
-        "can't find the mcp-audit executable on PATH; pass --exe /path/to/mcp-audit"
+        "can't find the Credenzo executable on PATH; pass --exe /path/to/credenzo"
     )
 
 
@@ -159,13 +159,13 @@ def wrap(
     exe: str = typer.Option(
         None,
         "--exe",
-        help="mcp-audit executable clients should launch (absolute path).",
+        help="Credenzo executable clients should launch (absolute path).",
     ),
     apply: bool = typer.Option(
         False, "--apply", help="Write the changes (default: dry run showing the diff)."
     ),
 ) -> None:
-    """Launch local MCP servers through `mcp-audit run` (EPIC-0009).
+    """Launch local MCP servers through `credenzo run` (EPIC-0009).
 
     Dry run by default: shows the diff and what the launch gate would decide
     for each server today. `--apply` writes, keeping a backup.
@@ -231,7 +231,7 @@ def wrap(
     if refused:
         console.print(
             f"[yellow]{refused} of them aren't approved in mcp-lock.json; in enforce "
-            "mode they won't start until you run `mcp-audit lock`.[/yellow]"
+            "mode they won't start until you run `credenzo lock`.[/yellow]"
         )
     if total and not apply:
         console.print("Run again with --apply to write. Restart the client afterwards.")
@@ -254,7 +254,7 @@ def unwrap(
         False, "--apply", help="Write the changes (default: dry run showing the diff)."
     ),
 ) -> None:
-    """Restore servers wrapped by `mcp-audit wrap` to their original entries."""
+    """Restore servers wrapped by `credenzo wrap` to their original entries."""
     wanted = set(server or [])
     total = 0
     unverified = 0

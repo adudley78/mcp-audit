@@ -4,7 +4,7 @@ Per STORY-0069's architectural notes, this module reuses
 ``vulnerability.resolver`` (the dist-tag resolver PR #96 verified) and
 ``attestation.hasher`` rather than the second, unverified resolver in
 ``fixer.strategies.pinning``.  Package *name* extraction reuses
-``analyzers.supply_chain`` so the name mcp-audit locks is identical to the
+``analyzers.supply_chain`` so the name Credenzo locks is identical to the
 name the supply-chain analyzer already uses for registry lookups —
 otherwise a lock entry's ``capabilities`` could silently resolve against a
 different registry entry than the one the rest of the scan sees.
@@ -159,7 +159,7 @@ def _resolution_context(
     An object only when the registry was consulted (``dist-tag:latest``):
     then ``latest`` is the version the registry's ``latest`` pointed at and
     ``latest_deprecated`` its deprecation notice, as seen at *resolved_at*.
-    ``npm_major`` and ``node_version`` stay ``None``: mcp-audit reads the
+    ``npm_major`` and ``node_version`` stay ``None``: Credenzo reads the
     dist-tag over HTTPS and runs neither npm nor Node, so neither shaped
     this resolution. ``None`` for an exact pin or an unresolved entry.
     """

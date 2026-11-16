@@ -1,7 +1,7 @@
-# mcp-audit Community Rule Bounty Program
+# Credenzo Community Rule Bounty Program
 
 The detection rules are the flywheel. Every practitioner who contributes a rule
-based on a real MCP attack pattern makes mcp-audit more accurate for everyone.
+based on a real MCP attack pattern makes Credenzo more accurate for everyone.
 
 This document describes how contributors are recognized.
 
@@ -49,10 +49,10 @@ A rule PR is accepted when **all** of the following are true:
 |---|---|
 | **Real attack pattern** | The rule detects a genuine MCP attack technique, misconfiguration, or threat. Not a theoretical edge case — something that appears in the wild or in published PoC research. |
 | **Research citation** | The rule's `description` field cites a source: CVE, OWASP MCP Top 10 entry, published PoC, or incident report. See [PROVENANCE.md](../PROVENANCE.md). |
-| **Tested** | The contributor ran `mcp-audit rule validate` (exits 0) and `mcp-audit rule test` against at least one config that triggers it. |
+| **Tested** | The contributor ran `credenzo rule validate` (exits 0) and `credenzo rule test` against at least one config that triggers it. |
 | **Zero false positives on demo configs** | Running the rule against `demo/configs/` produces no unexpected findings on clean servers. |
 | **Follows the template** | The rule file passes schema validation (all required fields present, correct types, valid severity). |
-| **No duplicate** | The rule doesn't substantially duplicate an existing `COMM-NNN` rule. Check `mcp-audit rule list` before submitting. |
+| **No duplicate** | The rule doesn't substantially duplicate an existing `COMM-NNN` rule. Check `credenzo rule list` before submitting. |
 
 ---
 
@@ -62,8 +62,8 @@ A rule PR is accepted when **all** of the following are true:
 2. Copy `rules/community/TEMPLATE.yml` to `rules/community/COMM-NNN.yml`
    (use the next available number).
 3. Fill in every field. Add your GitHub handle to the `author:` field.
-4. Validate: `mcp-audit rule validate rules/community/COMM-NNN.yml`
-5. Test: `mcp-audit rule test rules/community/COMM-NNN.yml --against <config>`
+4. Validate: `credenzo rule validate rules/community/COMM-NNN.yml`
+5. Test: `credenzo rule test rules/community/COMM-NNN.yml --against <config>`
 6. Open a pull request. Title format: `feat(rules): add COMM-NNN — <short description>`
 
 ---

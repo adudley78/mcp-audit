@@ -273,7 +273,7 @@ class BaselineManager:
         if not path.exists():
             raise FileNotFoundError(
                 f"No baseline named {stem!r} found in {self._storage_dir}. "
-                "Run 'mcp-audit baseline list' to see available baselines."
+                "Run 'credenzo baseline list' to see available baselines."
             )
         try:
             data = json.loads(path.read_text(encoding="utf-8"))

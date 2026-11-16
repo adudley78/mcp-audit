@@ -299,7 +299,7 @@ def _read_state(state_path: Path) -> tuple[str, dict[str, dict]]:
     """Read the record file; return ``(status, records)``.
 
     ``missing``: no file yet.  ``corrupt``: the file is there but is not a
-    record file mcp-audit wrote (bad JSON, wrong shape, over
+    record file Credenzo wrote (bad JSON, wrong shape, over
     :data:`MAX_STATE_BYTES`); writes are atomic, so a scan running at the
     same time never produces this.  ``unreadable``: an operating-system error
     (permissions, a transient I/O failure); the file is left alone.
@@ -550,7 +550,7 @@ def _content_ids(item: InstructionFile, head: bytes) -> set[str]:
     ``~/.codex/AGENTS.md``, OpenClaw files) gets the same MEM-004/MEM-005
     checks here, on the bytes already read for the hash.  The IDs only feed
     INSTR-002; the findings themselves are not added to the scan
-    (``mcp-audit agent-files scan`` reports them).
+    (``credenzo agent-files scan`` reports them).
     """
     if item.scope != "user" or item.surface not in MEMORY_SURFACES:
         return set()
@@ -696,13 +696,13 @@ def _finding(
                 f"{item.display} is loaded as instructions into {where}. Its"
                 " contents changed since the last scan, and this scan reports"
                 f" {', '.join(gained)} on it, which the last scan did not: the"
-                " change brought that finding. mcp-audit keeps only a hash of"
+                " change brought that finding. Credenzo keeps only a hash of"
                 " the file, so it cannot show what changed."
             ),
             evidence=evidence + f"; new findings: {', '.join(gained)}",
             remediation=(
                 "Read the file and the finding(s) named above (for a file in"
-                " your home folder, `mcp-audit agent-files scan` shows them)."
+                " your home folder, `credenzo agent-files scan` shows them)."
                 " If you did not make the change, check who did (an agent"
                 " session, a skill or plugin update, a sync tool) and restore"
                 " the file."
@@ -722,7 +722,7 @@ def _finding(
             f"{item.display} is loaded as instructions into {where}. Its"
             " contents changed since the last scan. That is usually your own"
             " edit; it is reported because an agent, a skill or a sync tool can"
-            " write here too. mcp-audit keeps only a hash of the file, so it"
+            " write here too. Credenzo keeps only a hash of the file, so it"
             " cannot show what changed."
         ),
         evidence=evidence,

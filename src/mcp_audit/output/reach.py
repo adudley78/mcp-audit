@@ -1,4 +1,4 @@
-"""Terminal output for ``mcp-audit reach`` (STORY-0145).
+"""Terminal output for ``credenzo reach`` (STORY-0145).
 
 Reads :meth:`MachineReach.to_dict`, the same sanitised document the JSON output
 and the PDF use, so a string reaches the screen only after credential
@@ -54,7 +54,7 @@ def print_reach(report: MachineReach, console: Console) -> None:
     doc = report.to_dict()
     machine = doc["machine"]
     console.print(
-        f"[bold]mcp-audit reach[/bold]  [dim]{escape(machine['hostname'])}"
+        f"[bold]credenzo reach[/bold]  [dim]{escape(machine['hostname'])}"
         f" ({escape(machine['os'])})[/dim]"
     )
     if not doc["agents"]:
@@ -119,7 +119,7 @@ def _print_errors(console: Console, errors: list[str]) -> None:
 def print_fleet(report: FleetReport, console: Console) -> None:
     """Print verdict counts per agent, the unsafe machines, and skipped files."""
     console.print(
-        f"[bold]mcp-audit reach --fleet[/bold]  {len(report.machines)} machine(s)"
+        f"[bold]credenzo reach --fleet[/bold]  {len(report.machines)} machine(s)"
     )
     per_agent = report.per_agent()
     if per_agent:

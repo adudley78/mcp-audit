@@ -55,7 +55,7 @@ def find_rules_dir() -> Path | None:
        :func:`~mcp_audit.sast.bundler.get_bundled_rules_path`).
     3. importlib.resources — pip-installed wheel at ``mcp_audit/semgrep-rules``
        (via :func:`~mcp_audit.sast.bundler.get_bundled_rules_path`).
-    4. Directory adjacent to the ``mcp-audit`` executable (standalone binary
+    4. Directory adjacent to the ``credenzo`` executable (standalone binary
        installed alongside the rule pack).
     """
     # 1. Repo root (development / editable install)
@@ -81,7 +81,7 @@ def run_semgrep(
     target_path: Path,
     rules_dir: Path | None = None,
 ) -> SastResult:
-    """Run semgrep against target_path using the mcp-audit rule pack.
+    """Run semgrep against target_path using the Credenzo rule pack.
 
     Returns a SastResult with findings or an error string. Never raises.
 
@@ -106,7 +106,7 @@ def run_semgrep(
         return SastResult(
             error=(
                 "semgrep-rules/ directory not found. "
-                "Ensure the mcp-audit package is fully installed."
+                "Ensure the Credenzo package is fully installed."
             )
         )
 
@@ -180,7 +180,7 @@ def _finding_id(rule_id: str, file_path: str, line: int) -> str:
 
 
 def parse_semgrep_output(semgrep_json: dict, target_path: Path) -> list[Finding]:
-    """Convert semgrep JSON output to mcp-audit Finding objects.
+    """Convert semgrep JSON output to Credenzo Finding objects.
 
     Semgrep JSON structure (relevant fields):
 

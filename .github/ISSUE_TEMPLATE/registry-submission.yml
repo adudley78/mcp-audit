@@ -1,6 +1,6 @@
 ---
 name: Registry submission — add my MCP server
-description: Request that your MCP server be added to the mcp-audit registry. Once added, developers running `mcp-audit vet` get a verdict before installing, and you get an embeddable badge.
+description: Request that your MCP server be added to the Credenzo registry. Once added, developers running `credenzo vet` get a verdict before installing, and you get an embeddable badge.
 title: "Registry submission: [your-package-name]"
 labels: ["registry-submission"]
 body:
@@ -10,7 +10,7 @@ body:
         Thanks for submitting! We aim to review within 7 days. Most submissions are processed in 1–2 days.
 
         **What you get:**
-        - Your server appears in `mcp-audit vet` output (offline, no network required for users)
+        - Your server appears in `credenzo vet` output (offline, no network required for users)
         - A dedicated page at `mcp-audit.dev/servers/{eco}/{slug}/`
         - A live Shields.io badge: `![mcp-audit](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/{eco}/{slug}.json)`
 

@@ -1,4 +1,4 @@
-"""``mcp-audit snapshot`` — time-stamped signed forensic exports.
+"""``credenzo snapshot`` — time-stamped signed forensic exports.
 
 Time-stamped signed forensic snapshots of every MCP server on this host.
 CycloneDX AI/ML-BOM by default. Sigstore-signed. SIEM-ready.
@@ -65,7 +65,7 @@ def _build_result(
     """Run or load the scan to produce a :class:`~mcp_audit.models.ScanResult`.
 
     Args:
-        input_file: Optional path to a previous ``mcp-audit scan --output-file``
+        input_file: Optional path to a previous ``credenzo scan --output-file``
             JSON result.  When provided, the file is loaded rather than running
             a new scan.
         path: Optional path override for config discovery (passed through to
@@ -155,7 +155,7 @@ def _print_rehydrate_summary(rehydrated: object, delta: object | None) -> None: 
     table.add_column(overflow="fold", width=50)
     table.add_row("Snapshot timestamp:", rehydrated.snapshot_timestamp)
     table.add_row("Host:", rehydrated.host_id)
-    table.add_row("mcp-audit version:", rehydrated.version)
+    table.add_row("credenzo version:", rehydrated.version)
     table.add_row("Servers:", str(len(result.servers)))
     table.add_row("Findings:", str(len(result.findings)))
     if aps:
@@ -209,7 +209,7 @@ def snapshot(  # noqa: PLR0912, PLR0913, PLR0915
             "--input",
             "-i",
             help=(
-                "Path to a previous ``mcp-audit scan --output-file`` JSON result. "
+                "Path to a previous ``credenzo scan --output-file`` JSON result. "
                 "When supplied, skips live discovery and uses this result instead."
             ),
             show_default=False,

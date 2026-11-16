@@ -1,6 +1,6 @@
-# Microsoft Sentinel Ingestion — mcp-audit snapshot
+# Microsoft Sentinel Ingestion — credenzo snapshot
 
-Ingest `mcp-audit snapshot --stream` output into Microsoft Sentinel via the
+Ingest `credenzo snapshot --stream` output into Microsoft Sentinel via the
 Logs Ingestion API (DCR-based) or the legacy Data Collector API.
 
 ---
@@ -16,7 +16,7 @@ In the Azure portal:
 1. Create a **Data Collection Endpoint** (DCE) in your workspace region.
 2. Create a **Data Collection Rule** (DCR) targeting a custom table
    `MCP_Audit_CL` in your Log Analytics workspace.
-3. Configure the DCR's stream with the mcp-audit JSON schema (key fields:
+3. Configure the DCR's stream with the Credenzo JSON schema (key fields:
    `id`, `severity`, `server`, `analyzer`, `title`, `host_id`, `timestamp`).
 4. Grant the service principal or managed identity **Monitoring Metrics Publisher**
    on the DCR.
@@ -25,7 +25,7 @@ In the Azure portal:
 
 ```python
 #!/usr/bin/env python3
-"""Push mcp-audit snapshot stream to Sentinel Logs Ingestion API."""
+"""Push credenzo snapshot stream to Sentinel Logs Ingestion API."""
 import json
 import subprocess
 import sys
@@ -86,14 +86,14 @@ For workspaces not yet on DCR, use the legacy Data Collector API:
 
 ```bash
 #!/usr/bin/env bash
-# Push mcp-audit findings to Sentinel via HTTP Data Collector API.
+# Push Credenzo findings to Sentinel via HTTP Data Collector API.
 set -euo pipefail
 
 WORKSPACE_ID="<your-workspace-id>"
 SHARED_KEY="<your-primary-key>"
 LOG_TYPE="McpAuditFindings"
 
-BODY=$(mcp-audit snapshot --stream | jq -sc '.')
+BODY=$(credenzo snapshot --stream | jq -sc '.')
 CONTENT_LENGTH=${#BODY}
 DATE=$(date -u +"%a, %d %b %Y %H:%M:%S GMT")
 STRING_TO_SIGN="POST\n${CONTENT_LENGTH}\napplication/json\nx-ms-date:${DATE}\n/api/logs"

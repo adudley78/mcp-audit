@@ -3,7 +3,7 @@
 Source: https://owasp.org/www-project-mcp-top-10/
 
 The OWASP MCP Top 10 is an MCP-specific risk framework, parallel to the
-broader OWASP Agentic Top 10 (ASI01–ASI10). mcp-audit findings are mapped
+broader OWASP Agentic Top 10 (ASI01–ASI10). Credenzo findings are mapped
 to BOTH frameworks: the Agentic Top 10 mapping lives in docs/severity-
 framework.md; the MCP Top 10 mapping lives in this module and on each
 Finding via the ``owasp_mcp_top_10`` field.

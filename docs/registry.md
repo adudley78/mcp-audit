@@ -1,6 +1,6 @@
 # Known-Server Registry
 
-mcp-audit ships with a curated registry of known-legitimate MCP servers used
+Credenzo ships with a curated registry of known-legitimate MCP servers used
 by the supply chain analyzer for typosquatting detection.
 
 ## Registry Location
@@ -19,9 +19,9 @@ A user-local cache can be maintained at:
 
 When the supply chain analyzer loads the registry, it searches in this order:
 
-1. **`--registry PATH`** — explicit path passed to `mcp-audit scan`
+1. **`--registry PATH`** — explicit path passed to `credenzo scan`
 2. **User-local cache** — `~/.config/mcp-audit/registry/known-servers.json`
-   (written by `mcp-audit update-registry`)
+   (written by `credenzo update-registry`)
 3. **PyInstaller bundle** — `sys._MEIPASS/registry/known-servers.json`
 4. **Installed wheel** — located via `importlib.resources` inside the
    `mcp_audit.registry` package
@@ -31,10 +31,10 @@ When the supply chain analyzer loads the registry, it searches in this order:
 ## Updating the Registry
 
 ```
-mcp-audit update-registry
+credenzo update-registry
 ```
 
-Fetches the latest registry from the mcp-audit GitHub repository and saves it
+Fetches the latest registry from the Credenzo GitHub repository and saves it
 to the user-local cache. On the next scan, the updated registry is used
 automatically.
 
@@ -44,7 +44,7 @@ exits with code 2. The existing cached registry is never overwritten on failure.
 ## Using a Custom Registry
 
 ```
-mcp-audit scan --registry /path/to/my-registry.json
+credenzo scan --registry /path/to/my-registry.json
 ```
 
 Overrides both the bundled and cached registry for a single scan run. Useful
@@ -105,7 +105,7 @@ because a hand-maintained number drifts from the file.
 
 ## Contributing to the Registry
 
-To add a server, open a pull request against the mcp-audit repository editing
+To add a server, open a pull request against the Credenzo repository editing
 `registry/known-servers.json`. Guidelines:
 
 - **Verified entries** (`"verified": true`) require a link to the official
@@ -225,11 +225,11 @@ a `MISSING` entry; do not stamp it.
 A second bundled data file, added by STORY-0097, sits next to the registry. It
 is a mirror of OSV's malicious-package (`MAL-*`) records for npm and PyPI
 packages whose name contains `mcp`, that `known-servers.json` lists, or whose
-name has a token naming a coding agent mcp-audit reads or an agent skill
+name has a token naming a coding agent Credenzo reads or an agent skill
 (STORY-0152: `claude`, `cursor`, `windsurf`, `copilot`, `augment`, `amazon-q`,
 `codex`, `gemini-cli`, `opencode`, `openclaw`, `skill(s)`, `subagent(s)`), and it
-drives `SC-008`, the `malicious` block of `mcp-audit vet` and `MAL-*` lookups in
-`mcp-audit affected` (see
+drives `SC-008`, the `malicious` block of `credenzo vet` and `MAL-*` lookups in
+`credenzo affected` (see
 [docs/supply-chain.md](supply-chain.md#sc-008-known-malicious-packages)).
 It is a separate file, not new `known-servers.json` fields, because most of the
 packages it names are not (and never will be) registry entries, and the
@@ -239,7 +239,7 @@ Each entry keeps OSV's `id`, `ecosystem`, `name`, `aliases`, `summary`,
 `published`, `versions` and `ranges` as OSV states them, plus an optional
 mcp-audit `note`. `scripts/sync_registry_advisories.py --write` regenerates it;
 do not edit it by hand. It ships in the wheel and in every PyInstaller binary
-(`sys._MEIPASS/registry/known-malicious.json`). `mcp-audit update-registry`
+(`sys._MEIPASS/registry/known-malicious.json`). `credenzo update-registry`
 does not refresh it; it updates with each release. If the file can't be read,
 the scan still runs and says so in its errors (`known-malicious data: …`).
 

@@ -1,4 +1,4 @@
-"""POISON-* checks on live tool text for ``mcp-audit run`` (EPIC-0009 Story 1.4).
+"""POISON-* checks on live tool text for ``credenzo run`` (EPIC-0009 Story 1.4).
 
 Runs the same :class:`~mcp_audit.analyzers.poisoning.PoisoningAnalyzer`
 ``scan --connect`` runs, one tool at a time so each finding belongs to a
@@ -26,7 +26,7 @@ DEFAULT_THRESHOLD = "critical"
 
 def _say(message: str) -> None:
     try:
-        sys.stderr.write(f"mcp-audit run: {message}\n")
+        sys.stderr.write(f"credenzo run: {message}\n")
         sys.stderr.flush()
     except (OSError, ValueError):
         pass

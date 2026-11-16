@@ -1,4 +1,4 @@
-# Strict mcp-audit pre-commit integration.
+# Strict Credenzo pre-commit integration.
 # Fails the commit if any MEDIUM, HIGH, or CRITICAL findings are detected
 # in your MCP server configurations.
 #
@@ -6,7 +6,7 @@
 # Later releases: https://github.com/adudley78/mcp-audit/releases
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.32.0  # current release; `pre-commit autoupdate` moves it forward
+    rev: v0.33.0  # current release; `pre-commit autoupdate` moves it forward
     hooks:
-      - id: mcp-audit
+      - id: credenzo
         args: [scan, --severity-threshold, medium]

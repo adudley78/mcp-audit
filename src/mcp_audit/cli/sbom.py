@@ -1,4 +1,4 @@
-"""mcp-audit sbom — generate a CycloneDX SBOM for configured MCP servers."""
+"""credenzo sbom — generate a CycloneDX SBOM for configured MCP servers."""
 
 from __future__ import annotations
 
@@ -134,7 +134,7 @@ def sbom(
                 console.print(
                     f"[yellow]Warning:[/yellow] {name} is pinned to a semver "
                     f"range ({original_version}); resolved to {version} for "
-                    "transitive dependency resolution (mcp-audit does not "
+                    "transitive dependency resolution (Credenzo does not "
                     "implement range resolution)."
                 )
             deps = fetch_transitive_deps(

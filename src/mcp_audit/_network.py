@@ -1,4 +1,4 @@
-"""Centralised network policy enforcement for mcp-audit.
+"""Centralised network policy enforcement for Credenzo.
 
 All CLI commands that may make network calls must construct a NetworkPolicy
 and call require_offline_compatible() in their preflight checks. This replaces

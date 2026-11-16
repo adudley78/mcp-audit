@@ -7,7 +7,7 @@ through it. When a scan reads only the client config, it sees one server.
 The upstream servers, and what they let the agent do, are listed in the
 gateway's own config file.
 
-Since STORY-0111, `mcp-audit scan`, `check`, `shadow`, `sbom` and
+Since STORY-0111, `credenzo scan`, `check`, `shadow`, `sbom` and
 `scan --project` read the config files of three gateways and analyse each
 upstream server like any other server. Each one is reported under the client
 `<gateway>-upstream`:
@@ -18,7 +18,7 @@ upstream server like any other server. Each one is reported under the client
 | [1MCP](https://docs.1mcp.app/reference/mcp-servers) | `1mcp-upstream` | `~/.config/1mcp/mcp.json` (macOS, Linux), `<home>\AppData\Roaming\1mcp\mcp.json` (Windows), or `mcp.json` in `$ONE_MCP_CONFIG_DIR`, or the file `$ONE_MCP_CONFIG` | none documented |
 | [MCPHub.nvim](https://github.com/ravitemer/mcphub.nvim) (`mcp-hub`) | `mcphub-upstream` | `~/.config/mcphub/servers.json` | `.mcphub/servers.json` |
 
-Environment overrides are read from the environment mcp-audit runs in, and
+Environment overrides are read from the environment Credenzo runs in, and
 only when they hold an absolute path. The gateway may have been started with
 a different environment; the default locations are always checked too.
 
@@ -44,15 +44,15 @@ a different environment; the default locations are always checked too.
 - **Secrets stay out of the output.** For upstream servers, JSON output
   (`scan --format json`, `check --json`, native snapshots) redacts the values
   of `env` and `headers` as well as the launch command, arguments and URL:
-  credential formats mcp-audit recognises and URL passwords become
+  credential formats Credenzo recognises and URL passwords become
   `[REDACTED]`, the value of a secret-named variable (`API_KEY`,
   `GITHUB_TOKEN`, `DB_PASSWORD`) becomes `[REDACTED-FLAG]`, and references
-  such as `${TOKEN}` are kept. `mcp-audit diff` between two scan files reads
+  such as `${TOKEN}` are kept. `credenzo diff` between two scan files reads
   either marker in `env` as a credential. Every other key the gateway wrote
   is kept in `raw` with secret-named values (1MCP `oauth.clientSecret`,
   `accessToken`, `bearer_token`, …) replaced by `[REDACTED]` unless they are
   a reference.
-- **`fix` leaves gateway configs alone.** `mcp-audit fix` refuses a gateway
+- **`fix` leaves gateway configs alone.** `credenzo fix` refuses a gateway
   config (exit 2) and never applies a gateway finding to another file;
   `check` does not suggest `fix --apply` for them.
 
@@ -75,7 +75,7 @@ per file are analysed and the rest are named in the errors.
   `mcptoon ... serve`, is skipped, as mcptoon itself skips it (it would start
   the gateway inside itself). Both the JSON and the TOML file are read; mcptoon
   merges them, later files overriding earlier ones by server name, and
-  mcp-audit reports each file's servers separately.
+  Credenzo reports each file's servers separately.
 - **1MCP**: `mcpServers` plus `mcpTemplates` (a template wins over a static
   server of the same name). `serverDefaults.env` is merged under each server's
   `env` (when both are lists, the server's list replaces the defaults', as
@@ -88,7 +88,7 @@ per file are analysed and the rest are named in the errors.
 
 ## Locks and rug-pull state
 
-`mcp-audit lock` does not record gateway upstreams, so a lock written before
+`credenzo lock` does not record gateway upstreams, so a lock written before
 this change keeps verifying. When a scan finds a gateway project file under a
 locked repository, its servers are listed in the warning "not covered by
 mcp-lock.json" rather than reported as unrecorded (LOCK-002).
@@ -108,5 +108,5 @@ upstreams never show up as removed in another repository's scan.
 See GAPS.md, "MCP gateway upstreams (STORY-0111)": other gateways (Docker MCP
 Gateway, MetaMCP, sparfenyuk and TBXark `mcp-proxy`, `mcp-hub` started with
 its own `--config`), `MCPTOON_SERVERS`, and `--path` to a gateway file.
-`mcp-audit watch` re-scans when a user-level or working-directory gateway
+`credenzo watch` re-scans when a user-level or working-directory gateway
 config changes.

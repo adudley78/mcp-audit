@@ -1,7 +1,7 @@
-# mcp-audit diff mode — MCP-aware diff posted as a PR comment.
+# credenzo diff mode — MCP-aware diff posted as a PR comment.
 #
 # On every pull request, this workflow:
-#   1. Runs `mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF --format pr-comment`
+#   1. Runs `credenzo diff $GITHUB_BASE_REF $GITHUB_HEAD_REF --format pr-comment`
 #      to detect added/removed/changed MCP servers, tools, capabilities,
 #      env-var references, endpoints, and credentials.
 #   2. Posts the Markdown output as a comment on the PR conversation tab.

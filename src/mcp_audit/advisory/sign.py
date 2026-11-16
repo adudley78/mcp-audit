@@ -243,7 +243,7 @@ _DEV_FALLBACK_PUBLIC_KEY = (
 
 
 def bundled_public_key_path() -> Path | None:
-    """Locate mcp-audit's own project public key, bundled with the package.
+    """Locate Credenzo's own project public key, bundled with the package.
 
     Resolution mirrors ``registry/loader.py``'s ``_resolve_bundled_path()``:
     PyInstaller ``_MEIPASS``, then ``importlib.resources`` for a pip-installed

@@ -1,5 +1,5 @@
-name: 'Setup mcp-audit'
-description: 'Download the mcp-audit pre-built binary from GitHub Releases and add it to PATH. Caches the binary by version + OS + arch for sub-1-second restores.'
+name: 'Setup Credenzo'
+description: 'Download the Credenzo pre-built binary from GitHub Releases and add it to PATH as `credenzo` (and `mcp-audit`, the old name). Caches the binary by version + OS + arch for sub-1-second restores.'
 author: 'Adam Dudley'
 
 branding:
@@ -9,7 +9,7 @@ branding:
 inputs:
   version:
     description: >
-      mcp-audit release tag to install (e.g. "v0.10.0") or "latest" to
+      Credenzo release tag to install (e.g. "v0.10.0") or "latest" to
       resolve the current latest release automatically via the GitHub API.
     required: false
     default: 'latest'
@@ -23,9 +23,12 @@ inputs:
     default: ${{ github.token }}
 
 outputs:
+  credenzo-version:
+    description: 'Version line reported by the installed binary (e.g. "credenzo 0.33.0"; releases before 0.33.0 print "mcp-audit <version>").'
+    value: ${{ steps.verify.outputs.credenzo-version }}
   mcp-audit-version:
-    description: 'Resolved version string reported by the installed binary (e.g. "mcp-audit v0.10.0").'
-    value: ${{ steps.verify.outputs.mcp-audit-version }}
+    description: 'Old name of credenzo-version. Same value. Kept so existing workflows continue to work.'
+    value: ${{ steps.verify.outputs.credenzo-version }}
 
 runs:
   using: 'composite'
@@ -44,7 +47,7 @@ runs:
             --json tagName \
             --jq '.tagName' 2>/dev/null || true)
           if [ -z "$RESOLVED" ]; then
-            echo "::error::Could not resolve the latest mcp-audit release tag." \
+            echo "::error::Could not resolve the latest Credenzo release tag." \
               "Check that GITHUB_TOKEN is set and has 'contents: read' permission," \
               "or pin an explicit version (e.g. version: 'v0.10.0')."
             exit 1
@@ -149,7 +152,7 @@ runs:
         LAST_UNATTESTED="0.29.0"
         V="${VERSION#v}"
         if [ "$(printf '%s\n%s\n' "$LAST_UNATTESTED" "$V" | sort -V | tail -n 1)" = "$LAST_UNATTESTED" ]; then
-          echo "::notice::mcp-audit $VERSION predates build-provenance attestations; skipping verification."
+          echo "::notice::Credenzo $VERSION predates build-provenance attestations; skipping verification."
           exit 0
         fi
         if [ "$RUNNER_OS" = "Windows" ]; then
@@ -157,23 +160,52 @@ runs:
         else
           TARGET="$RUNNER_TEMP/mcp-audit-bin/mcp-audit"
         fi
-        if ! gh attestation verify "$TARGET" --repo adudley78/mcp-audit \
-            --signer-workflow adudley78/mcp-audit/.github/workflows/release.yml; then
-          echo "::error::mcp-audit $VERSION failed build-provenance verification." \
-            "The binary was not built by adudley78/mcp-audit's release workflow." \
+        # The repository is being renamed to adudley78/credenzo. A release
+        # built before the rename is signed under the old name and a release
+        # built after it under the new one, so accept either. Both names
+        # belong to the same owner; nothing else is accepted.
+        VERIFIED=""
+        for REPO in adudley78/mcp-audit adudley78/credenzo; do
+          if gh attestation verify "$TARGET" --repo "$REPO" \
+              --signer-workflow "$REPO/.github/workflows/release.yml"; then
+            VERIFIED="$REPO"
+            break
+          fi
+        done
+        if [ -z "$VERIFIED" ]; then
+          echo "::error::Credenzo $VERSION failed build-provenance verification." \
+            "The binary was not built by the release workflow of adudley78/mcp-audit" \
+            "or adudley78/credenzo." \
             "Do not run it; report this at https://github.com/adudley78/mcp-audit/security"
           exit 1
         fi
+        echo "Build provenance verified against $VERIFIED."
+
+    # ── Step 4d: the `credenzo` name ──────────────────────────────────────
+    # One binary, two names: `credenzo` is the command, `mcp-audit` is the
+    # old name that existing workflows call. The copy is made on every run
+    # from the binary that step 4c just verified, never taken from the cache.
+    - name: Add the credenzo command name
+      shell: bash
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          cp -f "$RUNNER_TEMP/mcp-audit-bin/mcp-audit.exe" "$RUNNER_TEMP/mcp-audit-bin/credenzo.exe"
+        else
+          cp -f "$RUNNER_TEMP/mcp-audit-bin/mcp-audit" "$RUNNER_TEMP/mcp-audit-bin/credenzo"
+          chmod +x "$RUNNER_TEMP/mcp-audit-bin/credenzo"
+        fi
 
     # ── Step 5: add bin directory to PATH ─────────────────────────────────
-    - name: Add mcp-audit to PATH (Linux / macOS)
+    - name: Add credenzo to PATH (Linux / macOS)
       if: runner.os != 'Windows'
       shell: bash
       env:
         RUNNER_TEMP: ${{ runner.temp }}
       run: echo "$RUNNER_TEMP/mcp-audit-bin" >> "$GITHUB_PATH"
 
-    - name: Add mcp-audit to PATH (Windows)
+    - name: Add credenzo to PATH (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       env:
@@ -186,10 +218,10 @@ runs:
       id: verify
       shell: bash
       run: |
-        VERSION_OUTPUT=$(mcp-audit version 2>&1)
+        VERSION_OUTPUT=$(credenzo version 2>&1)
         if [ $? -ne 0 ]; then
-          echo "::error::mcp-audit binary failed to run. Output: $VERSION_OUTPUT"
+          echo "::error::credenzo binary failed to run. Output: $VERSION_OUTPUT"
           exit 1
         fi
-        echo "mcp-audit-version=$VERSION_OUTPUT" >> "$GITHUB_OUTPUT"
+        echo "credenzo-version=$VERSION_OUTPUT" >> "$GITHUB_OUTPUT"
         echo "Installed: $VERSION_OUTPUT"

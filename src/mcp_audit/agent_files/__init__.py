@@ -1,6 +1,6 @@
 """Agent-file security scanner: skills, instruction files, memory, and hooks.
 
-This package extends mcp-audit beyond MCP config files to cover the other
+This package extends Credenzo beyond MCP config files to cover the other
 instruction surfaces an AI agent reads:
 
 - **Skills / command files** — Claude Code custom slash commands

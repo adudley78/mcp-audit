@@ -8,12 +8,12 @@ existing file was read.  :func:`serialize` then renders the *whole* document,
 including those foreign sections, through
 :func:`mcp_audit.advisory.canonical.canonicalize` — the format-level
 requirement ADR-0005 §2 places on ``mcp-lock.json`` so that two independent,
-possibly cross-language producers (mcp-audit and the #88 tree generator)
+possibly cross-language producers (Credenzo and the #88 tree generator)
 always agree on the bytes for a value neither one has changed.
 
-mcp-audit's own ``checksum`` covers only the sub-document it owns
+Credenzo's own ``checksum`` covers only the sub-document it owns
 (:func:`mcp_audit.lock.model.owned_subdocument`) — see ADR-0005 §10. The
-``tools`` section, once ``lock --connect`` has populated it, is mcp-audit's
+``tools`` section, once ``lock --connect`` has populated it, is Credenzo's
 too and carries its own ``_checksum`` (:mod:`mcp_audit.lock.tool_digests`).
 """
 
@@ -171,7 +171,7 @@ def regenerate(
     :func:`mcp_audit.lock.tool_digests.merge_section`: records from
     *tool_records* replace earlier ones, records for servers no longer locked
     are dropped, and the rest carry forward.  Used by both
-    ``mcp-audit lock`` and ``mcp-audit lock --accept``: the two commands
+    ``credenzo lock`` and ``credenzo lock --accept``: the two commands
     perform the same regeneration; ``--accept`` exists as the explicit,
     named step in the "review the drift, then re-lock" workflow.
 
@@ -204,18 +204,18 @@ def regenerate(
             With *tool_records*, a section that fails its checksum is
             discarded and only this run's records are written. Also raised
             when *existing_doc* declares a ``lock_version`` newer than this
-            mcp-audit writes (rewriting it would silently downgrade the
+            Credenzo writes (rewriting it would silently downgrade the
             file), or its ``section_digests`` is not an object.
 
     The document is written as ``lock_version`` 2: ``section_digests`` keeps
-    every other producer's entries verbatim and recomputes mcp-audit's own
+    every other producer's entries verbatim and recomputes Credenzo's own
     (:func:`mcp_audit.lock.section_digests.merge`).
     """
     newer = unsupported_version(existing_doc or {})
     if newer is not None:
         raise LockWriteError(
             f"The existing lock declares lock_version {newer}, newer than this "
-            f"mcp-audit writes ({LOCK_VERSION}). Upgrade mcp-audit rather than "
+            f"Credenzo writes ({LOCK_VERSION}). Upgrade Credenzo rather than "
             "overwrite it — see docs/lock.md."
         )
     existing_servers: dict = (existing_doc or {}).get("servers", {})
@@ -249,10 +249,10 @@ def regenerate(
             if tool_records is None:
                 raise LockWriteError(
                     "The lock's `tools` section does not match its own "
-                    "checksum (hand-edited or corrupted), so mcp-audit will not "
+                    "checksum (hand-edited or corrupted), so Credenzo will not "
                     "carry it forward. Inspect `git diff mcp-lock.json`, then "
                     "re-record it from the live servers with "
-                    "`mcp-audit lock --accept --connect`."
+                    "`credenzo lock --accept --connect`."
                 )
             existing_tools = None  # start over: keep nothing from it
         doc[tool_digests.TOOLS_KEY] = tool_digests.merge_section(
@@ -280,7 +280,7 @@ def regenerate(
     except ValueError as exc:  # includes CanonicalError
         raise LockWriteError(
             f"Cannot write `{SECTION_DIGESTS_KEY}`: {exc}. Inspect "
-            "`mcp-lock.json`; mcp-audit will not overwrite another producer's "
+            "`mcp-lock.json`; Credenzo will not overwrite another producer's "
             "entries — see docs/lock.md."
         ) from None
     doc["checksum"] = compute_checksum(doc)
@@ -300,7 +300,7 @@ def check_tools_writable(existing_doc: dict | None) -> None:
 
     Raises:
         LockWriteError: ``tools`` belongs to another producer or to a newer
-            mcp-audit schema (ADR-0005 §1: never overwrite another
+            Credenzo schema (ADR-0005 §1: never overwrite another
             producer's section).
     """
     section = (existing_doc or {}).get(tool_digests.TOOLS_KEY)
@@ -310,8 +310,8 @@ def check_tools_writable(existing_doc: dict | None) -> None:
     raise LockWriteError(
         "The lock's `tools` section was written by "
         f"{producer or 'another tool'!s} (or a newer mcp-audit), so "
-        "mcp-audit will not overwrite it. Remove that section first if "
-        "mcp-audit should record tool definitions here — see docs/lock.md."
+        "Credenzo will not overwrite it. Remove that section first if "
+        "Credenzo should record tool definitions here — see docs/lock.md."
     )
 
 
@@ -353,10 +353,10 @@ def serialize(doc: dict) -> bytes:
     except CanonicalError:
         offending = _find_oversized_key(doc)
         raise LockWriteError(
-            f"{offending!r} section is too large for mcp-audit to process "
+            f"{offending!r} section is too large for Credenzo to process "
             "safely (exceeds an internal canonicalization size bound), or "
             "holds text with no canonical encoding (a lone UTF-16 surrogate). "
-            "This is a limitation of mcp-audit's own processing, not a "
+            "This is a limitation of Credenzo's own processing, not a "
             "problem with your lock file — see docs/lock.md."
         ) from None
 

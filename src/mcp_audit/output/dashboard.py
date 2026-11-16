@@ -190,7 +190,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>mcp-audit — Security Dashboard</title>
+<title>Credenzo — Security Dashboard</title>
 <style>
 [data-theme="dark"]{
   --bg-deep:#0c0c1a;--bg-panel:#13132a;--bg-card:#1a1a38;--bg-hover:#222250;
@@ -443,7 +443,7 @@ body{
   <!-- Top bar -->
   <header class="top-bar">
     <div class="logo">
-      <span class="logo-name">mcp-audit</span>
+      <span class="logo-name">Credenzo</span>
       <span class="logo-ver" id="logo-ver"></span>
     </div>
     <div class="top-right">
@@ -768,7 +768,7 @@ function initGraph(){
       .attr('text-anchor','middle').attr('font-size','11px')
       .attr('fill','var(--text-dim)')
       .attr('font-family','JetBrains Mono, ui-monospace, Fira Code, monospace')
-      .text('Run mcp-audit discover to check supported clients.');
+      .text('Run credenzo discover to check supported clients.');
   }
 }
 

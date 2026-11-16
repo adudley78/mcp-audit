@@ -104,7 +104,7 @@ class ServerConfig(BaseModel):
     # Used by _apply_project_scan() to emit TRUST-001.  Never set by the normal
     # user-level discovery path so default-scan behaviour is unchanged.
     is_project_scoped: bool = False
-    # True when the config entry launches the server through ``mcp-audit run``
+    # True when the config entry launches the server through ``credenzo run``
     # (EPIC-0009 Story 1.2). ``command``/``args`` then hold the wrapped
     # server's own launch, so every analyzer, the lock and the launch gate see
     # what actually runs; ``raw`` keeps the entry as written.
@@ -288,7 +288,7 @@ class ToolInfo(BaseModel):
 
     ``title``, ``output_schema`` and ``annotations`` are carried as the server
     sent them (wire format, camelCase keys inside ``annotations``) so
-    ``mcp-audit lock --connect`` can digest the whole definition — see
+    ``credenzo lock --connect`` can digest the whole definition — see
     :mod:`mcp_audit.lock.tool_digests`. ``None`` means the server did not
     send the field.
     """
@@ -485,9 +485,9 @@ class LockStatus(BaseModel):
     #: (``source: "unresolved"``, e.g. locked while offline) — surfaced so a
     #: clean ``verified=True`` never silently hides one.
     unresolved_entries: list[str] = Field(default_factory=list)
-    #: Top-level lock sections present but never checked by mcp-audit (e.g.
+    #: Top-level lock sections present but never checked by Credenzo (e.g.
     #: ``["trees"]``) — merged across every lock file consulted. See
-    #: ``lock/model.py::unverified_sections()``; mcp-audit never assumes an
+    #: ``lock/model.py::unverified_sections()``; Credenzo never assumes an
     #: internal shape for a foreign section, so this can only ever name it.
     unverified_sections: list[str] = Field(default_factory=list)
     #: Config files seen during verification that live outside every lock

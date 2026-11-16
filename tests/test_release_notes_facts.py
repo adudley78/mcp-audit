@@ -94,7 +94,7 @@ def test_cli_command_name_matches() -> None:
         r"CLI command: (\S+)", TEMPLATE_TEXT, TEMPLATE_PATH, "CLI command name"
     )
     (readme_val,) = _extract(
-        r"CLI command is still `([^`]+)`", README_TEXT, README_PATH, "CLI command name"
+        r"CLI command is `([^`]+)`", README_TEXT, README_PATH, "CLI command name"
     )
     _assert_fact_matches("CLI command name", template_val, readme_val)
 

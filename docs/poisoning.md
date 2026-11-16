@@ -1,12 +1,12 @@
 # Poisoning detection, measured
 
-mcp-audit's `POISON-*` checks are regular expressions run over the text an AI agent reads about a tool: its name, its description and the strings inside its input schema. They run on MCP config files, on live tool definitions with `scan --connect`, and (through the same `PATTERNS` list) on agent instruction files. The pattern list and severities are in [severity-framework.md](severity-framework.md); where each pattern comes from is in [PROVENANCE.md](../PROVENANCE.md).
+Credenzo's `POISON-*` checks are regular expressions run over the text an AI agent reads about a tool: its name, its description and the strings inside its input schema. They run on MCP config files, on live tool definitions with `scan --connect`, and (through the same `PATTERNS` list) on agent instruction files. The pattern list and severities are in [severity-framework.md](severity-framework.md); where each pattern comes from is in [PROVENANCE.md](../PROVENANCE.md).
 
 This page reports how often those checks are right, and (in [Cross-tool delegation](#cross-tool-delegation-deleg-001003)) how the DELEG-* checks that run beside them under `--connect` were measured before they shipped. Every measured number on it is recorded in `docs/research/poisoning-benchmark/results.json`, written by `scripts/bench_poisoning.py` (STORY-0088, measured 2026-10-25; re-measured 2026-10-28 for STORY-0107 and again for STORY-0099), except the rows run by hand over uncommitted data, which say so where they appear. Counts that describe the datasets themselves (cases per paradigm, wrapper positions) come from the dataset files, and figures from other papers are cited where they appear.
 
 ## The numbers
 
-Recall is reported twice. **Any severity** is what a plain `mcp-audit scan` exits 1 on (its default threshold is INFO). **HIGH or above** is what `mcp-audit check`, the pre-commit hook's default and `--severity-threshold high` fail on.
+Recall is reported twice. **Any severity** is what a plain `credenzo scan` exits 1 on (its default threshold is INFO). **HIGH or above** is what `credenzo check`, the pre-commit hook's default and `--severity-threshold high` fail on.
 
 | What | Corpus | Any severity | HIGH or above |
 |---|---|---|---|
@@ -52,7 +52,7 @@ Per case, exactly one MCPTox case changed findings: a P1 case with a full-width 
 
 ### MCPTox (recall, and the clean-tool flag rate)
 
-MCPTox is a benchmark of tool poisoning on 45 live MCP servers and 353 real tools ([arXiv 2508.14925](https://arxiv.org/html/2508.14925v1), AAAI 2026). Its data is in the authors' anonymized repository, <https://anonymous.4open.science/r/AAAI26-7C02>, which states no licence. mcp-audit therefore never commits it: `bench_poisoning.py` reads it into memory and records each file's SHA-256.
+MCPTox is a benchmark of tool poisoning on 45 live MCP servers and 353 real tools ([arXiv 2508.14925](https://arxiv.org/html/2508.14925v1), AAAI 2026). Its data is in the authors' anonymized repository, <https://anonymous.4open.science/r/AAAI26-7C02>, which states no licence. Credenzo therefore never commits it: `bench_poisoning.py` reads it into memory and records each file's SHA-256.
 
 | File | SHA-256 | Bytes |
 |---|---|---|
@@ -249,7 +249,7 @@ The one flagged clean tool is a Prisma account-status tool whose description tel
 
 ### Two session models
 
-MCPTox's attacker "can register a malicious MCP server" (§2.2), and the agent "is connected to both a trusted MCP server and a malicious one" (§3.4); its prompts, though, list the poisoned tool among the target server's own tools. mcp-audit knows which server each tool came from, and the checks use that: DELEG-001 needs a tool of a *different* server; DELEG-002 skips a sentence that names only its own server's tools and counts what the server's other tools can do as its own; DELEG-003's "every call" scope does not apply to an argument the server's own tools take. So the harness measures both layouts. The first is the threat model; the second shows what the checks do when that boundary is not there.
+MCPTox's attacker "can register a malicious MCP server" (§2.2), and the agent "is connected to both a trusted MCP server and a malicious one" (§3.4); its prompts, though, list the poisoned tool among the target server's own tools. Credenzo knows which server each tool came from, and the checks use that: DELEG-001 needs a tool of a *different* server; DELEG-002 skips a sentence that names only its own server's tools and counts what the server's other tools can do as its own; DELEG-003's "every call" scope does not apply to an argument the server's own tools take. So the harness measures both layouts. The first is the threat model; the second shows what the checks do when that boundary is not there.
 
 **Poisoned tool on its own server** (the case's target server and an attacker server in one session). Recall: share of poisoned descriptions flagged. "Both" is POISON-* or DELEG-*.
 

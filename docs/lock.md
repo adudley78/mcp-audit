@@ -1,4 +1,4 @@
-# `mcp-audit lock` — a committable, reviewable record of approved MCP servers
+# `credenzo lock` — a committable, reviewable record of approved MCP servers
 
 > **EXPERIMENTAL.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2)) and
 > verifies both `1` and `2`. The name of the `section_digests` field is pending confirmation with
@@ -6,9 +6,9 @@
 > before it is released. Treat `mcp-lock.json`'s shape as subject to change across a minor release
 > until this note is removed — the same posture the advisory feed shipped with.
 
-`mcp-audit lock` writes `mcp-lock.json` at your project root: a small, deterministic, git-committable
+`credenzo lock` writes `mcp-lock.json` at your project root: a small, deterministic, git-committable
 record of exactly which MCP servers your team has approved, what package version each one resolved
-to, and a checksum that catches unreviewed edits. `mcp-audit lock --verify` checks the current
+to, and a checksum that catches unreviewed edits. `credenzo lock --verify` checks the current
 configuration against it and is the command CI runs to fail a pull request that changes an MCP
 server without updating the lock.
 
@@ -45,13 +45,13 @@ or `poetry.lock` is.
 
 ```bash
 # Write mcp-lock.json from the project's MCP configs
-mcp-audit lock
+credenzo lock
 
 # Commit it
 git add mcp-lock.json && git commit -m "Lock approved MCP servers"
 
 # In CI, or before opening a PR, verify nothing drifted
-mcp-audit lock --verify
+credenzo lock --verify
 ```
 
 `lock` (no flags) discovers project-scoped MCP config files under the given path (same walk as
@@ -63,7 +63,7 @@ package version, and writes `mcp-lock.json` next to the project root.
 Codex and Gemini CLI project files are locked and verified like the others
 (STORY-0110). A lock written by an earlier release has no entries for them, so
 `lock --verify` (and the automatic check in `scan`/`check`) reports their servers
-as LOCK-002 until you review them and re-run `mcp-audit lock`.
+as LOCK-002 until you review them and re-run `credenzo lock`.
 
 Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that runs this exact sequence
 (`bash demo/lock/run.sh`) and asserts every exit code along the way.
@@ -120,7 +120,7 @@ Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that run
 
 **`package.deprecated`** (added in v0.18.1, STORY-0073): the package registry's own deprecation
 notice for `resolved_version`, or `null`. Populated only when resolution actually made a network
-call — `resolution.method == "dist-tag:latest"` (a plain `mcp-audit lock` on an unpinned spec, or
+call — `resolution.method == "dist-tag:latest"` (a plain `credenzo lock` on an unpinned spec, or
 `lock --verify --resolve`) — never for an exact pin (no manifest is fetched to read it from) and
 never under `--offline`. npm's own `deprecated` field on `dist-tags.latest` is the source; an empty
 deprecation string is normalised to `"(no message)"` so a finding always has readable text. PyPI's
@@ -142,11 +142,11 @@ header, `?token=…`) is recorded as `[REDACTED]` or `[REDACTED-FLAG]`, and the
 exactly as before.
 
 `lock --verify` compares the locked identity and the current one in this
-redacted form on both sides, so a lock written by an earlier mcp-audit, which
+redacted form on both sides, so a lock written by an earlier Credenzo, which
 holds the credential verbatim, still verifies without LOCK-001 (run `lock
 --accept` to rewrite it without the credential). The cost is that changing only
 a credential's value is not drift; `LOCK-013` (LOW) says so for each locked
-server whose launch carries one, and `mcp-audit lock` prints the same warning
+server whose launch carries one, and `credenzo lock` prints the same warning
 when it writes the lock. Move the credential to an `env` entry to fix both.
 `hashes` in a lock entry are SHA-256 digests of the real values and are not
 compared by `lock --verify`.
@@ -162,13 +162,13 @@ additive: every version-1 field keeps its meaning.
   ([npm-package-arg `lib/npa.js`](https://github.com/npm/npm-package-arg/blob/v14.0.0/lib/npa.js),
   `spec = '*'`), not as the `latest` tag, so version 1's `"latest"` overstated what the config said.
   `foo@latest` stays `"latest"`. Resolution is unchanged: both still resolve through the registry's
-  `latest` dist-tag, and mcp-audit still implements no range resolver. A spec `lock` does not parse
+  `latest` dist-tag, and Credenzo still implements no range resolver. A spec `lock` does not parse
   (`uvx pkg==1.2.3`, `uvx pkg>=1`) keeps version 1's `"latest"` and resolution, so re-reading it
   can never turn an untouched config into `LOCK-004`.
 - **`package.resolution.resolution_context`** records what the registry said when the version was
   picked: `resolved_at`, `latest` (the version `latest` pointed at) and `latest_deprecated` (its
   deprecation notice), plus `npm_major` and `node_version`. Those last two are always `null` in the
-  section mcp-audit writes: mcp-audit reads the dist-tag over HTTPS and runs neither npm nor Node.
+  section Credenzo writes: Credenzo reads the dist-tag over HTTPS and runs neither npm nor Node.
   As agreed on #88 (ADR-0005 R62), the `trees` producer, which does run npm, is to record its own
   context in its own section; his published spec does not have these fields yet. Context is never
   copied across sections. `resolution_context` is `null` for an exact pin and for an entry locked offline
@@ -178,28 +178,28 @@ additive: every version-1 field keeps its meaning.
 - **`section_digests`** is a top-level map from section name to `sha256:` + the SHA-256 of that
   section's RFC 8785 encoding. Each producer writes the entries for the sections it produced and
   copies every other entry verbatim (even one that no longer matches: that is the other producer's
-  evidence). mcp-audit writes `servers`, and `tools` once `lock --connect` has populated it; it
-  never writes `trees`. Any tool can recompute any entry. The map is outside mcp-audit's own
+  evidence). Credenzo writes `servers`, and `tools` once `lock --connect` has populated it; it
+  never writes `trees`. Any tool can recompute any entry. The map is outside Credenzo's own
   `checksum`, so another producer adding its entry never trips `LOCK-005`. A `section_digests`
   that is not an object stops `lock` (exit 2) rather than be overwritten.
 
 **Interop limits of the canonical form.** Both the digests and LOCK-012 rely on every producer
 writing the same RFC 8785 bytes. Two inputs cannot round-trip between languages and are kept out of
-any section a producer digests: integers beyond ±2^53 (mcp-audit writes them exactly; a JavaScript
+any section a producer digests: integers beyond ±2^53 (Credenzo writes them exactly; a JavaScript
 producer parses them into doubles and writes a different number, so the digest differs), and
 strings with a lone UTF-16 surrogate (`"\ud800"`), which have no UTF-8 encoding at all. mcp-audit
 never writes either; a section holding a lone surrogate cannot be digested or re-encoded and is
-listed as unverified (never passed), and in mcp-audit's own sections it is `LOCK-005`.
+listed as unverified (never passed), and in Credenzo's own sections it is `LOCK-005`.
 
 Verifying a version-2 lock adds three findings:
 
 | ID | Severity | When | Fails the exit code |
 |---|---|---|---|
 | `LOCK-010` | INFO | `--verify --resolve`: an entry's `resolution_context` differs from a fresh resolution (`latest`, `latest_deprecated`, `npm_major`, `node_version`) | no; any change to the resolved version or hash is `LOCK-004`, separately |
-| `LOCK-011` | HIGH | every verify, including `scan`/`check`: a `section_digests` entry is missing for a section mcp-audit wrote, malformed, names a section that is gone or the envelope (`lock_version`, `checksum`…), or does not match its section | yes, and `--allow-unverified` does not waive it |
+| `LOCK-011` | HIGH | every verify, including `scan`/`check`: a `section_digests` entry is missing for a section Credenzo wrote, malformed, names a section that is gone or the envelope (`lock_version`, `checksum`…), or does not match its section | yes, and `--allow-unverified` does not waive it |
 | `LOCK-012` | LOW | every verify: the file is not byte-identical to its canonical form (someone pretty-printed it, or an editor added a newline); names up to 16 reformatted sections (then `…`; none above 8 MiB), or `<layout>` | no |
 
-A section matching its digest is still a foreign section mcp-audit has not verified the contents
+A section matching its digest is still a foreign section Credenzo has not verified the contents
 of: a populated `trees` keeps failing the exit code under R56 (below) unless waived. A section too
 large to digest is listed as unverified, never passed.
 
@@ -247,29 +247,29 @@ checksums, and verifies these — and, once `lock --connect` has populated it, t
   install-tree generator ([`code/mcp_lock.py`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/code/mcp_lock.py),
   specified in [`spec/mcp-lock-spec.md`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/spec/mcp-lock-spec.md),
   both in his `mcp-supply-chain-study` repository), which materializes the full transitive install tree (the equivalent of
-  `package-lock.json`'s dependency graph). **mcp-audit never populates `trees`** — it has no
-  package-manager execution capability and does not attempt to build one. `mcp-audit lock` always
+  `package-lock.json`'s dependency graph). **Credenzo never populates `trees`** — it has no
+  package-manager execution capability and does not attempt to build one. `credenzo lock` always
   writes it as an empty `{}` stub if absent, and preserves it byte-for-byte (in canonical form) if
   another tool has already populated it.
 - `tools` is `null` until `lock --connect` records tool definitions. From then on it is
-  mcp-audit's own section, identified by `"_producer": "mcp-audit"` and protected by its own
+  Credenzo's own section, identified by `"_producer": "mcp-audit"` and protected by its own
   `_checksum` (ADR-0005, STORY-0086 amendment). A `tools` section written by any other producer
   stays foreign: preserved untouched, reported by `--verify`, and never overwritten
   (`lock --connect` refuses with exit 2 rather than replace it).
-- Any other top-level key mcp-audit does not recognize is preserved the same way: untouched,
+- Any other top-level key Credenzo does not recognize is preserved the same way: untouched,
   reported by `--verify`, never checksummed.
 
-`mcp-audit lock`'s own `checksum` field covers **only** `{lock_version, generated_by, servers}` —
+`credenzo lock`'s own `checksum` field covers **only** `{lock_version, generated_by, servers}` —
 never `trees`, `tools`, or any other section. (`tools` carries its own `_checksum` instead; see
 [Tool definitions](#tool-definitions---connect) for why.) This means running the `trees` generator
 against a locked repository never trips `LOCK-005` (tampering) — it is the other producer doing its
-job, not an edit to anything mcp-audit owns or verifies.
+job, not an edit to anything Credenzo owns or verifies.
 
 ---
 
 ## Guardrails section (STORY-0143)
 
-**Upgrade every place that runs `lock --verify` before committing a lock with a `guardrails` section.** An older mcp-audit than the one that wrote it reports the section as unverified (exit 1 unless `--allow-unverified`), never as tampering.
+**Upgrade every place that runs `lock --verify` before committing a lock with a `guardrails` section.** An older Credenzo than the one that wrote it reports the section as unverified (exit 1 unless `--allow-unverified`), never as tampering.
 
 `lock` also records the repository's own agent guardrail files in an mcp-audit-owned `guardrails`
 section: the project `.claude/settings.json`, `.codex/config.toml` and `.gemini/settings.json`
@@ -304,14 +304,14 @@ written to the lock.
 * **Locks written by 0.29.0 or earlier (STORY-0151).** Their records can hold `PGPASSWORD=`-style
   values, npm `_authToken=` and `token key:secret` in plain text. `lock --verify` compares them in
   this version's redacted form, so such a lock still verifies (no LOCK-014; its checksums and
-  `section_digests` are untouched, since `--verify` never rewrites the lock). Run `mcp-audit lock`
-  again to drop the values: only the records that held one change. An older mcp-audit verifying
+  `section_digests` are untouched, since `--verify` never rewrites the lock). Run `credenzo lock`
+  again to drop the values: only the records that held one change. An older Credenzo verifying
   the rewritten lock reports LOCK-014 for those rules, so upgrade CI first, and rotate the secret
   (git history keeps the old lock).
 
 ---
 
-## `mcp-audit lock --verify`
+## `credenzo lock --verify`
 
 | Mode | Compares lock against | Network | Finding IDs on drift |
 |---|---|---|---|
@@ -319,7 +319,7 @@ written to the lock.
 | `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact), `SC-005` (MEDIUM; `latest` for the package is deprecated on npm) and, on a version-2 lock, `LOCK-010` (INFO; the recorded resolution context changed) |
 | `lock --verify --connect` | the above, **plus** each server's live tool list vs. the digests in `tools` | starts each configured server (same as `scan --connect`) | adds `LOCK-006` (tool added, HIGH), `LOCK-007` (schema or annotations changed, HIGH), `LOCK-008` (only the description or title changed, MEDIUM), `LOCK-009` (tool removed, LOW) |
 | `lock --verify` on a lock with a `guardrails` section | each recorded repository guardrail file vs. the file on disk (see [Guardrails section](#guardrails-section-story-0143)) | none | `LOCK-014` (file allows more than its record, **HIGH**, fails the exit code) |
-| always | mcp-audit's own owned-section `checksum`, and `tools._checksum` when `tools` is populated, against their recomputed values | none | `LOCK-005` (mcp-audit's own record — header + `servers`, or the `tools` section — tampered or hand-edited) — short-circuits all other checks, exit 2 |
+| always | Credenzo's own owned-section `checksum`, and `tools._checksum` when `tools` is populated, against their recomputed values | none | `LOCK-005` (Credenzo's own record — header + `servers`, or the `tools` section — tampered or hand-edited) — short-circuits all other checks, exit 2 |
 | always, version-2 lock | `section_digests` against each section; the file's bytes against their canonical form | none | `LOCK-011` (a section changed without its digest, HIGH), `LOCK-012` (file reformatted, LOW) |
 
 **Remote host moves (STORY-0135).** When a remote server's canonical URL changes, LOCK-001's evidence leads with what moved: `remote host changed from a.example to b.example`, or `remote port changed from 443 to 8443 on host a.example` when only the port differs (the default port for the scheme counts as the port), or `remote scheme changed from https to http on host a.example` when the scheme moved on the same host. A trailing dot and an internationalised name in its punycode form count as the same host; a `${VAR}` host names nothing. A path-only change is still LOCK-001 but names no host; a change confined to userinfo, query string or fragment is not drift at all, because the lock records none of them. Only the hostname and port are ever quoted. No lock format change: the sentence is derived from the locked `identity.url` and the current config.
@@ -365,12 +365,12 @@ actual LOCK-001/002/004 drift finding:
 - one or more locked entries have `package.source == "unresolved"` (locked while offline, never
   confirmed against the registry), or
 - a foreign top-level section (`trees`, a `tools` section from another producer, or any other key
-  mcp-audit does not write) is genuinely **populated** — i.e. holds something other than
-  mcp-audit's own default stub (`trees: {}`, `tools: null`), or
+  Credenzo does not write) is genuinely **populated** — i.e. holds something other than
+  Credenzo's own default stub (`trees: {}`, `tools: null`), or
 - under `--connect`, a locked server's tools could not be compared: it has no tool record yet, or
   its tool list could not be read in full this run.
 
-**mcp-audit's own default stubs never trip this.** Every lock file mcp-audit writes always includes
+**Credenzo's own default stubs never trip this.** Every lock file Credenzo writes always includes
 the empty `trees: {}` / `null` `tools` stubs (ADR-0005 §1/§4/§11), and ADR-0005 §4's MUST — "never a
 reason to fail `lock` or `--verify`" — still holds for that default case: a project that has never
 run a `trees` generator sees no change in exit code from this release.
@@ -379,7 +379,7 @@ Use `--allow-unverified` to waive unresolved entries and populated foreign secti
 code, explicitly:
 
 ```bash
-mcp-audit lock --verify --allow-unverified
+credenzo lock --verify --allow-unverified
 ```
 
 The waiver **never** hides an actual LOCK-001/002/004/005 finding — only the unresolved/foreign-content
@@ -414,7 +414,7 @@ lock time) — never confirmed against the registry
 | `--resolve` | off | With `--verify`, also re-resolve floating specs against the registry (network; produces `LOCK-004`) |
 | `--allow-unverified` | off | With `--verify`, waive unresolved entries and populated foreign sections from the exit code (restores exit 0), printing exactly what was waived. Never waives an actual LOCK-001/002/004/005 finding. See "Unverified state now fails the exit code" above. |
 | `--accept` | off | Re-write the lock from the current state, preserving each surviving entry's `first_locked` — the explicit "I reviewed the drift" step after a failed `--verify` |
-| `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'mcp-audit-scanner[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
+| `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'credenzo[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
 | `--save-tool-text` | off | With `--connect`: also write the tool definitions to `mcp-lock.tools.json` beside the lock. `mcp-lock.json` is unchanged. See [Saved tool text](#saved-tool-text---save-tool-text). |
 | `--tool-text-path` | `<lock dir>/mcp-lock.tools.json` | Where the tool-text file is written (with `--save-tool-text`) or read (with `--verify --connect`) |
 | `--connect-token` | none | Bearer token sent to remote (SSE/HTTP) servers during `--connect`. Never stored or logged. |
@@ -438,10 +438,10 @@ tool definitions changed with no new capability advertised
 ([github/github-mcp-server#3466](https://github.com/github/github-mcp-server/issues/3466)).
 
 ```bash
-mcp-audit lock --connect              # record the current tool definitions
+credenzo lock --connect              # record the current tool definitions
 git add mcp-lock.json && git commit -m "Lock MCP tool definitions"
 
-mcp-audit lock --verify --connect     # later, or in a scheduled job
+credenzo lock --verify --connect     # later, or in a scheduled job
 ```
 
 ```
@@ -496,7 +496,7 @@ package version doing the listing: the same server digests identically under `mc
 `LOCK-008` is not "cosmetic". The description is the text the model reads, and it is where tool
 poisoning arrives. It is ranked below a schema change because the tool still accepts and returns
 the same things, but it still fails the build until someone reads the new text and re-locks.
-`mcp-audit scan --connect` runs the poisoning checks over the current text.
+`credenzo scan --connect` runs the poisoning checks over the current text.
 
 A server that cannot be compared is reported, never passed: no tool record yet (run
 `lock --connect`), the connection failed, or the tool list could not be read to the last page. Each
@@ -513,7 +513,7 @@ drops records for servers no longer in the lock. If the `tools` section fails it
 new server's tools against the old record.
 
 **Why `tools` has its own checksum.** The top-level `checksum` still covers
-`{lock_version, generated_by, servers}` only. If `tools` were folded into it, every mcp-audit from
+`{lock_version, generated_by, servers}` only. If `tools` were folded into it, every Credenzo from
 0.17 to 0.20 would recompute the old scope on a lock written with `--connect`, find a mismatch, and
 report `LOCK-005` "tampered" — a false security event for any team on mixed versions, or CI pinned
 to an older Action. With a section-local `_checksum`, 0.18–0.20 see a populated section they cannot
@@ -542,9 +542,9 @@ what changed. `lock --connect --save-tool-text` also writes the definitions them
 `mcp-lock.tools.json` next to the lock:
 
 ```bash
-mcp-audit lock --connect --save-tool-text        # writes mcp-lock.json and mcp-lock.tools.json
-mcp-audit lock --verify --connect                # reads the second file when it is there
-mcp-audit lock --verify --connect --format pr-comment
+credenzo lock --connect --save-tool-text        # writes mcp-lock.json and mcp-lock.tools.json
+credenzo lock --verify --connect                # reads the second file when it is there
+credenzo lock --verify --connect --format pr-comment
 ```
 
 What verify shows with the file:
@@ -564,7 +564,7 @@ checksum does not cover it, and no verdict depends on it. Each stored definition
 hashes to the digest the lock holds for that tool. If any does not (hand edit, or the file is from an
 older run), verify prints a note that the file is out of step with the lock, shows no diff for that
 server, and the exit code is whatever the digests say. A name collision (two tools under one name)
-is never shown as a single definition. The file is never overwritten if it is not one mcp-audit wrote, and `--tool-text-path` alone writes nothing (it needs `--save-tool-text`). Without the file, `--verify --connect` prints what it always
+is never shown as a single definition. The file is never overwritten if it is not one Credenzo wrote, and `--tool-text-path` alone writes nothing (it needs `--save-tool-text`). Without the file, `--verify --connect` prints what it always
 did plus one line saying `--save-tool-text` would show the change.
 
 **What is in it.** The definition each tool is digested from: name, title, description,
@@ -575,14 +575,14 @@ across 60 servers that answered (about 100 KB per server on average; the corpus 
 definitions, so a median and maximum are not published). Re-run with `--save-tool-text` to refresh
 it; a server that could not be listed keeps its previous text.
 
-Not to be confused with `mcp-audit snapshot`, which is the forensic export.
+Not to be confused with `credenzo snapshot`, which is the forensic export.
 
 ## CI usage
 
 ```yaml
 # .github/workflows/mcp-audit-lock.yml
 - name: Verify MCP server lock
-  run: mcp-audit lock --verify
+  run: credenzo lock --verify
 ```
 
 A non-zero exit fails the job, naming exactly which server drifted (`LOCK-001`), which configured
@@ -594,7 +594,7 @@ the exit code — removal is not automatically suspicious.
 
 ## Two no-op runs produce (almost) the same file
 
-Re-running `mcp-audit lock` when nothing changed reproduces the same `servers` content and the same
+Re-running `credenzo lock` when nothing changed reproduces the same `servers` content and the same
 `checksum`. Only `generated_at` always changes (it records when the tool ran, deliberately excluded
 from the checksum — see ADR-0005 §5), and `resolution.resolved_at`/`integrity` for a given entry only
 change if that server's resolved package version actually changed (ADR-0005 §6). This is what keeps
@@ -605,15 +605,15 @@ skip the file.
 
 ## Adoption surface (STORY-0070): fix, check, scan, Action, pre-commit, diff
 
-`lock` composes with the rest of mcp-audit rather than living in its own silo:
+`lock` composes with the rest of Credenzo rather than living in its own silo:
 
-- **`mcp-audit fix --fix-type pinning`** now also remediates `VULN-UNPINNED` and `LOCK-004`.
+- **`credenzo fix --fix-type pinning`** now also remediates `VULN-UNPINNED` and `LOCK-004`.
   When a lock exists for the server being fixed, the fix uses the lock's own
   `package.resolved_version` — no network call — so the fix pins to the exact version already
   reviewed at lock time. Without a lock (or offline with no lock entry), it falls back to live
   registry resolution, identical to the existing `SC-001`/`SC-002` typosquat-pinning behaviour. A
   semver range collapsed to an exact pin is called out explicitly in the fix message.
-- **`mcp-audit check` and `mcp-audit scan`** auto-verify the nearest ancestor `mcp-lock.json` for
+- **`credenzo check` and `credenzo scan`** auto-verify the nearest ancestor `mcp-lock.json` for
   every scanned server, when one exists — no flag required. `--no-lock` opts out entirely. A
   project with no lock file anywhere sees zero change in behaviour or output. Matching is by
   **(config path relative to the lock root, server name)**, not by the `<client>/<name>` string
@@ -630,32 +630,32 @@ skip the file.
   unverified_sections, outside_root, not_covered}` object mirroring `feed_status`'s shape.
   `not_covered` (STORY-0094) lists MCP servers declared inline in a project
   subagent definition (`.claude/agents/**/*.md`, client `claude-code-agent`)
-  under a lock root: `mcp-audit lock` never records them and verification skips
+  under a lock root: `credenzo lock` never records them and verification skips
   them, so an existing lock keeps passing, but `check` and `scan` print a `WARN`
   that the lock does not cover them, and their AGENT-004 is MEDIUM. A repository's
   skills-directory plugin servers (`.claude/skills/<name>/.mcp.json`, client
-  `claude-code-plugin`, STORY-0095) are verified against the entry `mcp-audit lock` wrote for
+  `claude-code-plugin`, STORY-0095) are verified against the entry `credenzo lock` wrote for
   that `.mcp.json` (matched by config path and name, so drift is LOCK-001 in `check` as in
   `lock --verify`); one the lock has no entry for, such as an inline `plugin.json` server, is
   listed in `not_covered`. A monorepo with several
   `mcp-lock.json` files verifies each project config against its own nearest ancestor lock, never a
   sibling's.
 - **The GitHub Action** (`action.yml`) gains `lock-verify` (default `false`) and `lock-resolve`
-  (default `false`). When `lock-verify: true`, the action runs `mcp-audit lock --verify --if-present`
+  (default `false`). When `lock-verify: true`, the action runs `credenzo lock --verify --if-present`
   and fails the step on `LOCK-001`/`002`/`004`/`005` regardless of `severity-threshold` (still
   honouring `fail-on-findings`). A repo with no `mcp-lock.json` yet gets a warning and a passing step
   — turning this input on can never break an existing workflow. When `sarif-output` is also set, lock
   findings are merged into the same SARIF file so Code Scanning shows them alongside everything else.
 - **A new `mcp-audit-lock-verify` pre-commit hook** (`.pre-commit-hooks.yaml`) runs
-  `mcp-audit lock --verify --if-present` on any commit touching a known MCP config path or
+  `credenzo lock --verify --if-present` on any commit touching a known MCP config path or
   `mcp-lock.json`. `always_run: false`, so it is silent on unrelated commits. A drifted commit is
-  blocked; run `mcp-audit lock --accept` after reviewing the drift to unblock it.
+  blocked; run `credenzo lock --accept` after reviewing the drift to unblock it.
 - **`--if-present`** is the flag underpinning both of the above: `lock --verify --if-present` treats
   a missing lock file as a soft, exit-0 skip instead of the normal exit-2 error, so an adoption path
   (Action input, pre-commit hook) can be turned on unconditionally without breaking a repo that has
-  not run `mcp-audit lock` yet. Plain `lock --verify` (no flag) keeps its strict exit-2 behaviour for
+  not run `credenzo lock` yet. Plain `lock --verify` (no flag) keeps its strict exit-2 behaviour for
   direct/explicit CI use.
-- **`mcp-audit diff`** lock-awareness (comparing `mcp-lock.json` across two refs in MCP terms) is
+- **`credenzo diff`** lock-awareness (comparing `mcp-lock.json` across two refs in MCP terms) is
   tracked as a follow-up, not shipped in the same change as the above — see the STORY-0070 PR
   description for why it was split out.
 
@@ -668,7 +668,7 @@ skip the file.
   (bundling [npm-pick-manifest](https://github.com/npm/npm-pick-manifest/blob/v12.0.0/lib/index.js)
   9.1.0 or later, whose `latest` fast path checks `!mani.deprecated` and the engines) skip a
   deprecated or engine-incompatible `latest` and then prefer the highest version that is neither,
-  when one exists. mcp-audit does not model this; SC-005 says so in its message.
+  when one exists. Credenzo does not model this; SC-005 says so in its message.
 - No semver range resolution: a range spec (`foo@^1.2.3`) is recorded verbatim in `spec_as_written`
   and resolved the same way an unpinned `latest` spec is (via the registry's own `latest` dist-tag /
   PyPI's latest-stable), never by computing a highest-satisfying version. `range_spec: true` flags

@@ -1,6 +1,6 @@
 # Example advisory feed
 
-A complete feed produced by `mcp-audit advise`. It exists so you can inspect the
+A complete feed produced by `credenzo advise`. It exists so you can inspect the
 layout, wire up a consumer, and confirm your tooling works before pointing it at
 anything that matters.
 
@@ -14,7 +14,7 @@ mutated record fails.
 ## Verify it
 
 ```bash
-mcp-audit feed verify examples/feed
+credenzo feed verify examples/feed
 ```
 
 Every record reports `OK`, the command exits 0, and the verdict states plainly that
@@ -54,7 +54,7 @@ plus `<file>.sigstore.json` when signed with cosign.
 ## Where the records came from
 
 Scanning `fixtures/vulnerable-servers/`, a set of three deliberately insecure MCP
-server configurations covering the finding classes `mcp-audit fix` remediates —
+server configurations covering the finding classes `credenzo fix` remediates —
 `hardcoded-secret`, `command-injection`, and `excessive-scope` — plus a typosquatted
 package name and several unpinned dependencies.
 
@@ -82,7 +82,7 @@ verify. See the "Signing" and "Key custody" sections of `docs/advisory-feed.md`.
 
 ```bash
 SOURCE_DATE_EPOCH=1769817600 \
-  mcp-audit advise fixtures/vulnerable-servers \
+  credenzo advise fixtures/vulnerable-servers \
     --out examples/feed \
     --no-sign \
     --severity-threshold info \
@@ -91,7 +91,7 @@ SOURCE_DATE_EPOCH=1769817600 \
 
 `--expires 2099-01-01T00:00:00Z` is **fixture-only**. A real publish uses the 14-day
 TTL (`published_at` + `--ttl-days`). Pinning a far-future expiry here keeps
-`mcp-audit feed verify examples/feed` passing for as long as the committed copy is
+`credenzo feed verify examples/feed` passing for as long as the committed copy is
 meant to be inspectable; it is not the production SLA.
 
 Regenerating replaces this file, so restore it from git afterwards.

@@ -10,7 +10,7 @@ from mcp_audit import cli as _cli
 from mcp_audit.cli import console, policy_app
 
 _POLICY_TEMPLATE = """\
-# mcp-audit governance policy
+# Credenzo governance policy
 # Reference: https://github.com/adudley78/mcp-audit/blob/main/docs/governance.md
 version: 1
 name: "My organisation governance policy"
@@ -184,8 +184,8 @@ def policy_init(
     console.print(
         "\nNext steps:\n"
         "  1. Edit the file to define your organisation's requirements.\n"
-        "  2. Run [bold]mcp-audit policy validate[/bold] to check syntax.\n"
-        "  3. Run [bold]mcp-audit scan[/bold] — policy is auto-discovered.\n"
+        "  2. Run [bold]credenzo policy validate[/bold] to check syntax.\n"
+        "  3. Run [bold]credenzo scan[/bold] — policy is auto-discovered.\n"
     )
 
 
@@ -230,7 +230,7 @@ def policy_check(
     if loaded_policy is None:
         console.print(
             "[yellow]No governance policy found.[/yellow]  "
-            "Use [bold]mcp-audit policy init[/bold] to create one or "
+            "Use [bold]credenzo policy init[/bold] to create one or "
             "pass [bold]--policy <path>[/bold]."
         )
         raise typer.Exit(0)  # noqa: B904

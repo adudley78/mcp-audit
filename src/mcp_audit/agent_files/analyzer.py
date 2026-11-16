@@ -412,7 +412,7 @@ def _mem003_findings(af: AgentFile, home: Path) -> list[Finding]:
                 " it reads directly loads them with no prompt once approved. The"
                 " imported text is not in the repository, so a review of the"
                 " repository never sees it, and it differs on every machine."
-                " mcp-audit did not read it."
+                " Credenzo did not read it."
             )
             if personal:
                 description += (
@@ -436,7 +436,7 @@ def _mem003_findings(af: AgentFile, home: Path) -> list[Finding]:
                 " committed. Its text reaches every agent session without ever"
                 " appearing in review or git diff, and anything that can write the"
                 " file (a tool, a script, the agent itself) changes the agent's"
-                " instructions with no trace in the repository. mcp-audit reads"
+                " instructions with no trace in the repository. Credenzo reads"
                 " .gitignore files only; it cannot see a file that was force-added."
             )
             evidence = (
@@ -613,7 +613,7 @@ def _mem007_findings(af: AgentFile) -> list[Finding]:
                     " disclosed 2026-10-26) found an AGENTS.md planted in a"
                     " customer's Downloads that told Codex to add an MCP server"
                     " to its config and then run with approvals and sandbox off."
-                    " mcp-audit looked only at this one folder level."
+                    " Credenzo looked only at this one folder level."
                 ),
                 f"~/{folder}/{af.path.name}",
                 (
@@ -1326,7 +1326,7 @@ def analyze_agent_files(
             file_findings.extend(_analyze_memory(af))
         if af.imported_from is not None:
             via = (
-                f" mcp-audit reached this file from '{af.imported_from.name}'"
+                f" Credenzo reached this file from '{af.imported_from.name}'"
                 f" ({af.imported_from})."
             )
             file_findings = [

@@ -1,4 +1,4 @@
-"""CycloneDX 1.5 SBOM formatter for mcp-audit scan results.
+"""CycloneDX 1.5 SBOM formatter for Credenzo scan results.
 
 Supports cyclonedx-python-lib 7.x AND 8.x-11.x. The two major-version series
 differ in two ways we care about:
@@ -41,12 +41,12 @@ class CycloneDxFormatter(BaseFormatter):
 
         Raises:
             ImportError: When ``cyclonedx-python-lib`` is not installed.
-                Install via ``pip install 'mcp-audit-scanner[sbom]'``.
+                Install via ``pip install 'credenzo[sbom]'``.
         """
         if not _CYCLONEDX_AVAILABLE:
             raise ImportError(
                 "The 'sbom' extra is required for CycloneDX output. "
-                "Install it with: pip install 'mcp-audit-scanner[sbom]'"
+                "Install it with: pip install 'credenzo[sbom]'"
             )
 
         from cyclonedx.model import XsUri  # noqa: PLC0415

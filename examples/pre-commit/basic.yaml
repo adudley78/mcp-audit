@@ -1,4 +1,4 @@
-# Minimal mcp-audit pre-commit integration.
+# Minimal Credenzo pre-commit integration.
 # Fires whenever a JSON file is staged; fails the commit if any HIGH or
 # CRITICAL findings are detected in your MCP server configurations.
 #
@@ -6,6 +6,6 @@
 # Later releases: https://github.com/adudley78/mcp-audit/releases
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.32.0  # current release; `pre-commit autoupdate` moves it forward
+    rev: v0.33.0  # current release; `pre-commit autoupdate` moves it forward
     hooks:
-      - id: mcp-audit
+      - id: credenzo

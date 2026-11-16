@@ -1,13 +1,13 @@
 """Pydantic models for ``mcp-lock.json`` and the ownership-scoped checksum.
 
 See ``docs/decisions/ADR-0005-mcp-audit-lock.md`` for the full rationale.
-This module implements the ADR's ownership boundary: mcp-audit owns
+This module implements the ADR's ownership boundary: Credenzo owns
 ``lock_version``, ``generated_by``, ``generated_at``, and ``servers``, and
 (since the STORY-0086 amendment) a ``tools`` section that declares
 ``_producer: "mcp-audit"``. That section carries its own ``_checksum`` — see
 :mod:`mcp_audit.lock.tool_digests`; the top-level ``checksum`` scope is
 unchanged. Every other top-level key (``trees``, a ``tools`` section from any
-other producer, and anything unrecognised) is foreign — mcp-audit preserves
+other producer, and anything unrecognised) is foreign — Credenzo preserves
 it, reports it, and never includes it in its own ``checksum`` or claims to
 have verified it (ADR §1, §3, §10).
 """
@@ -34,7 +34,7 @@ from mcp_audit.lock.core import (  # noqa: F401 — re-exported; one implementat
 #: in a v1 lock it is just an unrecognised (foreign) key, as it always was.
 SECTION_DIGESTS_KEY = "section_digests"
 
-#: Top-level keys mcp-audit itself produces and checksums.  ``generated_at``
+#: Top-level keys Credenzo itself produces and checksums.  ``generated_at``
 #: is deliberately excluded from the checksummed body — ADR-0005 §5 (a
 #: no-op re-lock must not churn the checksum).
 OWNED_CHECKSUM_KEYS: frozenset[str] = frozenset(
@@ -48,14 +48,14 @@ STRUCTURAL_KEYS: frozenset[str] = frozenset(
 )
 
 #: Reserved sections ``lock`` always writes a stub for. ``trees`` is
-#: reserved-but-foreign (ADR-0005 §1, §4, §11). ``tools`` is mcp-audit's own
+#: reserved-but-foreign (ADR-0005 §1, §4, §11). ``tools`` is Credenzo's own
 #: once populated by ``lock --connect`` (STORY-0086 amendment); until then it
 #: is ``null``.
 RESERVED_FOREIGN_KEYS: frozenset[str] = frozenset({"trees", "tools"})
 
 #: The exact default stub value ``lock/writer.py::regenerate()`` writes for
 #: each reserved key when nothing has populated it yet (``trees: {}``,
-#: ``tools: null``).  A key present with exactly this value is mcp-audit's
+#: ``tools: null``).  A key present with exactly this value is Credenzo's
 #: own placeholder, not evidence any other producer touched the file — see
 #: :func:`foreign_sections_with_content`.
 RESERVED_FOREIGN_DEFAULTS: dict[str, object] = {"trees": {}, "tools": None}
@@ -69,7 +69,7 @@ class ResolutionContext(BaseModel):
     Dist-tags and deprecation flags have no queryable history, so a recorded
     context is not a coordinate anyone can return to (ADR-0005 R59/R62).
     ``npm_major`` and ``node_version`` are always ``None`` in the section
-    mcp-audit writes: it reads the registry's ``latest`` dist-tag over HTTPS
+    Credenzo writes: it reads the registry's ``latest`` dist-tag over HTTPS
     and runs neither npm nor Node.
     """
 
@@ -106,7 +106,7 @@ class LockPackage(BaseModel):
     #: or `None` when not deprecated. Populated only via the network-fetch
     #: path (`resolution.method == "dist-tag:latest"`) — an exact pin never
     #: makes the network call this is read from (STORY-0073/R58). Owned by
-    #: mcp-audit and covered by the checksum like every other field here;
+    #: Credenzo and covered by the checksum like every other field here;
     #: `lock_version` stays 1 (additive field, not a schema break).
     deprecated: str | None = None
 
@@ -140,7 +140,7 @@ class LockEntry(BaseModel):
 
 
 class LockFile(BaseModel):
-    """mcp-audit's owned view of ``mcp-lock.json``.
+    """Credenzo's owned view of ``mcp-lock.json``.
 
     Foreign sections (``trees``, ``tools``, anything unrecognised) are not
     modelled here — they are opaque values handled by
@@ -162,14 +162,14 @@ def is_version_2(doc: dict) -> bool:
 
 
 def owned_subdocument(doc: dict) -> dict:
-    """Return the sub-document mcp-audit's ``checksum`` actually covers.
+    """Return the sub-document Credenzo's ``checksum`` actually covers.
 
     ADR-0005 §10: ``{lock_version, generated_by, servers}`` only — never
     ``generated_at``, ``checksum`` itself, or any foreign section (``trees``,
     ``tools``, anything unrecognised).  Scoping the checksum this way means a
     legitimate rewrite of ``trees`` by an independent producer never
     invalidates it (the checkpoint-review fix that keeps LOCK-005 meaning one
-    thing: mcp-audit's own record was tampered).
+    thing: Credenzo's own record was tampered).
 
     Args:
         doc: The full on-disk lock document as a plain dict.
@@ -181,7 +181,7 @@ def owned_subdocument(doc: dict) -> dict:
 
 
 def compute_checksum(doc: dict) -> str:
-    """Compute mcp-audit's owned-section checksum for *doc* (ADR-0005 §10).
+    """Compute Credenzo's owned-section checksum for *doc* (ADR-0005 §10).
 
     Args:
         doc: The full on-disk lock document as a plain dict.
@@ -195,14 +195,14 @@ def compute_checksum(doc: dict) -> str:
 
 
 def _owned_guardrails(section: object) -> bool:
-    """Whether *section* is mcp-audit's own ``guardrails`` section (STORY-0143)."""
+    """Whether *section* is Credenzo's own ``guardrails`` section (STORY-0143)."""
     from mcp_audit.lock import guardrail_section  # noqa: PLC0415
 
     return guardrail_section.is_owned(section)
 
 
 def unverified_sections(doc: dict) -> list[str]:
-    """Return top-level keys present in *doc* that mcp-audit does not verify.
+    """Return top-level keys present in *doc* that Credenzo does not verify.
 
     Drives the generic (not ``trees``-specific) ``lock --verify`` summary
     line — ADR-0005 §3's checkpoint-review fix: a future foreign section is
@@ -213,13 +213,13 @@ def unverified_sections(doc: dict) -> list[str]:
         doc: The full on-disk lock document as a plain dict.
 
     A ``tools`` value that is ``null`` or an mcp-audit-owned section is not
-    listed: the first holds nothing, and the second is mcp-audit's own record,
+    listed: the first holds nothing, and the second is Credenzo's own record,
     integrity-checked by its ``_checksum`` on every verify. Whether its tool
     digests were *compared* against live servers is reported separately
     (``VerifyResult.tools_compared``).
 
     Returns:
-        Sorted list of top-level keys outside mcp-audit's owned/structural
+        Sorted list of top-level keys outside Credenzo's owned/structural
         set (e.g. ``["trees"]``).
     """
     owned_and_structural = OWNED_CHECKSUM_KEYS | STRUCTURAL_KEYS
@@ -233,7 +233,7 @@ def unverified_sections(doc: dict) -> list[str]:
             k == tool_digests.TOOLS_KEY
             and (doc[k] is None or tool_digests.is_owned(doc[k]))
         )
-        # STORY-0143: an owned `guardrails` section is mcp-audit's own record,
+        # STORY-0143: an owned `guardrails` section is Credenzo's own record,
         # integrity-checked by its `_checksum` on every verify.
         and not (k == "guardrails" and _owned_guardrails(doc[k]))
     )
@@ -249,17 +249,17 @@ def foreign_sections_with_content(doc: dict) -> list[str]:
 
     ``lock`` itself always writes the ``trees: {}`` / ``tools: null`` default
     stubs (``writer.py::regenerate()``, ``RESERVED_FOREIGN_DEFAULTS`` above) —
-    their mere presence is mcp-audit's own placeholder, not evidence that any
+    their mere presence is Credenzo's own placeholder, not evidence that any
     other producer touched the file. Per ADR-0005 §4's MUST ("never a reason
     to fail `lock` or `--verify`"), that default-stub case must **not** flip
-    the exit code, or every single lock file mcp-audit has ever written would
+    the exit code, or every single lock file Credenzo has ever written would
     fail `--verify` unconditionally.
 
     A key present with a value *other than* its declared default (Prachet
     Poddar's tree generator has actually populated ``trees``; a ``tools``
     section written by another producer; a wholly unrecognised key
-    mcp-audit never writes at all, e.g. a synthetic ``resolutions`` sidecar)
-    means a section mcp-audit did not write and structurally cannot check is
+    Credenzo never writes at all, e.g. a synthetic ``resolutions`` sidecar)
+    means a section Credenzo did not write and structurally cannot check is
     genuinely present. That is the gap this function exists to catch:
     distinct from, and narrower than, the always-present empty-stub case
     already covered by :func:`unverified_sections`.
@@ -268,7 +268,7 @@ def foreign_sections_with_content(doc: dict) -> list[str]:
         doc: The full on-disk lock document as a plain dict.
 
     Returns:
-        Sorted list of top-level keys mcp-audit did not write and cannot
+        Sorted list of top-level keys Credenzo did not write and cannot
         verify, excluding its own untouched default stubs.
     """
     return [

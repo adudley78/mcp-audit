@@ -1,4 +1,4 @@
-# mcp-audit documentation
+# Credenzo documentation
 
 Every file in this folder is listed once. `tests/test_docs_index.py` fails when a file is missing here.
 
@@ -12,7 +12,7 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | [scoring.md](scoring.md) | Score and grade method |
 | [severity-framework.md](severity-framework.md) | Severity, CVSS and OWASP mapping for every finding ID |
 | [owasp-mcp-top-10.md](owasp-mcp-top-10.md) | Coverage of the OWASP MCP Top 10 |
-| [privacy.md](privacy.md) · [telemetry.md](telemetry.md) | What mcp-audit collects (nothing by default) |
+| [privacy.md](privacy.md) · [telemetry.md](telemetry.md) | What Credenzo collects (nothing by default) |
 
 ## Commands
 

@@ -1,4 +1,4 @@
-"""Data model for ``mcp-audit reach`` (STORY-0145).
+"""Data model for ``credenzo reach`` (STORY-0145).
 
 Pure dataclasses: no I/O, no rendering.  ``MachineReach.to_dict`` is the one
 place a report becomes JSON, and it is also what the terminal and PDF

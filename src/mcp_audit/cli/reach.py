@@ -1,6 +1,6 @@
 """The ``reach`` command: what can the agents on this machine touch? (STORY-0145).
 
-``mcp-audit reach`` runs one default scan (no explicit path, no rug-pull state
+``credenzo reach`` runs one default scan (no explicit path, no rug-pull state
 written) and the settings readers in :mod:`mcp_audit.reach`, and prints one
 card per agent: where it runs, whose credentials it can read, what it can reach
 on the network, whether policy is enforced, whether activity is logged, and a

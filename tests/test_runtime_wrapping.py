@@ -215,7 +215,7 @@ class TestStatusAndPolicy:
             f for f in evaluate_governance(servers, policy) if f.id == "WRAP-001"
         ]
         assert [f.server for f in findings] == ["c"]
-        assert "mcp-audit wrap --server c" in findings[0].remediation
+        assert "credenzo wrap --server c" in findings[0].remediation
 
     def test_no_wrap_findings_without_the_policy(self, tmp_path: Path) -> None:
         servers = _parse(tmp_path, {"c": ENTRY})

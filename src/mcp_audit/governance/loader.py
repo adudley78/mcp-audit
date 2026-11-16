@@ -90,7 +90,7 @@ def load_policy(
         path: Explicit path override.  When provided, the file must exist;
             an error is raised if it cannot be read or fails validation.
         start: Directory to search instead of the current working directory
-            (``mcp-audit run`` passes the MCP config's directory, since the
+            (``credenzo run`` passes the MCP config's directory, since the
             client decides the server's working directory).
 
     Returns:

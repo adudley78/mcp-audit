@@ -238,7 +238,7 @@ def verify_server_hashes(
                     ),
                     remediation=(
                         "Consider contributing the hash for this version to the "
-                        "mcp-audit registry, or pin a version that has a known hash."
+                        "Credenzo registry, or pin a version that has a known hash."
                     ),
                     finding_path=str(server.config_path),
                 )

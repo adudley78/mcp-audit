@@ -1,9 +1,9 @@
-# `mcp-audit check` — One-command security verdict
+# `credenzo check` — One-command security verdict
 
-`mcp-audit check` is the recommended entry point for anyone who has just
+`credenzo check` is the recommended entry point for anyone who has just
 installed an MCP client and wants to know: **"is my setup safe?"**
 
-It runs a full scan internally (identical detection to `mcp-audit scan`) and
+It runs a full scan internally (identical detection to `credenzo scan`) and
 presents the result as a concise one-page verdict: a letter grade, the top
 findings, and a numbered fix list.
 
@@ -12,11 +12,11 @@ findings, and a numbered fix list.
 ## Usage
 
 ```bash
-mcp-audit check                    # Auto-discover all MCP configs on this machine
-mcp-audit check --path config.json # Scan a specific config file
-mcp-audit check --verbose          # Full scan output (equivalent to mcp-audit scan)
-mcp-audit check --json             # Output full ScanResult JSON
-mcp-audit check --no-lock          # Skip automatic mcp-lock.json verification
+credenzo check                    # Auto-discover all MCP configs on this machine
+credenzo check --path config.json # Scan a specific config file
+credenzo check --verbose          # Full scan output (equivalent to credenzo scan)
+credenzo check --json             # Output full ScanResult JSON
+credenzo check --no-lock          # Skip automatic mcp-lock.json verification
 ```
 
 ---
@@ -26,32 +26,32 @@ mcp-audit check --no-lock          # Skip automatic mcp-lock.json verification
 **With findings:**
 
 ```
-mcp-audit — Security Check
+Credenzo — Security Check
 ───────────────────────────────────────────────────────────────────────────────
   Grade: C  (Score: 61/100)
 
   ⚠  3 issues need your attention:
 
   1. [CRITICAL] Exposed API key in GITHUB_TOKEN env var
-     → Run `mcp-audit fix --apply` to redact automatically.
+     → Run `credenzo fix --apply` to redact automatically.
 
   2. [HIGH] Server "fetch" uses unencrypted HTTP
-     → Run `mcp-audit fix --apply` to upgrade to HTTPS automatically.
+     → Run `credenzo fix --apply` to upgrade to HTTPS automatically.
 
   3. [MEDIUM] "mcp-server-data" is not pinned to a version
      → Pin the package to an explicit version (e.g. @2.1.0) to prevent unexpected updates.
 
-  2 of 3 issues can be fixed with mcp-audit fix --apply
+  2 of 3 issues can be fixed with credenzo fix --apply
 
 ───────────────────────────────────────────────────────────────────────────────
-To see all findings:  mcp-audit scan
-To apply auto-fixes:  mcp-audit fix --apply
+To see all findings:  credenzo scan
+To apply auto-fixes:  credenzo fix --apply
 ```
 
 **Clean config:**
 
 ```
-mcp-audit — Security Check
+Credenzo — Security Check
 ───────────────────────────────────────────────────────────────────────────────
   Grade: A  ✓ No issues found
 
@@ -65,7 +65,7 @@ mcp-audit — Security Check
 ```
   Grade: F  (Score: 0/100)
 
-  ⛔ Active attack path detected.  Run mcp-audit scan for full details.
+  ⛔ Active attack path detected.  Run credenzo scan for full details.
   ...
 ```
 
@@ -75,8 +75,8 @@ mcp-audit — Security Check
 
 | Situation | Behaviour |
 |-----------|-----------|
-| Auto-discovers configs (no `--path`) | Identical to `mcp-audit scan` with no `--path` flag |
-| More than 5 findings | Shows top 5 by severity; footer says "and N more — run mcp-audit scan to see all" |
+| Auto-discovers configs (no `--path`) | Identical to `credenzo scan` with no `--path` flag |
+| More than 5 findings | Shows top 5 by severity; footer says "and N more — run credenzo scan to see all" |
 | No MCP configs found | Prints a friendly message and exits 0 |
 | `--verbose` | Prints full scan output (Rich panels, OWASP codes, attack paths) |
 | `--json` | Outputs the full `ScanResult` JSON to stdout and nothing else. No `Lock:` or lock-warning lines are printed at all (the lock result is the `lock_status` object in the document); a failed registration ping, errors (including an unknown `--report` format) and the "No MCP config files found" note go to stderr. With nothing found it still writes the (empty) document and exits 0 |
@@ -105,7 +105,7 @@ don't affect scoring"), and the `Lock:` line summarizes the count instead of
 saying "verified":
 
 ```
-  Lock: 1 finding(s) across 3 locked server(s) — see `mcp-audit lock --verify`.
+  Lock: 1 finding(s) across 3 locked server(s) — see `credenzo lock --verify`.
 ```
 
 `check --json` gets a `lock_status` object:
@@ -131,7 +131,7 @@ saying "verified":
 | 1 | Grade C, D, or F — or any CRITICAL/HIGH finding present |
 | 2 | Error: invalid path, config parse failure, or unexpected exception |
 
-This differs intentionally from `mcp-audit scan`, which exits 1 whenever
+This differs intentionally from `credenzo scan`, which exits 1 whenever
 *any* findings are present regardless of severity. `check` uses a higher
 threshold so scripts can use it as a pass/fail gate on severity level.
 
@@ -139,7 +139,7 @@ threshold so scripts can use it as a pass/fail gate on severity level.
 
 ## Detection
 
-`check` runs the **same full pipeline** as `mcp-audit scan`:
+`check` runs the **same full pipeline** as `credenzo scan`:
 
 - All 7 built-in analyzers (poisoning, credentials, transport, supply chain,
   rug-pull, toxic flow, config hygiene)
@@ -153,8 +153,8 @@ grade `scan` would produce for the same configuration.
 
 ## Auto-fixable findings
 
-The following finding IDs are handled by `mcp-audit fix --apply`. When
-present, the remediation hint says "Run `mcp-audit fix --apply` to fix
+The following finding IDs are handled by `credenzo fix --apply`. When
+present, the remediation hint says "Run `credenzo fix --apply` to fix
 automatically."
 
 | ID | Meaning |
@@ -175,7 +175,7 @@ per-ID lookup table in `output/check.py::_HINTS`.
 
 ---
 
-## Relationship to `mcp-audit scan`
+## Relationship to `credenzo scan`
 
 | Feature | `check` | `scan` |
 |---------|---------|--------|
@@ -187,5 +187,5 @@ per-ID lookup table in `output/check.py::_HINTS`.
 | Exit 0 threshold | Grade A/B (score ≥ 70, no CRIT/HIGH) | No findings |
 | Intended audience | Developers, first-time users | Security engineers, CI/CD |
 
-Use `mcp-audit scan` for CI/CD pipelines, SARIF uploads, and full-detail
-forensics. Use `mcp-audit check` for quick interactive checks.
+Use `credenzo scan` for CI/CD pipelines, SARIF uploads, and full-detail
+forensics. Use `credenzo check` for quick interactive checks.

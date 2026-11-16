@@ -1,8 +1,8 @@
-"""Runtime tool-list check for ``mcp-audit run`` (EPIC-0009 Story 1.4).
+"""Runtime tool-list check for ``credenzo run`` (EPIC-0009 Story 1.4).
 
 The relay hands this module every JSON-RPC line in both directions. When the
 server answers a ``tools/list`` request, the tools it lists are digested the
-way ``mcp-audit lock --connect`` digests them and compared with the server's
+way ``credenzo lock --connect`` digests them and compared with the server's
 record in ``mcp-lock.json``, raising the same findings ``lock --verify
 --connect`` raises:
 
@@ -64,13 +64,13 @@ _WHY = {
     "LOCK-008": "description or title changed since the tools were locked",
     "RUN-003": "mcp-lock.json has no tool record for this server",
 }
-_FIX = "review the change; if approved, run `mcp-audit lock --accept --connect`"
-_FIX_NO_RECORD = "run `mcp-audit lock --connect` to record this server's tools"
+_FIX = "review the change; if approved, run `credenzo lock --accept --connect`"
+_FIX_NO_RECORD = "run `credenzo lock --connect` to record this server's tools"
 
 
 def _say(message: str) -> None:
     try:
-        sys.stderr.write(f"mcp-audit run: {message}\n")
+        sys.stderr.write(f"credenzo run: {message}\n")
         sys.stderr.flush()
     except (OSError, ValueError):
         pass
@@ -277,7 +277,7 @@ class ToolGuard:
             return (
                 f"{finding} server {server}: tool(s) {_names(names)}: removed since "
                 "the tools were locked. Fix: if intended, run "
-                "`mcp-audit lock --accept --connect`"
+                "`credenzo lock --accept --connect`"
             )
         if finding == "RUN-003":
             head = f"{finding} server {server}: {_WHY[finding]}"
@@ -290,7 +290,7 @@ class ToolGuard:
                 f"a {'/'.join(severities)} poisoning pattern (threshold: {threshold})"
             )
             fix = (
-                "read the tool's text with `mcp-audit scan --connect`; if it's a "
+                "read the tool's text with `credenzo scan --connect`; if it's a "
                 "false positive, raise runtime.poison_threshold in the policy"
             )
         else:
@@ -323,11 +323,11 @@ def _denial(msg_id: object, name: object, finding: str | None) -> bytes:
     *finding* is ``None`` for a tool no checked ``tools/list`` has shown yet.
     """
     if finding is None:
-        why = "it hasn't appeared in a tools/list mcp-audit has checked"
-        message = f"mcp-audit withheld tool {name!r}: {why}"
+        why = "it hasn't appeared in a tools/list Credenzo has checked"
+        message = f"Credenzo withheld tool {name!r}: {why}"
     else:
         why = _WHY.get(finding, "its text matches a poisoning pattern")
-        message = f"mcp-audit withheld tool {name!r}: {finding}, {why}"
+        message = f"Credenzo withheld tool {name!r}: {finding}, {why}"
     reply = {
         "jsonrpc": "2.0",
         "id": msg_id,

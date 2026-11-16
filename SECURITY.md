@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in mcp-audit, please report it
+If you discover a security vulnerability in Credenzo, please report it
 responsibly. **Do not open a public GitHub issue for security vulnerabilities.**
 
 **Preferred channel:** GitHub's private vulnerability reporting — use the
@@ -17,14 +17,14 @@ may be disclosed publicly.
 ## Scope
 
 In scope:
-- The `mcp-audit` CLI scanner (`src/mcp_audit/`)
+- The `credenzo` CLI scanner (`src/mcp_audit/`)
 - Bundled detection rules (`rules/community/`, `semgrep-rules/`)
 - Bundled registry data (`registry/`)
 - The GitHub Action (`action.yml`)
 
 Out of scope:
-- Third-party MCP servers or configurations that mcp-audit scans
-- Vulnerabilities in mcp-audit's own dependencies (report those to the
+- Third-party MCP servers or configurations that Credenzo scans
+- Vulnerabilities in Credenzo's own dependencies (report those to the
   upstream project; we track them via Dependabot and `pip-audit`)
 - Issues that require physical access to the target machine
 

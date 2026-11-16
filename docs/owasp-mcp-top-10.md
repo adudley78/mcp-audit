@@ -1,6 +1,6 @@
 # OWASP MCP Top 10
 
-mcp-audit maps every finding to the
+Credenzo maps every finding to the
 [OWASP MCP Top 10 (2025 beta)](https://owasp.org/www-project-mcp-top-10/) —
 a risk framework specific to the Model Context Protocol. This is parallel to,
 and independent of, the [OWASP Agentic Top 10](https://genai.owasp.org/)
@@ -14,7 +14,7 @@ and independent of, the [OWASP Agentic Top 10](https://genai.owasp.org/)
 | OWASP MCP Top 10 | MCP protocol specifically | MCP01–MCP10 |
 
 The MCP Top 10 is becoming the lingua franca for MCP security research, blog
-posts, and CI integrations. Mapping to it makes mcp-audit findings immediately
+posts, and CI integrations. Mapping to it makes Credenzo findings immediately
 recognisable to practitioners already familiar with the framework.
 
 ## Categories
@@ -103,7 +103,7 @@ the taxonomy by GUID.
 
 ## `--owasp-report` flag
 
-`mcp-audit scan --owasp-report` appends an aggregated category-level summary
+`credenzo scan --owasp-report` appends an aggregated category-level summary
 after the normal scan output:
 
 ```
@@ -147,6 +147,6 @@ OWASP MCP Top 10 columns) lives in `docs/severity-framework.md`.
 ## Beta status
 
 The OWASP MCP Top 10 is in beta as of April 2026. Category rankings and
-descriptions may shift before the stable release. mcp-audit treats the
+descriptions may shift before the stable release. Credenzo treats the
 [project page](https://owasp.org/www-project-mcp-top-10/) as authoritative
 and will update codes, names, and mappings when a stable version ships.

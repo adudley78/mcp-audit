@@ -263,10 +263,10 @@ def push_nucleus(
 
     Examples::
 
-        mcp-audit push-nucleus \\
+        credenzo push-nucleus \\
             --url https://<your-nucleus-url> --project-id 42
 
-        mcp-audit push-nucleus \\
+        credenzo push-nucleus \\
             --url https://<your-nucleus-url> --project-id 7 \\
             --severity-threshold HIGH --output-file pushed-scan.json
     """

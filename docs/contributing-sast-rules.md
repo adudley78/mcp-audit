@@ -1,7 +1,7 @@
 # Contributing SAST Rules
 
 This guide covers how to write, test, and submit new Semgrep rules for the
-mcp-audit rule pack (`semgrep-rules/`).
+Credenzo rule pack (`semgrep-rules/`).
 
 ---
 
@@ -36,7 +36,7 @@ rules:
 
 ### Severity Guidelines
 
-| Semgrep Severity | mcp-audit Severity | When to use |
+| Semgrep Severity | Credenzo Severity | When to use |
 |---|---|---|
 | ERROR | CRITICAL | Definite vulnerability if exploited: RCE, SQL injection, hardcoded creds |
 | WARNING | HIGH | Likely vulnerability, may need user-controlled input to exploit |
@@ -160,7 +160,7 @@ Before opening a pull request, verify:
 
 ### Research source requirement
 
-mcp-audit's PROVENANCE.md requires that every detection pattern cite its
+Credenzo's PROVENANCE.md requires that every detection pattern cite its
 research source. When adding a new rule, add a line to PROVENANCE.md:
 
 ```

@@ -1,22 +1,37 @@
-# The `credenzo` name on PyPI. mcp-audit is becoming Credenzo; until the
-# main package moves, `pip install credenzo` installs mcp-audit-scanner.
-# Published by .github/workflows/publish-credenzo-name.yml (manual run).
+# The `credenzo` package on PyPI. It holds no code. It pins the same version
+# of mcp-audit-scanner, which holds the code, and declares the `credenzo`
+# command so that `uv tool install credenzo` and `pipx install credenzo` put
+# the command on PATH. One distribution owns the files; two would collide.
+# Its version and its pin must equal [project].version in the root
+# pyproject.toml (tests/test_credenzo_package.py). Published by
+# .github/workflows/publish-credenzo-name.yml after each release.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "credenzo"
-version = "0.0.1"
-description = "Credenzo (formerly mcp-audit): the taste test for agent tools. Installs mcp-audit-scanner."
+version = "0.33.0"
+description = "Credenzo (formerly mcp-audit): the taste test for agent tools. Offline security scanner and lock for MCP servers."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [{ name = "Adam Dudley" }]
-dependencies = ["mcp-audit-scanner>=0.32.0"]
+keywords = ["mcp", "model-context-protocol", "security", "scanner", "ai-security", "ai-agents", "supply-chain-security"]
+dependencies = ["mcp-audit-scanner==0.33.0"]
+
+[project.optional-dependencies]
+attestation = ["mcp-audit-scanner[attestation]==0.33.0"]
+mcp = ["mcp-audit-scanner[mcp]==0.33.0"]
+sbom = ["mcp-audit-scanner[sbom]==0.33.0"]
+
+[project.scripts]
+credenzo = "mcp_audit._entry:main"
 
 [project.urls]
-Homepage = "https://github.com/adudley78/mcp-audit"
+Homepage = "https://credenzo.io"
+Repository = "https://github.com/adudley78/mcp-audit"
+Changelog = "https://github.com/adudley78/mcp-audit/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true

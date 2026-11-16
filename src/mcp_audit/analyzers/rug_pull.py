@@ -78,7 +78,7 @@ def _migrate_legacy_state() -> None:
 
     if migrated:
         _console.print(
-            f"[dim]mcp-audit: migrated {len(migrated)} state file(s) from "
+            f"[dim]Credenzo: migrated {len(migrated)} state file(s) from "
             f"{_LEGACY_STATE_DIR} → {_STATE_DIR}[/dim]"
         )
 
@@ -369,7 +369,7 @@ class RugPullAnalyzer(BaseAnalyzer):
             evidence=f"State file: {self._state_path}",
             remediation=(
                 "No action required. "
-                "Run 'mcp-audit scan' regularly to detect rug-pull attacks."
+                "Run 'credenzo scan' regularly to detect rug-pull attacks."
             ),
             finding_path=str(srv.config_path),
         )
@@ -421,7 +421,7 @@ class RugPullAnalyzer(BaseAnalyzer):
             evidence=evidence,
             remediation=(
                 "Inspect the current tool descriptions for malicious instructions. "
-                "If the change was intentional, run 'mcp-audit pin' to update the "
+                "If the change was intentional, run 'credenzo pin' to update the "
                 "baseline."
             ),
             cwe="CWE-494",

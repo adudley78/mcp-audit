@@ -1,8 +1,8 @@
 # Offline Sigstore verification — empirical findings (R27)
 
-## Scope: this is about cosign's keyless path, not mcp-audit's advisory feed
+## Scope: this is about cosign's keyless path, not Credenzo's advisory feed
 
-**mcp-audit's advisory feed is signed with a static project key** (see `CLAUDE.md` and
+**Credenzo's advisory feed is signed with a static project key** (see `CLAUDE.md` and
 `src/mcp_audit/advisory/sign.py`), verified with:
 
 ```bash
@@ -22,12 +22,12 @@ cosign verify-blob --bundle <file>.sigstore.json \
   [--trusted-root <file>] <blob>
 ```
 
-mcp-audit exposes this only as `--keyless` on `advise --sign`, for one-off attestations —
+Credenzo exposes this only as `--keyless` on `advise --sign`, for one-off attestations —
 `CLAUDE.md` states it must never become the feed's default, and it remains that way. A
 2026-08-20 decision briefly proposed keyless *for the feed itself*; that decision was reversed
 on 2026-08-23 (`humans/decisions/2026-08-23-signing-key-custody-reversed.md` in the `marcus`
 repo) precisely because of what this document found. Read what follows as "what keyless would
-have cost," not as "what verifying mcp-audit's feed costs."
+have cost," not as "what verifying Credenzo's feed costs."
 
 **This document records a test result. It is not a recommendation.** The decision it fed
 is Adam's and is recorded in `humans/decisions/` (in the `marcus` repo), originally as an
@@ -62,7 +62,7 @@ was **not** observed to expire on the short cadence its underlying TUF metadata 
 | cosign | **v3.0.6** (`GitCommit f1ad3ee952313be5d74a49d67ba0aa8d0d5e351f`, built 2026-04-06) | Installed via `sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6` (pinned tag `v4.1.2`) |
 | cosign-installer | v4.1.2 | `sigstore/cosign-installer` |
 | Runner | `ubuntu-latest` (GitHub-hosted) | GitHub Actions |
-| sigstore-python | not tested | Out of scope — mcp-audit's own `attestation/sigstore_client.py` and the signing-key-custody decision are both built on **cosign**, not sigstore-python; that is the tool this decision actually depends on |
+| sigstore-python | not tested | Out of scope — Credenzo's own `attestation/sigstore_client.py` and the signing-key-custody decision are both built on **cosign**, not sigstore-python; that is the tool this decision actually depends on |
 
 **This finding is pinned to cosign v3.0.6.** Cosign's own maintainers have stated in a public
 issue that this exact behavior (`--offline` being non-functional, and default verification
@@ -185,7 +185,7 @@ Two of these four flags are not optional extras — they are the entire offline 
   requires one identity flag or its regexp equivalent for keyless flows). A user must be told
   the exact expected identity string; there is no safe default.
 
-A user (or mcp-audit, on their behalf) also has to have obtained `trusted_root.json` at some
+A user (or Credenzo, on their behalf) also has to have obtained `trusted_root.json` at some
 point while online. That file was produced here with `cosign initialize` and copied out of
 `~/.sigstore/root/<mirror>/targets/trusted_root.json`; a shipping product would bundle this file
 directly rather than ask a user to run `cosign initialize` themselves.

@@ -1,6 +1,6 @@
 # Nucleus Security Integration
 
-mcp-audit has native integration with [Nucleus Security](https://nucleussec.com/) via the FlexConnect universal ingestion API. After a scan, findings are pushed directly into a Nucleus project where they appear as assets and vulnerabilities — no manual file uploads required.
+Credenzo has native integration with [Nucleus Security](https://nucleussec.com/) via the FlexConnect universal ingestion API. After a scan, findings are pushed directly into a Nucleus project where they appear as assets and vulnerabilities — no manual file uploads required.
 
 > **Validated 2026-04-23** against a live Nucleus instance. The FlexConnect shape, multipart/form-data upload, and job polling have all been confirmed against the live API.
 
@@ -19,12 +19,12 @@ mcp-audit has native integration with [Nucleus Security](https://nucleussec.com/
 ```bash
 export NUCLEUS_API_KEY="your-api-key-here"
 
-mcp-audit push-nucleus \
+credenzo push-nucleus \
   --url https://<your-nucleus-url> \
   --project-id 42
 ```
 
-mcp-audit will:
+Credenzo will:
 1. Run a full scan of all detected MCP configurations on the machine
 2. Format results as Nucleus FlexConnect JSON
 3. Upload via multipart/form-data to `/nucleus/api/projects/{id}/scans`
@@ -36,7 +36,7 @@ mcp-audit will:
 ## All options
 
 ```
-mcp-audit push-nucleus [OPTIONS]
+credenzo push-nucleus [OPTIONS]
 ```
 
 | Flag | Type | Default | Description |
@@ -57,7 +57,7 @@ mcp-audit push-nucleus [OPTIONS]
 **Push with an explicit asset tag:**
 
 ```bash
-mcp-audit push-nucleus \
+credenzo push-nucleus \
   --url https://<your-nucleus-url> \
   --project-id 7 \
   --asset-prefix "LAPTOP-$(id -un)" \
@@ -67,7 +67,7 @@ mcp-audit push-nucleus \
 **Push only HIGH and CRITICAL findings and keep a local copy:**
 
 ```bash
-mcp-audit push-nucleus \
+credenzo push-nucleus \
   --url https://<your-nucleus-url> \
   --project-id 7 \
   --severity-threshold HIGH \
@@ -77,7 +77,7 @@ mcp-audit push-nucleus \
 **Scan a specific config file only:**
 
 ```bash
-mcp-audit push-nucleus \
+credenzo push-nucleus \
   --url https://<your-nucleus-url> \
   --project-id 7 \
   --config-paths ~/.cursor/mcp.json
@@ -152,10 +152,10 @@ For fleet-wide use, run `push-nucleus` on each developer machine via your endpoi
 
 **Ansible example:**
 ```yaml
-- name: Push mcp-audit scan to Nucleus
+- name: Push credenzo scan to Nucleus
   ansible.builtin.command:
     cmd: >
-      mcp-audit push-nucleus
+      credenzo push-nucleus
       --url {{ nucleus_url }}
       --project-id {{ nucleus_project_id }}
       --asset-prefix "{{ inventory_hostname }}"

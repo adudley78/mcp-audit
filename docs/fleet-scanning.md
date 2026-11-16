@@ -1,10 +1,10 @@
 # Fleet Scanning
 
-`mcp-audit merge` consolidates JSON scan outputs from multiple machines into a
+`credenzo merge` consolidates JSON scan outputs from multiple machines into a
 single fleet-wide security report. It is the standard workflow for security
 teams that manage many developer machines.
 
-Available to every user — mcp-audit is fully open source, no license required.
+Available to every user — Credenzo is fully open source, no license required.
 
 ---
 
@@ -12,7 +12,7 @@ Available to every user — mcp-audit is fully open source, no license required.
 
 ### 1. Distribute the binary
 
-Copy `mcp-audit` to each machine. The PyInstaller binary requires no Python
+Copy `credenzo` to each machine. The PyInstaller binary requires no Python
 installation. See the [releases page](https://github.com/adudley78/mcp-audit/releases)
 for the platform-specific download.
 
@@ -29,7 +29,7 @@ export MCP_AUDIT_ASSET_PREFIX="prod-macbook-adam"
 Run this on every machine you want to include in the fleet report:
 
 ```bash
-mcp-audit scan --format json --output-file ~/results/$(hostname).json
+credenzo scan --format json --output-file ~/results/$(hostname).json
 ```
 
 The output file contains all findings, the machine's hostname, scanner version,
@@ -53,16 +53,16 @@ mechanism that lands all the JSON files in one directory.
 
 ```bash
 # Merge everything in a directory (recurses into subdirectories automatically)
-mcp-audit merge --dir ./fleet-results/
+credenzo merge --dir ./fleet-results/
 
 # Or pass files explicitly (supports shell glob expansion)
-mcp-audit merge ./fleet-results/*.json
+credenzo merge ./fleet-results/*.json
 
 # JSON output — pipe or write to file
-mcp-audit merge --dir ./fleet-results/ --format json -o fleet-report.json
+credenzo merge --dir ./fleet-results/ --format json -o fleet-report.json
 
 # HTML report
-mcp-audit merge --dir ./fleet-results/ --format html -o fleet-report.html
+credenzo merge --dir ./fleet-results/ --format html -o fleet-report.html
 ```
 
 The merge command prints a Fleet Summary panel and a deduplicated finding
@@ -81,7 +81,7 @@ Name your machines with a meaningful prefix when scanning:
 
 ```bash
 # On a prod machine — give it a recognisable hostname or alias:
-mcp-audit scan --format json --output-file results.json
+credenzo scan --format json --output-file results.json
 # The hostname is captured automatically from the OS.
 ```
 
@@ -89,10 +89,10 @@ Then filter at merge time:
 
 ```bash
 # Only include machines whose hostname starts with "prod-"
-mcp-audit merge --dir ./fleet-results/ --asset-prefix prod-
+credenzo merge --dir ./fleet-results/ --asset-prefix prod-
 
 # Engineering team only
-mcp-audit merge --dir ./fleet-results/ --asset-prefix eng-
+credenzo merge --dir ./fleet-results/ --asset-prefix eng-
 ```
 
 Machines whose hostname does not start with the prefix are silently excluded
@@ -102,24 +102,24 @@ from the merged report.
 
 ## Handling invalid or outdated scan files
 
-When using `--dir`, files that are not valid mcp-audit JSON are **skipped with a
+When using `--dir`, files that are not valid Credenzo JSON are **skipped with a
 warning** rather than aborting the merge:
 
 - `.txt`, `.yaml`, or other non-JSON files are silently ignored (only `*.json`
   files are considered).
-- JSON files that lack the required mcp-audit fields (`version`, `timestamp`,
+- JSON files that lack the required Credenzo fields (`version`, `timestamp`,
   `machine`, `findings`) are skipped with a warning that identifies the file.
 - JSON files produced by a different scanner version trigger a warning in both
   the terminal output and the `version_mismatches` list in the JSON report.
 
 To resolve version mismatch warnings, upgrade all machines to the same
-`mcp-audit` binary version and re-collect scan outputs.
+`credenzo` binary version and re-collect scan outputs.
 
 ---
 
 ## Version mismatch warnings
 
-If machines in the fleet ran different versions of mcp-audit, the report
+If machines in the fleet ran different versions of Credenzo, the report
 includes warnings such as:
 
 ```
@@ -162,11 +162,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install mcp-audit
-        run: pip install mcp-audit-scanner
+        run: pip install credenzo
 
       - name: Scan and save JSON
         run: |
-          mcp-audit scan --format json \
+          credenzo scan --format json \
             --output-file results-${{ matrix.runner }}.json
 
       - name: Upload scan artifact
@@ -188,11 +188,11 @@ jobs:
           merge-multiple: true
 
       - name: Install mcp-audit
-        run: pip install mcp-audit-scanner
+        run: pip install credenzo
 
       - name: Merge fleet report
         run: |
-          mcp-audit merge --dir ./fleet-results/ \
+          credenzo merge --dir ./fleet-results/ \
             --format json \
             --output-file fleet-report.json
 
@@ -219,7 +219,7 @@ jobs:
 with no CDN dependencies (D3 v7 is bundled inline). Open it in any browser:
 
 ```bash
-mcp-audit merge --dir ./fleet-results/ --format html -o fleet-report.html
+credenzo merge --dir ./fleet-results/ --format html -o fleet-report.html
 open fleet-report.html   # macOS
 ```
 

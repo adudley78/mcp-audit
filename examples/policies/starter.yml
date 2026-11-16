@@ -1,11 +1,11 @@
-# mcp-audit governance policy — Starter
+# Credenzo governance policy — Starter
 #
 # A minimal policy that enforces a minimum scan score and prohibits
 # unencrypted HTTP transports. Good starting point for any team.
 #
 # Usage:
-#   mcp-audit scan --policy examples/policies/starter.yml
-#   mcp-audit policy validate examples/policies/starter.yml
+#   credenzo scan --policy examples/policies/starter.yml
+#   credenzo policy validate examples/policies/starter.yml
 #
 version: 1
 name: "Starter governance policy"

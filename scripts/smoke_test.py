@@ -939,8 +939,8 @@ def main() -> None:
     print("Check 1: version command")
     result = run(binary_cmd, "version", expect_exit=0)
     check(
-        "mcp-audit" in result.stdout.lower() or result.returncode == 0,
-        "version output should contain 'mcp-audit'",
+        "credenzo" in result.stdout.lower(),
+        "version output should contain 'credenzo'",
     )
     print(f"  OK: {result.stdout.strip()}")
 

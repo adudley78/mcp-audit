@@ -756,7 +756,7 @@ def _checkout_verdict(
                 f"{'' if signature else on_branch}.{why} Claude Code loads the code"
                 " on disk, so the"
                 " plugin's skills, hooks and MCP servers come from a commit the"
-                " marketplace did not pin. mcp-audit read HEAD and the refs as"
+                " marketplace did not pin. Credenzo read HEAD and the refs as"
                 " files; it did not run git."
             ),
             evidence=evidence,
@@ -786,7 +786,7 @@ def _checkout_verdict(
             " does not explain the difference. Either the marketplace moved its pin"
             " and this copy was kept (Claude Code keeps a cached copy until the"
             " plugin's version string changes), or the checkout changed after"
-            " install; mcp-audit cannot tell which."
+            " install; Credenzo cannot tell which."
         )
     return _finding(
         plugin,
@@ -901,7 +901,7 @@ def _posture_findings(plugin: InstalledPlugin) -> list[Finding]:
     host, location = source_host(plugin.source)
     if host == "github.com":
         return []
-    shown_host = host or "a host mcp-audit could not identify"
+    shown_host = host or "a host Credenzo could not identify"
     return [
         _finding(
             plugin,

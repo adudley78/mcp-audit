@@ -3,7 +3,7 @@
 Two public entry points:
 
 ``build_advisory(finding, server)``
-    Deterministic mapping from a single mcp-audit finding to an :class:`Advisory`.
+    Deterministic mapping from a single Credenzo finding to an :class:`Advisory`.
 
 ``write_feed(advisories, out_dir)``
     Materialises the feed: one JSON file per advisory under ``advisories/``, an
@@ -215,7 +215,7 @@ def build_advisory(
 
     Args:
         finding: The finding to describe. This is the in-memory form of the SARIF
-            result mcp-audit emits; ``result.ruleId`` is ``finding.id``.
+            result Credenzo emits; ``result.ruleId`` is ``finding.id``.
         server: The server the finding was raised against, used for the package
             coordinate and transport.
         now: RFC 3339 UTC timestamp (``YYYY-MM-DDTHH:MM:SSZ``) for ``published`` and
@@ -266,7 +266,7 @@ def _details_for(finding: Finding) -> str:
     if finding.remediation.strip():
         parts.append(f"Remediation: {finding.remediation.strip()}")
     parts.append(
-        f"Detected by mcp-audit rule {finding.id} "
+        f"Detected by Credenzo rule {finding.id} "
         f"({finding.analyzer} analyzer, severity {finding.severity.value})."
     )
     return " ".join(parts)

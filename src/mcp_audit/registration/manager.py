@@ -6,7 +6,7 @@ The registration file lives at::
 
 It is written with 0o600 permissions (owner read/write only).  The parent
 directory is created with 0o700 if it does not exist — consistent with the
-baseline and rug-pull state storage patterns used elsewhere in mcp-audit.
+baseline and rug-pull state storage patterns used elsewhere in Credenzo.
 """
 
 from __future__ import annotations

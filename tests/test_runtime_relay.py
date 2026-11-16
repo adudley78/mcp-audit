@@ -1,4 +1,4 @@
-"""Tests for the ``mcp-audit run`` stdio relay (EPIC-0009 Story 1.1).
+"""Tests for the ``credenzo run`` stdio relay (EPIC-0009 Story 1.1).
 
 The relay is exercised two ways: in-process through :func:`relay` with
 injected descriptors, and end to end by launching ``python -m mcp_audit._entry
@@ -93,7 +93,7 @@ def _read_all(fd: int) -> bytes:
 
 
 def _wrapper(*args: str, **kwargs: object) -> subprocess.Popen[bytes]:
-    """Launch ``mcp-audit run`` the way an AI client does."""
+    """Launch ``credenzo run`` the way an AI client does."""
     return subprocess.Popen(  # noqa: S603
         [PY, "-m", "mcp_audit._entry", "run", *args],
         stdin=subprocess.PIPE,
@@ -173,7 +173,7 @@ class TestExitCodes:
         proc = _wrapper()
         _, err = proc.communicate(b"", timeout=30)
         assert proc.returncode == 2
-        assert b"usage: mcp-audit run" in err
+        assert b"usage: credenzo run" in err
 
     def test_server_flags_after_dashdash_reach_the_server(self) -> None:
         proc = _wrapper(

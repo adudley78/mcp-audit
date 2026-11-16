@@ -1,4 +1,4 @@
-"""``mcp-audit reach``: what can the agents on this machine touch? (STORY-0145).
+"""``credenzo reach``: what can the agents on this machine touch? (STORY-0145).
 
 Static and offline: the engine reads settings files and a finished default
 scan; it never executes an agent and never watches live calls.  ``engine`` is

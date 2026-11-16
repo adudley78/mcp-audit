@@ -1,4 +1,4 @@
-"""Tests for `mcp-audit advise` and `mcp-audit feed verify`."""
+"""Tests for `credenzo advise` and `credenzo feed verify`."""
 
 from __future__ import annotations
 
@@ -271,7 +271,7 @@ class TestAdviseArgumentErrors:
         bad.write_text("{not json")
         result = _advise("--input", str(bad), "--no-sign")
         assert result.exit_code == 2
-        assert "not an mcp-audit JSON scan result" in _flat(result.output)
+        assert "not a Credenzo JSON scan result" in _flat(result.output)
 
     def test_unknown_backend_exits_2(self, tmp_path: Path) -> None:
         result = _advise(str(FIXTURES), "--key-alt", "pgp")
@@ -424,7 +424,7 @@ class TestFeedVerifyBundledKeyDefault:
     def _bundled_key_is_the_test_key(
         self, minisign_keys, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Stand in mcp-audit's real bundled key with a throwaway one for this test
+        """Stand in Credenzo's real bundled key with a throwaway one for this test
         class, since the real private half lives only in the `feed-signing` GitHub
         environment and is never available to run a real sign here."""
         _, public = minisign_keys
@@ -571,7 +571,7 @@ class TestExamplesFeedIsCurrent:
         only_committed = sorted(str(p) for p in committed_files - fresh_files)
         only_fresh = sorted(str(p) for p in fresh_files - committed_files)
         assert committed_files == fresh_files, (
-            "examples/feed/ has drifted from `mcp-audit advise` output. "
+            "examples/feed/ has drifted from `credenzo advise` output. "
             f"Only in examples/feed/: {only_committed}. Only in a fresh run: "
             f"{only_fresh}. Regenerate with the command in examples/feed/README.md "
             "and commit the result."

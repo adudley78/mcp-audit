@@ -2,9 +2,9 @@
 
 A cloned repository can carry files that a coding-agent harness or editor
 executes, or treats as its own configuration, once you open the folder.
-This page lists the ones mcp-audit reads, per harness, with the finding each
+This page lists the ones Credenzo reads, per harness, with the finding each
 one produces and the vendor documentation that says why it can run code.
-mcp-audit only reads these files. It never runs a harness, a hook, a script
+Credenzo only reads these files. It never runs a harness, a hook, a script
 or `git`.
 
 Two scan paths reach them:

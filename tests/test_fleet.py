@@ -61,7 +61,7 @@ def _scan_json(
     servers_found: int = 2,
     timestamp: str = _TS,
 ) -> dict:
-    """Build a minimal valid mcp-audit scan JSON dict."""
+    """Build a minimal valid Credenzo scan JSON dict."""
     return {
         "version": version,
         "timestamp": timestamp,
@@ -132,7 +132,7 @@ def test_load_report_with_score(tmp_path: Path) -> None:
 def test_load_report_raises_on_invalid_mcp_audit_json(tmp_path: Path) -> None:
     f = tmp_path / "not_audit.json"
     f.write_text(json.dumps({"foo": "bar"}), encoding="utf-8")
-    with pytest.raises(ValueError, match="missing required mcp-audit fields"):
+    with pytest.raises(ValueError, match="missing required Credenzo fields"):
         FleetMerger().load_report(f)
 
 
@@ -146,7 +146,7 @@ def test_load_report_raises_on_malformed_json(tmp_path: Path) -> None:
 def test_load_report_raises_on_non_object_json(tmp_path: Path) -> None:
     f = tmp_path / "arr.json"
     f.write_text("[1, 2, 3]", encoding="utf-8")
-    with pytest.raises(ValueError, match="not a valid mcp-audit JSON output"):
+    with pytest.raises(ValueError, match="not a valid Credenzo JSON output"):
         FleetMerger().load_report(f)
 
 

@@ -1,4 +1,4 @@
-"""Tests for `mcp-audit check` command and CheckFormatter."""
+"""Tests for `credenzo check` command and CheckFormatter."""
 
 from __future__ import annotations
 
@@ -84,28 +84,28 @@ def _findings_result(
 class TestRemediationHint:
     def test_autofixable_cred001(self) -> None:
         f = _make_finding(finding_id="CRED-001")
-        assert "mcp-audit fix --apply" in _remediation_hint(f)
+        assert "credenzo fix --apply" in _remediation_hint(f)
 
     def test_autofixable_cred002(self) -> None:
         f = _make_finding(finding_id="CRED-002")
-        assert "mcp-audit fix --apply" in _remediation_hint(f)
+        assert "credenzo fix --apply" in _remediation_hint(f)
 
     def test_autofixable_transport001(self) -> None:
         f = _make_finding(finding_id="TRANSPORT-001")
-        assert "mcp-audit fix --apply" in _remediation_hint(f)
+        assert "credenzo fix --apply" in _remediation_hint(f)
 
     def test_autofixable_sc001(self) -> None:
         f = _make_finding(finding_id="SC-001")
-        assert "mcp-audit fix --apply" in _remediation_hint(f)
+        assert "credenzo fix --apply" in _remediation_hint(f)
 
     def test_autofixable_sc002(self) -> None:
         f = _make_finding(finding_id="SC-002")
-        assert "mcp-audit fix --apply" in _remediation_hint(f)
+        assert "credenzo fix --apply" in _remediation_hint(f)
 
     def test_poison_finding_non_fixable(self) -> None:
         f = _make_finding(finding_id="POISON-001")
         hint = _remediation_hint(f)
-        assert "mcp-audit fix --apply" not in hint
+        assert "credenzo fix --apply" not in hint
         assert len(hint) > 10
 
     def test_transport002_non_fixable(self) -> None:
@@ -298,7 +298,7 @@ class TestPrintCheckResults:
         con = Console(file=buf, width=80)
         print_check_results(result, console=con)
         output = buf.getvalue()
-        assert "mcp-audit fix --apply" in output
+        assert "credenzo fix --apply" in output
         # Both auto-fixable IDs must appear in the nudge line
         assert "CRED-001" in output
         assert "TRANSPORT-001" in output
@@ -326,7 +326,7 @@ class TestPrintCheckResults:
         buf = StringIO()
         con = Console(file=buf, width=80)
         print_check_results(result, console=con)
-        assert "mcp-audit scan" in buf.getvalue()
+        assert "credenzo scan" in buf.getvalue()
 
     def test_severity_sorted_critical_first(self) -> None:
         from io import StringIO
@@ -442,7 +442,7 @@ class TestCheckCommand:
         result = _findings_result(findings, numeric=40, grade="D")
         with self._patch_run_scan(result):
             r = runner.invoke(app, ["check"])
-        assert "mcp-audit fix --apply" in r.output
+        assert "credenzo fix --apply" in r.output
 
     def test_non_fixable_hint_specific(self) -> None:
         findings = [
@@ -455,7 +455,7 @@ class TestCheckCommand:
         result = _findings_result(findings, numeric=55, grade="C")
         with self._patch_run_scan(result):
             r = runner.invoke(app, ["check"])
-        assert "mcp-audit fix --apply" not in r.output
+        assert "credenzo fix --apply" not in r.output
         out_lower = r.output.lower()
         assert (
             "tool description" in out_lower
@@ -603,7 +603,7 @@ class TestCheckCommand:
         result = _findings_result(findings, numeric=70, grade="B")
         with self._patch_run_scan(result):
             r = runner.invoke(app, ["check"])
-        assert "more" not in r.output or "mcp-audit scan" in r.output
+        assert "more" not in r.output or "credenzo scan" in r.output
 
 
 # ── Lock auto-verification (STORY-0070) ───────────────────────────────────────

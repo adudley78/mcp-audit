@@ -6,7 +6,7 @@ supply chain analyzer queries instead of a hardcoded package list.
 Resolution order when locating the registry file:
   1. Caller-supplied ``path`` argument (explicit override).
   2. User-cached registry: ``<user-config-dir>/mcp-audit/registry/known-servers.json``
-     (written by ``mcp-audit update-registry``; path resolved via ``platformdirs``).
+     (written by ``credenzo update-registry``; path resolved via ``platformdirs``).
   3. PyInstaller frozen binary: resolved from ``sys._MEIPASS/registry/``.
   4. importlib.resources (pip-installed wheel at
      ``mcp_audit/registry/known-servers.json``).
@@ -603,7 +603,7 @@ class KnownServerRegistry:
             return BUNDLED_REGISTRY_PATH
 
         raise FileNotFoundError(
-            "No registry file found. Run 'mcp-audit update-registry' to fetch "
+            "No registry file found. Run 'credenzo update-registry' to fetch "
             f"the latest, or ensure the package is installed correctly. "
             f"(searched: {_USER_CACHE_PATH}, {BUNDLED_REGISTRY_PATH})"
         )

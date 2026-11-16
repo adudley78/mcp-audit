@@ -1,4 +1,4 @@
-# `mcp-audit snapshot` — Forensic Snapshot Export
+# `credenzo snapshot` — Forensic Snapshot Export
 
 Time-stamped, sigstore-signed forensic exports of every MCP server on a host.
 CycloneDX 1.5 AI/ML-BOM by default; mcp-audit-native JSON optional.
@@ -8,7 +8,7 @@ SIEM/EDR-ready via `--stream` mode.
 
 ## What it does
 
-`mcp-audit snapshot` runs the full analysis pipeline (or loads a previous scan
+`credenzo snapshot` runs the full analysis pipeline (or loads a previous scan
 result) and emits a single self-contained JSON document capturing:
 
 - **Timestamp** (ISO 8601 UTC) and host identifier
@@ -26,22 +26,22 @@ verifies with `sigstore verify`.
 
 ```bash
 # Generate CycloneDX snapshot (default)
-mcp-audit snapshot --output snapshot.json
+credenzo snapshot --output snapshot.json
 
 # Generate native JSON snapshot
-mcp-audit snapshot --format native --output snapshot.native.json
+credenzo snapshot --format native --output snapshot.native.json
 
 # Stream one finding per line to a SIEM forwarder
-mcp-audit snapshot --stream | vector --config /etc/vector/mcp.toml
+credenzo snapshot --stream | vector --config /etc/vector/mcp.toml
 
 # Sign with sigstore (requires ambient OIDC — e.g. GitHub Actions id-token)
-mcp-audit snapshot --output snapshot.json --sign
+credenzo snapshot --output snapshot.json --sign
 
 # Load a previous scan result instead of re-running discovery
-mcp-audit snapshot --input scan.json --output snapshot.json
+credenzo snapshot --input scan.json --output snapshot.json
 
 # Rehydrate a saved snapshot to see the historical attack-path graph
-mcp-audit snapshot --rehydrate old-snapshot.json
+credenzo snapshot --rehydrate old-snapshot.json
 ```
 
 ---
@@ -51,10 +51,10 @@ mcp-audit snapshot --rehydrate old-snapshot.json
 | Option | Default | Description |
 |---|---|---|
 | `--output / -o` | stdout | Destination file. Required for `--sign`. |
-| `--format / -f` | `cyclonedx` | `cyclonedx` (CycloneDX 1.5 AI/ML-BOM) or `native` (mcp-audit JSON). |
-| `--input / -i` | — | Use a previous `mcp-audit scan --output-file` JSON instead of running a new scan. |
+| `--format / -f` | `cyclonedx` | `cyclonedx` (CycloneDX 1.5 AI/ML-BOM) or `native` (Credenzo JSON). |
+| `--input / -i` | — | Use a previous `credenzo scan --output-file` JSON instead of running a new scan. |
 | `--path / -p` | auto-discover | Restrict config discovery to this path. |
-| `--sign` | off | Sign the snapshot with sigstore ambient OIDC identity. Requires `pip install 'mcp-audit-scanner[attestation]'`. |
+| `--sign` | off | Sign the snapshot with sigstore ambient OIDC identity. Requires `pip install 'credenzo[attestation]'`. |
 | `--rehydrate` | — | Path to a saved snapshot. Reconstructs the historical attack-path graph. |
 | `--stream` | off | Emit one JSON object per finding on stdout (NDJSON). Ignores `--format`. |
 
@@ -170,7 +170,7 @@ Each finding becomes a `vulnerability` entry:
 }
 ```
 
-`snapshot_data` is the identical shape produced by `mcp-audit scan --output-file`.
+`snapshot_data` is the identical shape produced by `credenzo scan --output-file`.
 
 ---
 
@@ -178,8 +178,8 @@ Each finding becomes a `vulnerability` entry:
 
 ```bash
 # Requires sigstore optional dep and an ambient OIDC credential:
-pip install 'mcp-audit-scanner[attestation]'
-mcp-audit snapshot --output snapshot.json --sign
+pip install 'credenzo[attestation]'
+credenzo snapshot --output snapshot.json --sign
 ```
 
 Produces `snapshot.json.sig` — a JSON wrapper containing:
@@ -205,7 +205,7 @@ and re-running `summarize_attack_paths` against the recorded servers and
 findings — without touching the live filesystem.
 
 ```bash
-mcp-audit snapshot --rehydrate old-snapshot.json
+credenzo snapshot --rehydrate old-snapshot.json
 ```
 
 Output includes:
@@ -237,7 +237,7 @@ Sentinel DCR forwarder.  See the integration recipes in
 ```yaml
 - name: Snapshot MCP configs
   run: |
-    mcp-audit snapshot \
+    credenzo snapshot \
       --output mcp-snapshot.json \
       --sign
   env:

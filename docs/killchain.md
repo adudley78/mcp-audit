@@ -1,12 +1,12 @@
-# mcp-audit killchain
+# credenzo killchain
 
 > _Find the 2–3 changes that cut your blast radius. Decision engine on top of the
-> attack-path graph mcp-audit already computes._
+> attack-path graph Credenzo already computes._
 
 ## What it does
 
-`mcp-audit killchain` translates the multi-hop attack-path graph (already built by
-`mcp-audit scan`) into a short, prioritised action list: the specific configuration
+`credenzo killchain` translates the multi-hop attack-path graph (already built by
+`credenzo scan`) into a short, prioritised action list: the specific configuration
 changes that eliminate the most attack paths with the fewest edits.
 
 Instead of "here are 47 findings", it says:
@@ -37,35 +37,35 @@ Ties are broken alphabetically by server name, so output is always deterministic
 After ranking, `killchain` simulates applying all N recommended changes by removing
 the target servers from the server list and re-running `summarize_attack_paths` — the
 same pure function used in the main scan pipeline. The result is mathematically
-identical to what `mcp-audit scan` would produce if those servers were actually removed
+identical to what `credenzo scan` would produce if those servers were actually removed
 from the config.
 
 ## Usage
 
 ```bash
 # Fresh scan — runs the full static pipeline, then recommends changes
-mcp-audit killchain
+credenzo killchain
 
 # Consume an existing scan result (faster; no re-scan)
-mcp-audit killchain --input scan.json
+credenzo killchain --input scan.json
 
 # Top 5 instead of the default 3
-mcp-audit killchain --top 5
+credenzo killchain --top 5
 
 # JSON output for machine ingest / CI pipelines
-mcp-audit killchain --format json
+credenzo killchain --format json
 
 # Emit a governance-policy patch alongside the report
-mcp-audit killchain --patch yaml
+credenzo killchain --patch yaml
 
 # Emit a PR-comment stub alongside the report
-mcp-audit killchain --patch pr
+credenzo killchain --patch pr
 
 # Write the report to a file (--patch yaml writes <name>.patch.yml alongside it)
-mcp-audit killchain --output-file report.md --patch yaml
+credenzo killchain --output-file report.md --patch yaml
 
 # Scan specific config paths
-mcp-audit killchain --path ~/.cursor/mcp.json --path ~/claude_desktop_config.json
+credenzo killchain --path ~/.cursor/mcp.json --path ~/claude_desktop_config.json
 ```
 
 ## Output formats
@@ -121,7 +121,7 @@ capability controls.
 Example patch output:
 
 ```yaml
-# mcp-audit killchain — governance policy patch
+# credenzo killchain — governance policy patch
 # Generated: 2026-05-03  Covers: KS-001, KS-002
 #
 # Append this block to your .mcp-audit-policy.yml …
@@ -140,7 +140,7 @@ approved_servers:
 | No attack paths | Exits 0. Prints "No reachable attack paths — no changes recommended." |
 | All paths share no common edge | Note added to report. Each kill switch targets one unique path. |
 | `--top N` exceeds the hitting-set size | Returns fewer than N switches (correct — no more changes needed). |
-| `--input` file from an old mcp-audit version | Schema-version check; exits 2 with a clear error if below `0.1.0`. |
+| `--input` file from an old credenzo version | Schema-version check; exits 2 with a clear error if below `0.1.0`. |
 | Extreme blast radius (>1000 paths) | Greedy hitting-set is O(paths × servers); completes in under 5 seconds for typical MCP configurations. |
 
 ## Algorithm complexity
@@ -150,7 +150,7 @@ of attack paths and S is the number of unique servers. For typical MCP configura
 (tens of servers, hundreds of paths), this completes in milliseconds. The algorithm
 provides an approximation ratio of ln(P)+1 relative to the optimal minimum hitting set.
 
-## Relationship to `mcp-audit scan`
+## Relationship to `credenzo scan`
 
 `killchain` does **not** replace `scan`. It consumes `scan` output (either inline or
 via `--input`) and adds the prescriptive layer. The underlying attack-path graph and

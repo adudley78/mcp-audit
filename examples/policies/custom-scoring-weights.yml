@@ -1,12 +1,12 @@
-# mcp-audit governance policy — Custom Scoring Weights
+# Credenzo governance policy — Custom Scoring Weights
 #
 # Demonstrates how to override the default scoring deductions and positive-signal
 # bonuses via the `scoring:` block. This is useful when your team has different
-# risk priorities than the mcp-audit defaults.
+# risk priorities than the Credenzo defaults.
 #
 # Usage:
-#   mcp-audit scan --policy examples/policies/custom-scoring-weights.yml
-#   mcp-audit policy validate examples/policies/custom-scoring-weights.yml
+#   credenzo scan --policy examples/policies/custom-scoring-weights.yml
+#   credenzo policy validate examples/policies/custom-scoring-weights.yml
 #
 # See docs/governance.md#scoring-weights for full documentation.
 #

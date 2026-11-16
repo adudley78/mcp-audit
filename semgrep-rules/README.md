@@ -1,17 +1,17 @@
-# mcp-audit Semgrep Rules
+# Credenzo Semgrep Rules
 
 A curated pack of Semgrep rules that detect security vulnerabilities in MCP
 (**Model Context Protocol**) **server source code** — the Python and TypeScript
 implementations that handle tool calls from AI agents.
 
-This is complementary to mcp-audit's config scanning (which audits client-side
+This is complementary to Credenzo's config scanning (which audits client-side
 JSON configurations). These rules scan the server implementation itself.
 
 ---
 
 ## Usage
 
-### Standalone (no mcp-audit required)
+### Standalone (no Credenzo required)
 
 Run the full rule pack against a directory:
 
@@ -35,7 +35,7 @@ semgrep --config semgrep-rules/typescript/ path/to/server/
 ### Via mcp-audit
 
 ```bash
-mcp-audit scan --sast path/to/mcp-server/
+credenzo scan --sast path/to/mcp-server/
 ```
 
 SAST findings are merged into the unified scan output alongside config-scanning
@@ -44,8 +44,8 @@ findings. Available in all output formats: terminal, JSON, SARIF, HTML dashboard
 Standalone SAST scan (no config scanning):
 
 ```bash
-mcp-audit sast path/to/mcp-server/
-mcp-audit sast path/to/mcp-server/ --format json
+credenzo sast path/to/mcp-server/
+credenzo sast path/to/mcp-server/ --format json
 ```
 
 For full reference, see [docs/sast-rules.md](../docs/sast-rules.md).
@@ -133,7 +133,7 @@ PR checklist and metadata schema reference.
 
 ## Severity Mapping
 
-When used via `mcp-audit scan --sast`, Semgrep severities map to mcp-audit
+When used via `credenzo scan --sast`, Semgrep severities map to mcp-audit
 finding severities as follows:
 
 | Semgrep | mcp-audit |

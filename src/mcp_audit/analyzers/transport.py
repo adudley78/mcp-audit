@@ -221,7 +221,7 @@ class TransportAnalyzer(BaseAnalyzer):
                 f"Server uses {server.command} to fetch {package!r}, which is "
                 "recognised in the known-server registry but not yet marked "
                 "verified. Consider pinning the version and running "
-                "`mcp-audit scan --verify-hashes` for integrity checks."
+                "`credenzo scan --verify-hashes` for integrity checks."
             )
         else:
             severity = Severity.MEDIUM

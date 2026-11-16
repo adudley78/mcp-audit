@@ -1359,7 +1359,7 @@ class TestSc004VersionAware:
         assert "CVE-2026-00010" in out[0].description
         assert "CVE-2026-00011" not in out[0].description
         assert (
-            "and 5 more (`mcp-audit vet acme-mcp` lists them all)" in out[0].description
+            "and 5 more (`credenzo vet acme-mcp` lists them all)" in out[0].description
         )
 
     def test_ghsa_only_advisory_links_to_github(self) -> None:
@@ -1427,7 +1427,7 @@ class TestSc004VersionAware:
         an = SupplyChainAnalyzer(registry=reg)
         assert an.analyze(_srv("npx", ["-y", "@acme/server@1.5.0"])) == []
         assert len(an.analyze(_srv("npx", ["-y", "@acme/server@1.4.0"]))) == 1
-        # A range is not a pin: offline, mcp-audit can't know what it installs.
+        # A range is not a pin: offline, Credenzo can't know what it installs.
         assert len(an.analyze(_srv("npx", ["-y", "@acme/server@^1.5.0"]))) == 1
 
 
@@ -1468,7 +1468,7 @@ class TestBundledRegistryAdvisories:
         # Every advisory has a fix, and the launch is unpinned (STORY-0083).
         assert sc004[0].severity == Severity.MEDIUM
         assert "and 20 more" in sc004[0].description
-        assert "mcp-audit vet mcp-atlassian" in sc004[0].description
+        assert "credenzo vet mcp-atlassian" in sc004[0].description
 
     def test_mcp_atlassian_fixed_release_is_silent(self) -> None:
         out = SupplyChainAnalyzer().analyze(_srv("uvx", ["mcp-atlassian==0.23.1"]))

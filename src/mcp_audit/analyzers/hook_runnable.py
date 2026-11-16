@@ -448,7 +448,9 @@ def _one_cursor_file(
     if not isinstance(hooks, dict) or not hooks:
         return []
 
-    from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer  # noqa: PLC0415
+    from mcp_audit.analyzers.config_hygiene import (
+        ConfigHygieneAnalyzer,  # noqa: PLC0415
+    )
 
     entries = _cursor_commands(hooks)
     # One group per command, so every command reaches the HOOK-001/002 checks

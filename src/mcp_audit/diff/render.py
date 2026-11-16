@@ -80,7 +80,7 @@ def render_terminal(
     con = console or Console()
 
     con.print()
-    con.print(Rule(f"[bold]mcp-audit diff[/bold]  {base_label} → {head_label}"))
+    con.print(Rule(f"[bold]credenzo diff[/bold]  {base_label} → {head_label}"))
     con.print()
 
     if not changes:
@@ -343,7 +343,7 @@ def render_pr_comment(
     if len(lines) > 100:
         lines = lines[:97]
         lines.append(
-            "*…output truncated — run `mcp-audit diff` locally for full report*"
+            "*…output truncated — run `credenzo diff` locally for full report*"
         )
         lines.append("")
 

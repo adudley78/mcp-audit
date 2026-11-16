@@ -1,6 +1,6 @@
 # Secrets a Claude Code session can reach (REACH-001..003)
 
-A plain `mcp-audit scan` or `mcp-audit check` (no explicit path) asks one
+A plain `credenzo scan` or `credenzo check` (no explicit path) asks one
 question about the machine it runs on: **which credential files could a Claude
 Code session read without asking you?** It answers without opening any of
 them.
@@ -66,7 +66,7 @@ has:
   `allowRead` entries count).
 
   **The sandbox covers Bash commands only.** "A `denyRead` entry doesn't stop
-  the Read tool." mcp-audit still counts it, because the Read tool asks before
+  the Read tool." Credenzo still counts it, because the Read tool asks before
   reading outside the working directory in the default permission modes, but
   not when `permissions.defaultMode` is `bypassPermissions` in your user or
   managed settings (there the Read tool reads without asking). A mode chosen on
@@ -107,7 +107,7 @@ Windows are unchanged. `Read` deny rules still count.
 ## Exit code
 
 On a developer machine with Claude Code and unprotected credential files, a
-plain `mcp-audit scan` now exits 1 with one LOW finding (REACH-001): `scan`
+plain `credenzo scan` now exits 1 with one LOW finding (REACH-001): `scan`
 exits 1 on any finding, INFO included. Use `--severity-threshold medium` to
 ignore it. `check`, the GitHub Action and the pre-commit hook are unaffected:
 they gate on grade or on HIGH and above.
@@ -136,7 +136,7 @@ Anthropic's sandboxing guide recommends. For a project, commit
   listed; the store paths are a fixed list. Only the working directory's root is
   listed, by entry name, to find `.env` files.
 - More than 4,096 sandbox path entries in all, or more than 256 with
-  wildcards, makes mcp-audit count the sandbox as protecting nothing (and say
+  wildcards, makes Credenzo count the sandbox as protecting nothing (and say
   so in the scan's errors), so a cut-off list never reads as protected.
 - Only the settings keys above are read from settings files (1 MiB per file,
   256 drop-ins, 8 MiB per scan); a file over the limit is reported in the
@@ -146,7 +146,7 @@ Anthropic's sandboxing guide recommends. For a project, commit
   like every other finding: `--format json` output carries it as is (the
   terminal report does not print it), and the outputs meant to leave the machine (SARIF, Nucleus, snapshots)
   rewrite it without your home directory. REACH findings are never turned
-  into advisories (`mcp-audit advise`).
+  into advisories (`credenzo advise`).
 - Runs only in a default scan, and only when a Claude Code config directory
   exists; an explicit path or `demo/configs/` produces none.
 

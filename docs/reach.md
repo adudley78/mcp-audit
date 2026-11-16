@@ -1,10 +1,10 @@
-# `mcp-audit reach`: what can the agents on this machine touch?
+# `credenzo reach`: what can the agents on this machine touch?
 
 ```bash
-mcp-audit reach                         # one card per agent, terminal
-mcp-audit reach --format json           # docs/reach.schema.json, schema_version "1.0"
-mcp-audit reach --report pdf -o reach.pdf   # one page per machine
-mcp-audit reach --fleet ./reach-files/  # roll up reach JSON from many machines
+credenzo reach                         # one card per agent, terminal
+credenzo reach --format json           # docs/reach.schema.json, schema_version "1.0"
+credenzo reach --report pdf -o reach.pdf   # one page per machine
+credenzo reach --fleet ./reach-files/  # roll up reach JSON from many machines
 ```
 
 `reach` answers the question a security team asks before it lets a coding agent
@@ -234,9 +234,9 @@ shrinks to fit; the JSON has the full text).
 ## Fleet
 
 ```bash
-mcp-audit reach --format json -o "$(hostname).json"     # on each machine
-mcp-audit reach --fleet ./reach-files/                  # on the collector
-mcp-audit reach --fleet ./reach-files/ --format json    # docs/reach-fleet.schema.json
+credenzo reach --format json -o "$(hostname).json"     # on each machine
+credenzo reach --fleet ./reach-files/                  # on the collector
+credenzo reach --fleet ./reach-files/ --format json    # docs/reach-fleet.schema.json
 ```
 
 `--fleet DIR` reads the `*.json` files in `DIR` (not recursive): at most 1,000
