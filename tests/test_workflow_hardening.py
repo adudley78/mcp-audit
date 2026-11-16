@@ -209,3 +209,74 @@ class TestDiffGitHardening:
 
         with patch("mcp_audit.diff.loader.subprocess.run", side_effect=fake):
             assert loader._load_from_git_sha("HEAD") == []
+
+
+_DRIFT_WORKFLOW = ROOT / ".github" / "workflows" / "drift-index.yml"
+_OLD_SNAPSHOT = '{"schema_version": 1, "rows": [], "marker": "old"}'
+
+
+def _drift_publish_script() -> str:
+    """The Python that the publish job of drift-index.yml runs."""
+    import textwrap
+
+    text = _DRIFT_WORKFLOW.read_text(encoding="utf-8")
+    opener = "python3 -I - <<'PY'\n"
+    start = text.index(opener) + len(opener)
+    end = text.index("\n          PY\n", start)
+    return textwrap.dedent(text[start:end])
+
+
+def _run_drift_publish(tmp_path, label: str, existing: str) -> tuple[int, str]:
+    """Run the publish script in tmp_path with one snapshot already there."""
+    import json
+    import subprocess
+    import sys
+
+    for kind, need in (("snapshots", "rows"), ("index", "compared")):
+        incoming = tmp_path / "incoming" / kind
+        incoming.mkdir(parents=True)
+        record = {"schema_version": 1, need: [], "marker": "new"}
+        (incoming / f"{label}.json").write_text(json.dumps(record), encoding="utf-8")
+    dest = tmp_path / "snapshots" / f"{existing}.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(_OLD_SNAPSHOT, encoding="utf-8")
+    done = subprocess.run(  # noqa: S603 - the script is this repository's own file
+        [sys.executable, "-I", "-c", _drift_publish_script()],
+        cwd=tmp_path,
+        env={"LABEL": label, "PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    return done.returncode, done.stdout + done.stderr
+
+
+def test_drift_index_never_replaces_a_dated_snapshot(tmp_path) -> None:
+    """A second run on one date publishes nothing.
+
+    The first run (2026-11-16) had the same date as the last snapshot of the
+    launch study and replaced it on the drift-history branch. History can not
+    be made again. This runs the publish job's own script.
+    """
+    code, out = _run_drift_publish(tmp_path, "2026-11-16", "2026-11-16")
+    assert code == 0, out
+    assert "Nothing published." in out
+    kept = (tmp_path / "snapshots" / "2026-11-16.json").read_text(encoding="utf-8")
+    assert kept == _OLD_SNAPSHOT
+    assert not (tmp_path / "index" / "2026-11-16.json").exists()
+    assert not (tmp_path / "latest.json").exists()
+
+
+def test_drift_index_publishes_a_new_date(tmp_path) -> None:
+    """A new date is published and becomes the latest."""
+    code, out = _run_drift_publish(tmp_path, "2026-11-23", "2026-11-16")
+    assert code == 0, out
+    for rel in (
+        "snapshots/2026-11-23.json",
+        "index/2026-11-23.json",
+        "latest.json",
+        "latest-snapshot.json",
+    ):
+        text = (tmp_path / rel).read_text(encoding="utf-8")
+        assert '"marker": "new"' in text, rel

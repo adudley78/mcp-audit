@@ -28,6 +28,14 @@ The corpus is the frozen list of the launch study: the npm top 100, 48 PyPI serv
 
 Both formats have `schema_version` 1. A change to a field adds a field; it does not rename one.
 
+## One snapshot for each date
+
+The publish job stops when the branch has a snapshot for the date already. A manual run after the scheduled run of the same date publishes nothing.
+
+The first workflow run was on 2026-11-16, the date of the last snapshot of the launch study, and it replaced that snapshot. The study files were put back by hand. That run is kept in `baseline/` on the branch, and `latest-snapshot.json` is a copy of it, so each weekly comparison is between two runs on a GitHub runner.
+
+The two snapshots of that date came from different machines. 2 of 167 servers were different. One had a new version between the two runs. One (`mongodb-mcp-server` 3.3.0) had the same version and listed four more tools on the runner. So the tool list of a server can depend on the machine, and 1 of 167 is the measured size of that effect for this corpus.
+
 ## Limits
 
 - About half of the corpus starts with no network and no credentials. A server that needs a key or a service is not measured.
