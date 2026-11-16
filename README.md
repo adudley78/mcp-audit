@@ -1,10 +1,10 @@
-# Credenza
+# Credenzo
 
-**The taste test for agent tools.** Credenza (formerly mcp-audit) is an offline security scanner and committable lock for the MCP servers your AI coding tools run.
+**The taste test for agent tools.** Credenzo (formerly mcp-audit) is an offline security scanner and committable lock for the MCP servers your AI coding tools run.
 
-> In 16th-century Italy, a *credenza* was the act of a servant who tasted a lord's food and drink to check for poison. This tool does that for the tools your agent consumes.
+> In 16th-century Italy, a *credenza* was the act of a servant who tasted a lord's food and drink to check for poison. Credenzo is the taster: it does that for the tools your agent consumes.
 >
-> **The rename is in progress.** The package is still `mcp-audit-scanner` and the command is still `mcp-audit`; `credenza` now works as a second command name. Nothing you have installed or configured breaks.
+> **The rename is in progress.** The package is still `mcp-audit-scanner` and the command is still `mcp-audit`; `credenzo` now works as a second command name. Nothing you have installed or configured breaks.
 
 [![CI](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)

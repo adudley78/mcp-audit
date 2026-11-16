@@ -96,7 +96,7 @@ sbom = [
 
 [project.scripts]
 mcp-audit = "mcp_audit._entry:main"
-credenza = "mcp_audit._entry:main"
+credenzo = "mcp_audit._entry:main"
 
 [project.urls]
 Homepage = "https://github.com/adudley78/mcp-audit"
