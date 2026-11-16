@@ -164,6 +164,12 @@ jobs:
           label = os.environ["LABEL"]
           if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", label):
               sys.exit("bad label")
+          # One snapshot for each date. A second run on a date (a manual run
+          # after the scheduled one) must not replace the record: the first
+          # run on 2026-11-16 replaced the study snapshot of that date.
+          if os.path.exists(f"snapshots/{label}.json") or os.path.exists(f"index/{label}.json"):
+              print(f"::warning::A snapshot for {label} is on drift-history already. Nothing published.")
+              sys.exit(0)
           for kind, need in (("snapshots", "rows"), ("index", "compared")):
               src = f"incoming/{kind}/{label}.json"
               if os.path.islink(src) or os.path.getsize(src) > 64 * 1024 * 1024:
