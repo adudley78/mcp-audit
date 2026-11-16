@@ -29,9 +29,9 @@ brew install pre-commit
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.32.0
+    rev: v0.33.0
     hooks:
-      - id: mcp-audit
+      - id: credenzo
 ```
 
 `rev` must be an existing release tag. The examples on this page show the current release (each release PR updates them); `pre-commit autoupdate` moves your copy to the latest tag from [https://github.com/adudley78/mcp-audit/releases](https://github.com/adudley78/mcp-audit/releases).
@@ -51,9 +51,9 @@ The default hook args run `scan --severity-threshold high`, blocking only on HIG
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.32.0
+    rev: v0.33.0
     hooks:
-      - id: mcp-audit
+      - id: credenzo
         args: [scan, --severity-threshold, medium]
 ```
 
@@ -64,7 +64,7 @@ Valid threshold values (lowest to highest): `info`, `low`, `medium`, `high`, `cr
 Run the hook without committing anything:
 
 ```bash
-pre-commit run mcp-audit
+pre-commit run credenzo
 ```
 
 Run against all files (not just staged):
@@ -100,18 +100,20 @@ See [`examples/pre-commit/`](../examples/pre-commit/) for ready-to-copy configs:
 - [`basic.yaml`](../examples/pre-commit/basic.yaml) — minimal setup, blocks on HIGH+
 - [`strict.yaml`](../examples/pre-commit/strict.yaml) — blocks on MEDIUM+
 
-## `mcp-audit-lock-verify` — block commits that drift from `mcp-lock.json`
+## `credenzo-lock-verify` — block commits that drift from `mcp-lock.json`
 
 If you've adopted [`credenzo lock`](lock.md), a second hook enforces it:
 
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.32.0  # mcp-audit-lock-verify needs v0.17.0 or later
+    rev: v0.33.0  # the credenzo hook ids need v0.33.0 or later
     hooks:
-      - id: mcp-audit
-      - id: mcp-audit-lock-verify
+      - id: credenzo
+      - id: credenzo-lock-verify
 ```
+
+The hook ids from before the rename, `mcp-audit` and `mcp-audit-lock-verify`, continue to work and run the same checks.
 
 This hook runs `credenzo lock --verify --if-present` whenever a commit
 touches a known MCP config path or `mcp-lock.json`. It is safe to add to a

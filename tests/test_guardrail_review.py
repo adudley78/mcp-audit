@@ -569,4 +569,4 @@ def test_upgrade_note_is_documented() -> None:
     root = Path(__file__).resolve().parent.parent
     for name in ("docs/lock.md", "CHANGELOG.md"):
         text = (root / name).read_text(encoding="utf-8")
-        assert "older mcp-audit" in text.lower() and "guardrails" in text, name
+        assert "older credenzo" in text.lower() and "guardrails" in text, name

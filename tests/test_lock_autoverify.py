@@ -4,7 +4,7 @@ These tests exist because `tests/test_lock_auto_verify.py` and
 `tests/test_scan_lock_integration.py` both build their fixture lock from the
 *scan's own* ``ServerConfig`` list, so the client label is identical on both
 sides of the comparison by construction. The shipped defect only appears when
-the lock is written by the real ``mcp-audit lock`` command and then read by
+the lock is written by the real ``credenzo lock`` command and then read by
 ``scan``/``check``, because each entry point runs a different discovery whose
 client label differs for the same file:
 
@@ -14,7 +14,7 @@ client label differs for the same file:
 
 The lock key is ``<client>/<name>``, so nothing matched and every server came
 back as both ``LOCK-002`` ("not in lock") and ``LOCK-003`` ("locked server
-missing") at once — `mcp-audit check` graded a correctly locked repo D and
+missing") at once — `credenzo check` graded a correctly locked repo D and
 exited 1 (R60-01, launch-blocking against v0.18.1).
 
 Every test here therefore drives the real CLI end to end. Matching is by
@@ -78,7 +78,7 @@ def _one_server(version: str = "1.0.0", name: str = "github") -> dict:
 
 
 def _lock(root: Path) -> None:
-    """Run the real `mcp-audit lock` (offline) against *root*."""
+    """Run the real `credenzo lock` (offline) against *root*."""
     result = runner.invoke(app, ["lock", str(root), "--offline"])
     assert result.exit_code == 0, result.output
 
@@ -409,13 +409,13 @@ class TestRemediationHintsAreOpposite:
         assert "LOCK-002" in by_id and "LOCK-003" in by_id
         r2 = by_id["LOCK-002"]["remediation"]
         r3 = by_id["LOCK-003"]["remediation"]
-        assert "mcp-audit lock" in r2
+        assert "credenzo lock" in r2
         assert "lock --accept" in r3
         assert r2 != r3
         # Opposite states must not share a single prescribed command.
         assert not (
-            "mcp-audit lock`" in r2
-            and "mcp-audit lock`" in r3
+            "credenzo lock`" in r2
+            and "credenzo lock`" in r3
             and "accept" not in r2
             and "accept" not in r3
         )

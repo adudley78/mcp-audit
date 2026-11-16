@@ -39,13 +39,15 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Verify binary is on PATH
+      - name: Verify both command names are on PATH
         shell: bash
-        run: mcp-audit version
+        run: |
+          credenzo version
+          mcp-audit version
 
       - name: Print resolved version output
         shell: bash
-        run: echo "Resolved version = ${{ steps.setup.outputs.mcp-audit-version }}"
+        run: echo "Resolved version = ${{ steps.setup.outputs.credenzo-version }}; old output name = ${{ steps.setup.outputs.mcp-audit-version }}"
 
   # ── Pinned version ────────────────────────────────────────────────────────
   test-pinned:
@@ -68,9 +70,11 @@ jobs:
         with:
           version: 'v0.9.0'
 
-      - name: Verify binary is on PATH
+      - name: Verify both command names are on PATH
         shell: bash
-        run: mcp-audit version
+        run: |
+          credenzo version
+          mcp-audit version
 
       - name: Confirm pinned version is installed
         shell: bash

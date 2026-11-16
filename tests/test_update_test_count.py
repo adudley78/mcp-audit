@@ -285,7 +285,7 @@ _PIN_ANCHORS = {
     ),
     _mod._ACTION_REF_PATTERN: r"uses:\s*adudley78/mcp-audit[/@]",
     _mod._VERSION_INPUT_PATTERN: r"(?m)^[ \t]+version:\s*['\"]?v\d",
-    _mod._PIP_PIN_PATTERN: r"mcp-audit-scanner==",
+    _mod._PIP_PIN_PATTERN: r"credenzo==",
 }
 
 

@@ -1,4 +1,4 @@
-"""Tests for cli/register.py — the ``mcp-audit register`` command.
+"""Tests for cli/register.py — the ``credenzo register`` command.
 
 Covers:
 - register --status with no registration file → prints "not registered"
@@ -383,15 +383,15 @@ class TestRegisterInteractiveCommand:
 
         assert result.exit_code == 0
         assert REGISTER_PROMPT_LINES == (
-            "Registering shares your contact details with the mcp-audit maintainer so",
+            "Registering shares your contact details with the Credenzo maintainer so",
             "you can be contacted about project updates, such as new detection rules.",
             "You can also ask for a follow-up if your scan grade is C or below.",
             "Every feature works the same whether or not you register.",
             "",
             "It sends your name, org, email, follow-up choice and mcp-audit",
             'version, with a placeholder grade of "?", once. After that, each',
-            "`mcp-audit check` sends the version and grade only. Remove it any",
-            "time with `mcp-audit register --clear`.",
+            "`credenzo check` sends the version and grade only. Remove it any",
+            "time with `credenzo register --clear`.",
         )
         for line in REGISTER_PROMPT_LINES:
             assert line in result.output

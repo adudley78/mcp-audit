@@ -496,7 +496,7 @@ class TestEmptyStates:
         assert "No MCP servers detected." in minimal_html
 
     def test_no_servers_discover_hint_present(self, minimal_html: str) -> None:
-        assert "mcp-audit discover" in minimal_html
+        assert "credenzo discover" in minimal_html
 
     def test_no_findings_message_present(self, minimal_html: str) -> None:
         assert "No security issues found" in minimal_html
@@ -560,7 +560,7 @@ class TestEmptyStates:
 
 
 class TestDashboardCommand:
-    """Tests for the `mcp-audit dashboard` CLI command.
+    """Tests for the `credenzo dashboard` CLI command.
 
     The HTTP server and browser open are mocked so tests finish immediately.
     """
@@ -574,7 +574,7 @@ class TestDashboardCommand:
         result: ScanResult | None = None,
         extra_args: list[str] | None = None,
     ) -> object:
-        """Invoke `mcp-audit dashboard` with mocked scan and server.
+        """Invoke `credenzo dashboard` with mocked scan and server.
 
         ``http.server`` and ``tempfile`` are imported *inside* the dashboard
         command, so they must be patched at the stdlib module level, not the

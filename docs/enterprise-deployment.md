@@ -86,7 +86,7 @@ pip install credenzo
 Pin to a specific version in production:
 
 ```bash
-pip install credenzo==0.32.0
+pip install credenzo==0.33.0
 ```
 
 ### Option C — Source install

@@ -1,13 +1,40 @@
-# mcp-audit
+# Credenzo (formerly mcp-audit)
 
 An open-source, privacy-first CLI tool that scans MCP (Model Context Protocol)
 server configurations for security vulnerabilities. Think "Snyk for MCP servers."
+
+## Names (0.33.0 rename)
+
+The product is **Credenzo** and the command is `credenzo`. Use those in every
+text a person reads: help text, reports, messages, documentation, examples.
+
+These keep the old name on purpose. Do not rename them without a migration:
+
+- The `mcp-audit` command (same entry point; `_entry._old_name_notice` prints one
+  stderr line in a terminal, never in CI, a pipe, or `run`).
+- The distribution that holds the code, `mcp-audit-scanner`. The `credenzo`
+  distribution (`packaging/credenzo/`) holds no code: it pins the same version,
+  forwards the extras and declares the `credenzo` command
+  (`tests/test_credenzo_package.py`). Publish it with
+  `publish-credenzo-name.yml` after each release.
+- The import package `mcp_audit`, the repository name in URLs, the release
+  binary names (`mcp-audit-<os>-<arch>`), the spec files.
+- Machine contracts: exact `"mcp-audit"` literals (platformdirs directory, SARIF
+  tool name, CycloneDX/OpenVEX/Nucleus tool names, `_producer`), lock
+  `generated_by`, `mcp-audit/…` and `mcp-audit:` property keys, the
+  code-scanning category, `.mcp-audit-policy.yml`, `mcp-audit-feed.pub`, the
+  `mcp-audit.dev` API host, `MCP_AUDIT_*` environment variables.
+- A wrapped config entry may launch `mcp-audit run` (written before 0.33.0) or
+  `credenzo run`; `runtime/wrapping._WRAPPER_NAME` accepts both.
+- Pre-commit hook ids `mcp-audit` and `mcp-audit-lock-verify` stay beside
+  `credenzo` and `credenzo-lock-verify`; the setup action puts both command
+  names on PATH and keeps the `mcp-audit-version` output.
 
 ## What this project does
 
 Developers use MCP servers to give AI agents (Claude, Cursor, VS Code Copilot) access
 to tools — file systems, databases, APIs, etc. These servers are configured via JSON
-files and can be poisoned, misconfigured, or compromised. mcp-audit scans those configs
+files and can be poisoned, misconfigured, or compromised. Credenzo scans those configs
 and flags security issues.
 
 ## Business model
@@ -50,7 +77,7 @@ src/mcp_audit/
 │   │                    #   helpers — see "scan() pipeline conventions" below.
 │   ├── check.py         # check command: one-page practitioner verdict (+ _write_pdf_report)
 │   ├── fix.py           # fix command: apply safe remediations to config files
-│   ├── wrap.py          # wrap / unwrap: rewrite local servers in JSON client configs to launch through `mcp-audit run` (EPIC-0009 Story 1.2); dry run + gate prediction by default, --apply via fixer.write_config_change
+│   ├── wrap.py          # wrap / unwrap: rewrite local servers in JSON client configs to launch through `credenzo run` (EPIC-0009 Story 1.2); dry run + gate prediction by default, --apply via fixer.write_config_change
 │   ├── run.py           # `run` as listed in --help; the console script dispatches it to runtime/ before this app loads
 │   ├── diff.py          # diff command: MCP-aware diff for PR review / CI gates
 │   ├── baseline.py      # baseline sub-app: save / list / compare / delete / export
@@ -84,13 +111,13 @@ src/mcp_audit/
 ├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, ScanScore, Severity, AttackPath, MachineInfo; Finding.line (1-based, set from an agent-file finding's "Line N:" evidence by a model validator; SARIF region.startLine, STORY-0141)
 ├── owasp_mcp.py       # Single source of truth for OWASP MCP Top 10 codes/names (MCP01–MCP10)
 ├── verdict.py         # Pure verdict builder for `vet` (shared with the mcp-audit.dev generator)
-├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
+├── watcher.py         # Filesystem watcher for continuous monitoring (credenzo watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect); build_runtime_server_config passes every lock-digested tool field (title, input/output schema, annotations) to the text checks (STORY-0099); a failed stdio handshake keeps the server's stderr (last 64 KiB), unwraps the TaskGroup ExceptionGroup and redacts both (redact_server_text, STORY-0105)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
 ├── _network.py        # NetworkPolicy + require_offline_compatible() — centralised --offline mutual-exclusion enforcement for network-touching flags
 ├── _entry.py          # Console-script entry: dispatches `run` to runtime/ before the Typer app (and the scanner) is imported (EPIC-0009)
 ├── _jcs.py            # RFC 8785 canonical JSON (moved from advisory/canonical.py, which re-exports it) so the `run` launch path can digest tools without the advisory package
-├── runtime/           # `mcp-audit run` (EPIC-0009, docs/run.md), stdlib-only on the launch path (tests/test_runtime_entry.py, test_runtime_gate.py pin the imports)
+├── runtime/           # `credenzo run` (EPIC-0009, docs/run.md), stdlib-only on the launch path (tests/test_runtime_entry.py, test_runtime_gate.py pin the imports)
 │   ├── cli.py         # argparse for run: --config/--server/--lock/--mode; gate → relay; exit 78 when enforce refuses
 │   ├── relay.py       # byte-exact stdio relay; process group, signal forwarding, exit mirroring; monitor taps lines, enforce relays line by line through the ToolGuard
 │   ├── gate.py        # launch gate: argv vs the lock entry (LOCK-001/002, RUN-001/002); uses lock/core.py only, redaction on the slow path
@@ -187,7 +214,7 @@ src/mcp_audit/
 │   ├── tool_text.py    # saved tool text `mcp-lock.tools.json` (STORY-0123, #215): store/load, trusted only if it hashes to the lock digest; field + word diffs; POISON over added words
 │   ├── core.py        # stdlib-only primitives shared with `run`: LOCK_FILENAME/versions, match_key, index_locked_entries, find_lock_for (re-exported by model/identity/discovery/verifier)
 │   └── identity.py, resolve.py (bare spec → "*", resolution_context), discovery.py, auto_verify.py
-├── advisory/          # OSV 1.6.0 advisory records + signed feed (mcp-audit advise / feed verify)
+├── advisory/          # OSV 1.6.0 advisory records + signed feed (credenzo advise / feed verify)
 │   ├── __init__.py    # Package marker; re-exports Advisory, build_advisory, write_feed, sign_feed, verify_feed
 │   ├── schema.py      # Advisory dataclass → OSV 1.6.0 JSON; stable `x_MCPSA-<12hex>` IDs; MCP metadata under affected[].database_specific; FINDING_CLASS_TO_OWASP + owasp_for(); rejects codes owasp_mcp.py does not define
 │   ├── classify.py    # finding ID → finding_class / observation / CVSS 3.1 vector (cvss_base_score reconciliation); owasp_codes_for() validates against owasp_mcp.py; is_advisable() excludes non-vulnerability findings
@@ -211,7 +238,7 @@ src/mcp_audit/
 │   ├── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper; scoped_parts_close() (find_closest_npm compares @scope and name separately, with osa_distance(), STORY-0105); optional RegistryEntry.semver_resumed_at
 │   ├── twins.py       # TwinIndex: unscoped-twin keys derived from registry entries (SC-007, STORY-0097); pure, no I/O
 │   ├── malicious.py   # load_known_malicious(), assess(): registry/known-malicious.json (OSV MAL-*) for SC-008 and vet; tolerant loader with size/entry caps, load_error surfaced in ScanResult.errors
-│   ├── research.py    # load_research_records(), research_id(): credited research findings with no CVE (STORY-0122), `src/mcp_audit/data/research-records.json` (package data, so no packaging edit); OSV-shaped records `x_MCPRS-<12 hex>`, products as the write-up names them with fixed_in only when stated, optional `introduced` (PEP 440; an install below it is NOT AFFECTED) and `platforms` (subset of windows/wsl/macos/linux; a host outside it is NOT AFFECTED, an undeterminable host COULDN'T CHECK; bad values skip the record, STORY-0142; golden `affected` rows for the older records in `tests/golden/affected_research_rows.json`), `checks` = mcp-audit finding IDs that test the condition; tolerant loader (bad entry skipped and reported); docs/research-records.md
+│   ├── research.py    # load_research_records(), research_id(): credited research findings with no CVE (STORY-0122), `src/mcp_audit/data/research-records.json` (package data, so no packaging edit); OSV-shaped records `x_MCPRS-<12 hex>`, products as the write-up names them with fixed_in only when stated, optional `introduced` (PEP 440; an install below it is NOT AFFECTED) and `platforms` (subset of windows/wsl/macos/linux; a host outside it is NOT AFFECTED, an undeterminable host COULDN'T CHECK; bad values skip the record, STORY-0142; golden `affected` rows for the older records in `tests/golden/affected_research_rows.json`), `checks` = Credenzo finding IDs that test the condition; tolerant loader (bad entry skipped and reported); docs/research-records.md
 │   └── reachability.py # transport tags on known_vulns (affected_transports/requires_auth/verified_by): tags_of, provably_stdio, not_reachable; used by affected/match.py RegistryRule and supply_chain SC-004 (STORY-0125)
 ├── rules/
 │   ├── __init__.py    # Package marker
@@ -228,13 +255,13 @@ src/mcp_audit/
 │   ├── depsdev.py     # fetch_dependency_graph() → DependencyGraph (relation SELF/DIRECT/INDIRECT, error, incomplete; 8 MiB cap); fetch_transitive_deps() wrapper for sbom
 │   ├── osv.py         # query_vulns_batch() (IDs only on OSV.dev) + enrich_advisories()/fetch_vuln_details() (/v1/vulns/{id}, distinct IDs, 256 / 120 s / 4 MiB budgets); severity_from_record(): CVSS v3 → database_specific → MAL-* CRITICAL → unrated (STORY-0106)
 │   └── scanner.py     # check_vulnerabilities(errors=result.errors) — resolver → depsdev → osv → VULN-<OSV-ID>, VULN-UNPINNED, VULN-UNRESOLVED (INFO: a lookup that could not run; non-advisory)
-├── diff/              # MCP-aware diff engine (mcp-audit diff)
+├── diff/              # MCP-aware diff engine (credenzo diff)
 │   ├── __init__.py    # Package marker
 │   ├── loader.py      # Load diff inputs (directory, JSON scan file, or git SHA) into ServerConfig lists
 │   ├── comparator.py  # Compare two ServerConfig lists → flat list of Change objects
 │   ├── risk.py        # Risk classification for diff changes
 │   └── render.py      # Render diff to terminal, JSON, and PR-comment Markdown
-├── fixer/             # Safe-remediation engine (mcp-audit fix)
+├── fixer/             # Safe-remediation engine (credenzo fix)
 │   ├── __init__.py    # Package marker
 │   ├── fixer.py       # Fixer orchestrator — load config, apply strategies, write atomically with .bak
 │   └── strategies/
@@ -243,20 +270,20 @@ src/mcp_audit/
 │       ├── credentials.py  # CRED-001/002/003 — redact plaintext secrets with ${ENV_KEY}
 │       ├── transport.py    # TRANSPORT-001 — upgrade http:// URLs to https://
 │       └── pinning.py      # SC-001/002 — replace typosquat with verified registry name @version
-├── killchain/         # Decision engine over the attack-path graph (mcp-audit killchain)
+├── killchain/         # Decision engine over the attack-path graph (credenzo killchain)
 │   ├── __init__.py    # Package marker
 │   ├── recommender.py # Rank kill switches from the hitting-set output by incremental path reduction
 │   ├── simulator.py   # What-if simulation: re-run summarize_attack_paths against the modified server list
 │   ├── patches.py     # Generate governance-policy denylist / PR-comment patch snippets
 │   └── render.py      # Markdown and JSON output formatters for killchain results
-├── shadow/            # Shadow MCP server detection (mcp-audit shadow)
+├── shadow/            # Shadow MCP server detection (credenzo shadow)
 │   ├── __init__.py    # Package marker
 │   ├── allowlist.py   # Operator allowlist of sanctioned servers; load/match
 │   ├── classifier.py  # Pure sanctioned-vs-shadow classification given server + allowlist
 │   ├── risk.py        # RiskLevel scoring for a single server (toxic-flow capability logic)
 │   ├── events.py      # Structured events for --continuous daemon mode (new_shadow_server, server_drift, server_removed)
 │   └── state.py       # first_seen/last_seen state at <user-config-dir>/mcp-audit/shadow/state.json (0o600)
-├── snapshot/          # Forensic snapshot rehydrate/diff (mcp-audit snapshot)
+├── snapshot/          # Forensic snapshot rehydrate/diff (credenzo snapshot)
 │   ├── __init__.py    # Package marker
 │   ├── rehydrate.py   # Reconstruct the historical attack-path graph from a recorded snapshot JSON
 │   └── diff.py        # "What changed since the snapshot?" — servers added/removed/changed
@@ -267,11 +294,11 @@ src/mcp_audit/
 │   ├── sarif.py       # SARIF for GitHub Security integration
 │   ├── nucleus.py     # Nucleus FlexConnect formatter
 │   ├── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph and grade badge
-│   ├── check.py       # One-page security verdict formatter for `mcp-audit check` (_HINTS)
+│   ├── check.py       # One-page security verdict formatter for `credenzo check` (_HINTS)
 │   ├── advisory.py    # AdvisoryFormatter(BaseFormatter) — ScanResult → JSON array of OSV 1.6.0 records; byte-identical to feed/osv/all.json (feed *directories* stay in advisory/feed.py)
 │   ├── cyclonedx.py   # CycloneDX SBOM formatter (supports cyclonedx-python-lib 7.x–11.x)
 │   ├── snapshot.py    # Snapshot formatters: CycloneDX AI/ML-BOM and native JSON
-│   ├── pdf.py         # Letter-size PDF compliance report (mcp-audit scan --report pdf)
+│   ├── pdf.py         # Letter-size PDF compliance report (credenzo scan --report pdf)
 │   ├── reach.py       # Terminal output for `reach` (reads MachineReach.to_dict(), so every string is already redacted; Rich markup escaped) and the fleet table
 │   └── reach_pdf.py   # `reach --report pdf`: ReachPdfFormatter reuses pdf.py's header/footer/palette; KeepInFrame(shrink) keeps one machine on one page
 ├── extensions/
@@ -302,7 +329,7 @@ src/mcp_audit/
 
 Standalone rule pack at repo root:
 - `semgrep-rules/` — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories;
- runnable with `semgrep --config semgrep-rules/ <path>` without mcp-audit installed;
+ runnable with `semgrep --config semgrep-rules/ <path>` without Credenzo installed;
  bundled in the pip wheel and PyInstaller binary; see `docs/sast-rules.md`
 
 Data files at project root:
@@ -311,13 +338,13 @@ Data files at project root:
 - `rules/community/` — 42 bundled community rules total: 41 real detection rules (`COMM-001` through `COMM-039`; `COMM-032` is intentionally reserved/unissued — see `PROVENANCE.md`) plus `STDIO-001`/`STDIO-002a`/`STDIO-002b` (launch-command trust boundary, STORY-0067; `STDIO-001` ships `enabled: false` — see `GAPS.md`) plus `TEMPLATE.yml` itself, which loads as the always-inert `COMM-000` (contribution template — `tests/test_rules.py` guarantees it never fires on a real config); `BOUNTY.md` (bounty program terms) ships alongside but is not a rule file. All ship in both pip wheel and PyInstaller binary and are available to every user with no gating — but "available to" is not "runs for": 38 of the 39 real rules run by default, and `STDIO-001` does not run for anyone (`enabled: false`, no governance-policy toggle exists to turn it on — see `GAPS.md`); see `docs/writing-rules.md` and `docs/contributing-rules.md`
 
 GitHub Action at project root:
-- `action.yml` — composite GitHub Action definition; allows any repo to wire mcp-audit into CI with a single workflow addition; inputs: `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version`; outputs: `findings-count`, `grade`, `sarif-path`. Uses `github/codeql-action/upload-sarif` (v4, pinned to a commit SHA like every third-party `uses:` ref in `action.yml`, `setup-action/` and `.github/` — `tests/test_action_yaml.py::test_every_third_party_action_ref_is_sha_pinned`) with `continue-on-error: true` so repos without Code Scanning enabled still run cleanly. Marketplace-ready — passes `tests/test_action_yaml.py` structural and safety checks.
+- `action.yml` — composite GitHub Action definition; allows any repo to wire Credenzo into CI with a single workflow addition; inputs: `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version`; outputs: `findings-count`, `grade`, `sarif-path`. Uses `github/codeql-action/upload-sarif` (v4, pinned to a commit SHA like every third-party `uses:` ref in `action.yml`, `setup-action/` and `.github/` — `tests/test_action_yaml.py::test_every_third_party_action_ref_is_sha_pinned`) with `continue-on-error: true` so repos without Code Scanning enabled still run cleanly. Marketplace-ready — passes `tests/test_action_yaml.py` structural and safety checks.
 
 Pre-commit hook at project root:
-- `.pre-commit-hooks.yaml` — pre-commit hook definition; `language: python`, `entry: mcp-audit`, `pass_filenames: false` (mcp-audit uses its own discovery), `types: [json]` (fires only on staged JSON files), `always_run: false`; default args run `scan --severity-threshold high`; see `docs/pre-commit.md`
+- `.pre-commit-hooks.yaml` — pre-commit hook definition; `language: python`, `entry: credenzo` (the old ids `mcp-audit` and `mcp-audit-lock-verify` stay, with `entry: mcp-audit`), `pass_filenames: false` (Credenzo uses its own discovery), `types: [json]` (fires only on staged JSON files), `always_run: false`; default args run `scan --severity-threshold high`; see `docs/pre-commit.md`
 
 CI workflow and example workflows:
-- `.github/workflows/mcp-audit-example.yml` — runs mcp-audit on this repo on push/PR; also the reference workflow users copy
+- `.github/workflows/mcp-audit-example.yml` — runs Credenzo on this repo on push/PR; also the reference workflow users copy
 - `examples/github-actions/basic.yml` — minimal setup (visibility only, never fails build)
 - `examples/github-actions/strict.yml` — fail on MEDIUM or higher
 - `examples/github-actions/with-baseline.yml` — drift detection against a committed baseline
@@ -329,7 +356,7 @@ Build and distribution scripts at project root:
 
 Measurement scripts (dev tooling, not in the package):
 - `scripts/bench_poisoning.py` — POISON-* recall and clean-tool flag rate on MCPTox (fetched by hand at release time, never in CI, never committed; any severity and HIGH-or-above) and precision on the top-100 npm corpus (re-measured 2026-10-29 on 0.23.0, Q-045: 1 of 46 real; labels in `docs/research/poisoning-benchmark/top100-labels.json` with `labelled_patterns_fingerprint`, `precision` prints STALE once the code differs; the 2026-10-22 0.21.x labels kept as `top100-labels-2026-10-22.json`) plus a replay of the corpus's committed evidence fragments; pinned in `docs/research/poisoning-benchmark/results.json`. `tests/test_bench_poisoning.py` fingerprints the whole source of `analyzers/poisoning.py` and `mcp_client.build_runtime_server_config`: any change to either forces a re-measure (`precision --write`, `recall --write`, then update the numbers in `docs/poisoning.md`, `GAPS.md` and `README.md`); see `docs/poisoning.md` (STORY-0088). The `delegation` subcommand (STORY-0100) measures DELEG-001..003 on MCPTox in two session models (poisoned tool on its own server; among the target server's tools), counts flagged clean tools with all 45 servers in one session and each alone, and applies the gate (`gate_decision`); `tests/test_delegation.py` fails if `analyzers/delegation.py` changes without `delegation --write`, or if `SHIPPED_SEVERITY` differs from the recorded decision
-- `scripts/bench_competitors.py` — head-to-head benchmark harness (STORY-0146, dev-only, never in CI): `corpus` writes/validates the committed corpus (`docs/research/head-to-head/corpus/`, SHA-256 pinned in `manifest.json`), `run --mcptox PATH [--tools ...] [--write]` runs the installed scanners (SkillSpector static, Cisco mcp-scanner YARA only, mcp-audit; Snyk agent-scan is always "not run: needs remote analysis") and pins `docs/research/head-to-head/results.json`, `report` prints the table. It never installs a scanner; a missing one is "not run", never zero. MCPTox is generated into a temp dir outside the repo and only its hashes are committed. Competitor output parsers follow public docs and are unverified until a real run. `tests/test_bench_competitors.py`; see `docs/research/head-to-head/README.md`
+- `scripts/bench_competitors.py` — head-to-head benchmark harness (STORY-0146, dev-only, never in CI): `corpus` writes/validates the committed corpus (`docs/research/head-to-head/corpus/`, SHA-256 pinned in `manifest.json`), `run --mcptox PATH [--tools ...] [--write]` runs the installed scanners (SkillSpector static, Cisco mcp-scanner YARA only, Credenzo; Snyk agent-scan is always "not run: needs remote analysis") and pins `docs/research/head-to-head/results.json`, `report` prints the table. It never installs a scanner; a missing one is "not run", never zero. MCPTox is generated into a temp dir outside the repo and only its hashes are committed. Competitor output parsers follow public docs and are unverified until a real run. `tests/test_bench_competitors.py`; see `docs/research/head-to-head/README.md`
 
 ## Key conventions
 
@@ -346,10 +373,10 @@ Measurement scripts (dev tooling, not in the package):
 - **SARIF output** adds a `run.properties` block with `mcp-audit/grade`, `mcp-audit/numericScore`, `mcp-audit/positiveSignals`, and `mcp-audit/deductions` when `ScanResult.score` is not `None`; the block is absent when `--no-score` suppresses scoring.
 - `SupplyChainAnalyzer` accepts `registry=KnownServerRegistry` or `registry_path=Path` in `__init__` to allow test injection without touching the filesystem.
 - `TransportAnalyzer` accepts an optional `registry=KnownServerRegistry` in `__init__` to tier `TRANSPORT-003` severity by registry membership: verified entries suppress the finding, known-but-unverified entries fire at LOW, unknown packages fire at MEDIUM. `get_default_analyzers()` and `cli/scan.py::_build_custom_analyzers` share the same `SupplyChainAnalyzer.registry` instance so the JSON is read from disk exactly once per scan. Constructing `TransportAnalyzer()` without a registry preserves the historic "always MEDIUM" behaviour for tests that don't need the registry path.
-- **Every Finding carries an OWASP MCP Top 10 mapping** in `Finding.owasp_mcp_top_10` (list of `MCP01`–`MCP10` codes; empty list = unmapped). The single source of truth for codes/names is `src/mcp_audit/owasp_mcp.py`. SARIF output exposes the mapping via a `runs[0].taxonomies` block and per-rule `relationships`. The full per-finding-ID mapping is documented in `docs/severity-framework.md`. Terminal output shows codes inline; `mcp-audit scan --owasp-report` prints a category-level aggregation.
+- **Every Finding carries an OWASP MCP Top 10 mapping** in `Finding.owasp_mcp_top_10` (list of `MCP01`–`MCP10` codes; empty list = unmapped). The single source of truth for codes/names is `src/mcp_audit/owasp_mcp.py`. SARIF output exposes the mapping via a `runs[0].taxonomies` block and per-rule `relationships`. The full per-finding-ID mapping is documented in `docs/severity-framework.md`. Terminal output shows codes inline; `credenzo scan --owasp-report` prints a category-level aggregation.
 - **Community rules always run.** The policy-as-code rule engine loads `rules/community/` for every scan. Authoring tools (`rule validate`, `rule test`) and custom rule directories (`--rules-dir`, `<user-config-dir>/mcp-audit/rules/`; path resolved via `platformdirs`) are available to everyone — gating has been removed. The engine is invoked via `_run_rules_engine()` in `scanner.py` after all built-in analyzers complete. Rule findings use `analyzer="rules"` and `id=rule.id`.
 - **Rule engine resolution order** for community rules: PyInstaller `sys._MEIPASS/rules/community/` → `importlib.resources` (installed wheel at `mcp_audit/rules/community/`) → dev repo-root fallback (`rules/community/`).
-- **Supply chain attestation** (`attestation/`) implements Layer 1 hash-based integrity verification. `scan --verify-hashes` downloads package tarballs, computes SHA-256, and compares against pins in `RegistryEntry.known_hashes`. `mcp-audit verify` is a standalone command for interactive package verification. Attestation findings use `analyzer="attestation"`; CRITICAL for mismatches, INFO for unverifiable cases. See `docs/supply-chain.md`.
+- **Supply chain attestation** (`attestation/`) implements Layer 1 hash-based integrity verification. `scan --verify-hashes` downloads package tarballs, computes SHA-256, and compares against pins in `RegistryEntry.known_hashes`. `credenzo verify` is a standalone command for interactive package verification. Attestation findings use `analyzer="attestation"`; CRITICAL for mismatches, INFO for unverifiable cases. See `docs/supply-chain.md`.
 - **`scan()` pipeline conventions** (`cli/scan.py`): the `scan` command is a thin orchestrator that delegates each optional phase to a named helper. Helpers are `_apply_*` for pipeline stages that mutate/inject into `ScanResult` (baseline drift, governance, SAST, extensions, agent-files, advisory feed, severity threshold) and `_write_*` for output-layer dispatch (`_write_formatted_output`). Preflight validation lives in `_preflight_checks`. Each helper has a docstring that states when it is called and its contract when the feature is not requested. Future scan-pipeline additions should follow this `_apply_*` / `_write_*` naming and be inserted into `scan()` as a single-line delegation — do not inline new phases in the command body. Test-patched symbols (`verify_server_hashes`, `discover_extensions`, `analyze_extensions`, `run_semgrep`) are imported as their containing module (e.g. `from mcp_audit.sast import runner as _sast_runner`) so `patch("mcp_audit.sast.runner.run_semgrep", ...)` continues to intercept.
 - **Capability tags for toxic flow detection** are stored in `RegistryEntry.capabilities` (optional `list[str]` in `registry/known-servers.json`) and consulted by `analyzers/toxic_flow.py::tag_server(server, registry=...)` **before** any keyword or tool-name heuristic fallback. When `registry` is supplied and resolves a known package whose `capabilities` field is not `None`, those tags are returned verbatim — the registry is the single source of truth. The in-module `KNOWN_SERVERS` dict in `toxic_flow.py` is retained as a deterministic fallback for (a) unit tests that inject no registry and (b) cases where the registry is present but the entry has `capabilities=None`. `scanner.py` passes the `SupplyChainAnalyzer.registry` instance to `ToxicFlowAnalyzer(registry=…)` so the JSON file is read from disk exactly once per scan.
   Rules that follow from this (history and measurements: `docs/archive/claude-md-2026-11-16.md`):
@@ -399,9 +426,9 @@ Measurement scripts (dev tooling, not in the package):
 - MCP protocol communication is async — use asyncio and pytest-asyncio
 - Core scanning MUST work fully offline — no network calls by default
 - OSV.dev lookups **are implemented** via `scan --check-vulns` (deps.dev transitive graph + OSV.dev CVE batch query; shipped v0.6.0). The `--offline` flag enforces mutual exclusion with network-touching opt-in flags (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`); a plain scan already makes no network calls, so `--offline` is a no-op for the default configuration
-- **mcp-audit does not implement semver range resolution anywhere** — no semver library appears in `src/mcp_audit/vulnerability/` or `src/mcp_audit/attestation/`. For an unpinned npm server, `resolve_latest_version()` asks `registry.npmjs.org/<pkg>/latest` (the `latest` dist-tag, npm-pick-manifest's own first-preference rule) rather than computing a highest-satisfying version, so the class of resolver bug an external measurement (issue [#88](https://github.com/adudley78/mcp-audit/issues/88)) found in a from-scratch range resolver — preferring a higher non-`latest`-tagged version over the dist-tag — cannot reach us; we declined to implement the thing that has the bug. For PyPI, `info.version` from the PyPI JSON API is documented to report the latest **stable** release (pre-releases excluded), matching pip's/`uvx`'s/`pipx`'s own default install behaviour, so it errs the same direction a real install would. `resolver.is_version_range()` (R36) is a syntactic, non-semver detector for a config entry that carries a floating specifier (`^1.2.3`, `~1.2.3`, `>=1.0.0`, `1.2.x`, `*`, `1.0.0 - 2.0.0`, `latest`) rather than an exact pin; `check_vulnerabilities()` and `mcp-audit sbom` both check it before calling `fetch_transitive_deps()`, because deps.dev requires an exact `(name, version)` key and 404s on a range — without the check, that 404 was caught by `fetch_transitive_deps()`'s own `except URLError/HTTPError` and silently degraded to a top-level-only result carrying the literal range string as its "version," with no warning. Both call sites now resolve a concrete version first (same as the existing "unpinned" path) and surface a visible `VULN-UNPINNED` finding / Rich console warning naming the original range and the resolved version. See "Known limitation: the published graph vs. the installed tree" in `docs/supply-chain.md` for the measured, externally-contributed error-rate bound on the deps.dev-vs-real-install gap this same issue established.
+- **Credenzo does not implement semver range resolution anywhere** — no semver library appears in `src/mcp_audit/vulnerability/` or `src/mcp_audit/attestation/`. For an unpinned npm server, `resolve_latest_version()` asks `registry.npmjs.org/<pkg>/latest` (the `latest` dist-tag, npm-pick-manifest's own first-preference rule) rather than computing a highest-satisfying version, so the class of resolver bug an external measurement (issue [#88](https://github.com/adudley78/mcp-audit/issues/88)) found in a from-scratch range resolver — preferring a higher non-`latest`-tagged version over the dist-tag — cannot reach us; we declined to implement the thing that has the bug. For PyPI, `info.version` from the PyPI JSON API is documented to report the latest **stable** release (pre-releases excluded), matching pip's/`uvx`'s/`pipx`'s own default install behaviour, so it errs the same direction a real install would. `resolver.is_version_range()` (R36) is a syntactic, non-semver detector for a config entry that carries a floating specifier (`^1.2.3`, `~1.2.3`, `>=1.0.0`, `1.2.x`, `*`, `1.0.0 - 2.0.0`, `latest`) rather than an exact pin; `check_vulnerabilities()` and `credenzo sbom` both check it before calling `fetch_transitive_deps()`, because deps.dev requires an exact `(name, version)` key and 404s on a range — without the check, that 404 was caught by `fetch_transitive_deps()`'s own `except URLError/HTTPError` and silently degraded to a top-level-only result carrying the literal range string as its "version," with no warning. Both call sites now resolve a concrete version first (same as the existing "unpinned" path) and surface a visible `VULN-UNPINNED` finding / Rich console warning naming the original range and the resolved version. See "Known limitation: the published graph vs. the installed tree" in `docs/supply-chain.md` for the measured, externally-contributed error-rate bound on the deps.dev-vs-real-install gap this same issue established.
 - Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
-- **No feature gating.** mcp-audit is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer.
+- **No feature gating.** Credenzo is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer.
 - **Watcher callback serialisation.** `_McpConfigEventHandler._fire()` holds `_scan_lock` for the entire duration of the user callback to prevent two `run_scan` calls from racing on `state_<hash>.json`. Events arriving while a scan is in flight are stored in `_pending_rescan` (tuple of latest `(path, event_type)`) and coalesced into a single re-trigger when the active callback returns. Never release the scan lock before the callback finishes.
 - Exit codes: 0 = clean, 1 = findings found, 2 = error
 - JSON output includes a nested `score` object from `ScanScore`: `{"numeric": int, "grade": str, "positive_signals": [], "deductions": []}` — `numeric` is 0–100, `grade` is "A"–"F", `positive_signals` and `deductions` carry the per-signal strings displayed in the terminal score panel; HTML dashboard displays a colour-coded grade badge in the header
@@ -439,7 +466,7 @@ following silently breaks downstream consumers, so treat them as contract:
 - **`src/mcp_audit/owasp_mcp.py` is the only definition of the OWASP MCP Top 10.**
   The advisory package must never hold its own copy of the code list. It publishes the
   bare `MCP01`..`MCP10` form that SARIF output and `docs/owasp-mapping.json` already
-  use, so records join to the rest of mcp-audit's output without translation, and
+  use, so records join to the rest of Credenzo's output without translation, and
   `scripts/validate_owasp_mapping.py` stays the single CI gate. `owasp_codes_for()`
   validates against `owasp_mcp.py` and drops anything unrecognised; `Advisory` raises
   on an unknown code. A finding with no clean mapping gets `owasp_mcp: []` and an
@@ -454,7 +481,7 @@ following silently breaks downstream consumers, so treat them as contract:
   verification path that trusts a per-advisory signature alone — that would let an
   attacker swap in a differently-but-validly signed record.
 - **Feed freshness lives only on the index.** `snapshot_version`, `published_at`, and
-  `expires` are mcp-audit fields on `index.json` (`feed_version` 1.1). They are never
+  `expires` are Credenzo fields on `index.json` (`feed_version` 1.1). They are never
   copied onto OSV advisory records. `feed verify` hard-fails on expiry or rollback;
   `scan --advisory-feed` skips matching, emits `feed_status`, and still completes.
   There is no `--allow-expired`. Client `seen.json` is keyed on the signing identity
@@ -584,7 +611,7 @@ if this step is skipped.
 - Run `uv run pytest` after every change
 - Run `uv run ruff check src/ tests/` before committing
 - Run `uv run bandit -r src/ -ll -f txt` periodically (we're a security tool — act like it)
-- Run `./scripts/update_test_count.py` before tagging a release (or after any PR that changes test count, SAST rule count, community rule count, or analyzer count) to sync all hand-maintained count references in `README.md` and `CLAUDE.md`. The script now covers: test count, SAST rule count (total + Python/TypeScript breakdown), community rule count, concrete analyzer count, and the release pin (`v<pyproject version>`): every `uses: adudley78/mcp-audit[/setup-action]@` tag or `@main` ref and pinned `version:` input in README.md and the Action docs (`_ACTION_REF_DOCS`, `_VERSION_INPUT_DOCS`), every pre-commit `rev:` for this repo (`_PRE_COMMIT_PIN_FILES`), and `mcp-audit-scanner==` in `docs/enterprise-deployment.md`; prose citing an old release is never rewritten, and `tests/test_update_test_count.py` fails if any example takes a shape the script would miss (STORY-0102), so a release PR fails `--check` until it updates them. CI runs the same script with `--check` on the ubuntu/py3.12 leg and fails on drift.
+- Run `./scripts/update_test_count.py` before tagging a release (or after any PR that changes test count, SAST rule count, community rule count, or analyzer count) to sync all hand-maintained count references in `README.md` and `CLAUDE.md`. The script now covers: test count, SAST rule count (total + Python/TypeScript breakdown), community rule count, concrete analyzer count, and the release pin (`v<pyproject version>`): every `uses: adudley78/mcp-audit[/setup-action]@` tag or `@main` ref and pinned `version:` input in README.md and the Action docs (`_ACTION_REF_DOCS`, `_VERSION_INPUT_DOCS`), every pre-commit `rev:` for this repo (`_PRE_COMMIT_PIN_FILES`), and `credenzo==` in `docs/enterprise-deployment.md`; prose citing an old release is never rewritten, and `tests/test_update_test_count.py` fails if any example takes a shape the script would miss (STORY-0102), so a release PR fails `--check` until it updates them. CI runs the same script with `--check` on the ubuntu/py3.12 leg and fails on drift.
 - Run `python scripts/validate_owasp_mapping.py` after adding any new finding ID to verify it is mapped in `docs/owasp-mapping.json`. CI runs this on the ubuntu/py3.12 leg and fails when any finding ID is missing from the mapping file. **Every PR that adds a new finding ID must also add a mapping entry.**
 - Type hints on ALL function signatures
 - Docstrings on all public functions and classes
@@ -619,11 +646,11 @@ What each feature does is in `README.md`, `docs/README.md` (the index of every d
 Counts that `scripts/update_test_count.py` keeps in sync:
 
 - 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
-- 10387 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
-- 34 top-level CLI commands: affected, vet, reach, check, fix, run, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
+- 10391 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 34 top-level CLI commands: affected, vet, reach, check, fix, run, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `credenzo --help` before each release
 - 56-entry curated dataset of legitimate MCP servers (`registry/known-servers.json`, `docs/registry.md`)
 - 42 community rules ship bundled; the breakdown is under "Data files at project root" above
-- Demo: 76 findings on a first scan of `demo/configs/` (68 once rug-pull state exists). Recount before each release: `mcp-audit scan --path demo/configs/ --format json`
+- Demo: 76 findings on a first scan of `demo/configs/` (68 once rug-pull state exists). Recount before each release: `credenzo scan --path demo/configs/ --format json`
 
 ## Provenance
 
