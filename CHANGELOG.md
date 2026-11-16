@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`setup-action` accepts a binary signed under either repository name.** The repository will be renamed to `adudley78/credenzo`. The build-provenance check now passes for a release built by the release workflow of `adudley78/mcp-audit` or of `adudley78/credenzo`, and for no other repository.
+
 ---
 
 ## [0.32.0] - 2026-11-16

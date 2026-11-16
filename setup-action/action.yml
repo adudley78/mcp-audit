@@ -157,13 +157,26 @@ runs:
         else
           TARGET="$RUNNER_TEMP/mcp-audit-bin/mcp-audit"
         fi
-        if ! gh attestation verify "$TARGET" --repo adudley78/mcp-audit \
-            --signer-workflow adudley78/mcp-audit/.github/workflows/release.yml; then
+        # The repository is being renamed to adudley78/credenzo. A release
+        # built before the rename is signed under the old name and a release
+        # built after it under the new one, so accept either. Both names
+        # belong to the same owner; nothing else is accepted.
+        VERIFIED=""
+        for REPO in adudley78/mcp-audit adudley78/credenzo; do
+          if gh attestation verify "$TARGET" --repo "$REPO" \
+              --signer-workflow "$REPO/.github/workflows/release.yml"; then
+            VERIFIED="$REPO"
+            break
+          fi
+        done
+        if [ -z "$VERIFIED" ]; then
           echo "::error::mcp-audit $VERSION failed build-provenance verification." \
-            "The binary was not built by adudley78/mcp-audit's release workflow." \
+            "The binary was not built by the release workflow of adudley78/mcp-audit" \
+            "or adudley78/credenzo." \
             "Do not run it; report this at https://github.com/adudley78/mcp-audit/security"
           exit 1
         fi
+        echo "Build provenance verified against $VERIFIED."
 
     # ── Step 5: add bin directory to PATH ─────────────────────────────────
     - name: Add mcp-audit to PATH (Linux / macOS)
