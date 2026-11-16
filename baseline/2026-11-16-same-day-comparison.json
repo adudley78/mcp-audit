@@ -1,0 +1,178 @@
+{
+ "schema_version": 1,
+ "from": "2026-11-16",
+ "to": "2026-11-16",
+ "tool": "mcp-audit 0.33.0",
+ "packages_in_corpus": 347,
+ "connected_from": 172,
+ "connected_to": 169,
+ "compared": 167,
+ "changed": 2,
+ "changed_pct": 1.2,
+ "changed_with_bump": 1,
+ "changed_without_bump": 1,
+ "bumped": 8,
+ "bumped_unchanged": 7,
+ "tool_added_or_removed": 1,
+ "text_only": 0,
+ "by_type": {
+  "npm": {
+   "compared": 131,
+   "changed": 1,
+   "changed_pct": 0.8,
+   "changed_with_bump": 0,
+   "changed_without_bump": 1,
+   "bumped": 6,
+   "bumped_unchanged": 6,
+   "tool_added_or_removed": 1,
+   "text_only": 0
+  },
+  "pypi": {
+   "compared": 36,
+   "changed": 1,
+   "changed_pct": 2.8,
+   "changed_with_bump": 1,
+   "changed_without_bump": 0,
+   "bumped": 2,
+   "bumped_unchanged": 1,
+   "tool_added_or_removed": 0,
+   "text_only": 0
+  }
+ },
+ "method": "Each package is installed at the version current on the snapshot date and started with no network and no credentials. A server is compared when it listed tools on both dates. A change is a tool added, removed, or with a different definition digest.",
+ "rows": [
+  {
+   "type": "npm",
+   "package": "@azure/mcp",
+   "version_from": "4.0.0-beta.7",
+   "version_to": "4.0.0-beta.8",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "npm",
+   "package": "@bytebase/dbhub",
+   "version_from": "1.6.1",
+   "version_to": "1.7.0",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "npm",
+   "package": "@cachly-dev/mcp-server",
+   "version_from": "0.10.253",
+   "version_to": "0.10.255",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "npm",
+   "package": "@gaiventures/pilotfish-mcp",
+   "version_from": "0.1.53",
+   "version_to": "0.1.54",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "npm",
+   "package": "@kubb/mcp",
+   "version_from": "5.20.2",
+   "version_to": "5.21.0",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "npm",
+   "package": "kordoc",
+   "version_from": "4.24.81",
+   "version_to": "4.24.82",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "npm",
+   "package": "mongodb-mcp-server",
+   "version_from": "3.3.0",
+   "version_to": "3.3.0",
+   "bumped": false,
+   "changed": true,
+   "added": [
+    "atlas-local-connect-deployment",
+    "atlas-local-create-deployment",
+    "atlas-local-delete-deployment",
+    "atlas-local-list-deployments"
+   ],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  },
+  {
+   "type": "pypi",
+   "package": "deepseek-search-everywhere-mcp",
+   "version_from": "3.2.0",
+   "version_to": "3.3.0",
+   "bumped": true,
+   "changed": true,
+   "added": [],
+   "removed": [],
+   "definition_changed": [
+    "deepseek_check_balance",
+    "deepseek_check_research",
+    "deepseek_extract",
+    "deepseek_extract_many",
+    "deepseek_fetch",
+    "deepseek_fetch_many",
+    "deepseek_research",
+    "deepseek_search",
+    "deepseek_search_many"
+   ],
+   "contract_changed": [
+    "deepseek_check_balance",
+    "deepseek_check_research",
+    "deepseek_extract",
+    "deepseek_extract_many",
+    "deepseek_fetch",
+    "deepseek_fetch_many",
+    "deepseek_research",
+    "deepseek_search",
+    "deepseek_search_many"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "edgescaleai-cube-mcp",
+   "version_from": "0.3.65",
+   "version_to": "0.3.66",
+   "bumped": true,
+   "changed": false,
+   "added": [],
+   "removed": [],
+   "definition_changed": [],
+   "contract_changed": []
+  }
+ ]
+}

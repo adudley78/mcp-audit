@@ -1,33 +1,9 @@
 {
  "schema_version": 1,
  "label": "2026-11-16",
- "generated_at": "2026-11-16T23:19:31Z",
- "tool": "mcp-audit 0.33.0",
- "runner_python": "3.12.16",
+ "source": "Launch drift study, taken on 2026-11-16 (docs/research/2026-12-launch-drift).",
  "pairs": 347,
- "connected": 169,
- "failure_classes": [
-  [
-   "Enumeration failed",
-   158
-  ],
-  [
-   "no unambiguous entry point",
-   6
-  ],
-  [
-   "install failed",
-   6
-  ],
-  [
-   "connected, no tools",
-   5
-  ],
-  [
-   "Connection timed out after 60s",
-   3
-  ]
- ],
+ "connected": 172,
  "rows": [
   {
    "type": "npm",
@@ -41,7 +17,7 @@
   {
    "type": "npm",
    "package": "@agimon-ai/po-logsink",
-   "version": "0.0.1-alpha.147",
+   "version": "0.0.1-alpha.146",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed (server stderr: help [command]        display help for command)",
    "tool_count": 0,
@@ -822,7 +798,7 @@
    "package": "@atlassian-dc-mcp/jira",
    "version": "0.43.2",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -831,7 +807,7 @@
    "package": "@auth0/auth0-mcp-server",
    "version": "0.1.0-beta.19",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: For more information, visit: https://github.com/auth0/auth0-mcp-server)",
    "tool_count": 0,
    "digests": {}
   },
@@ -1033,7 +1009,7 @@
   {
    "type": "npm",
    "package": "@azure/mcp",
-   "version": "4.0.0-beta.8",
+   "version": "4.0.0-beta.7",
    "connected": true,
    "error": null,
    "tool_count": 73,
@@ -1346,7 +1322,7 @@
    "package": "@brightdata/mcp",
    "version": "4.8.0",
    "connected": false,
-   "error": "no unambiguous entry point",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: env: '/srv/probe/pkgs/npm__brightdata__mcp@4.8.0/node_modules/.bin/@brightdata/mcp': No such file or directory)",
    "tool_count": 0,
    "digests": {}
   },
@@ -1364,14 +1340,14 @@
    "package": "@browserstack/mcp-server",
    "version": "2.6.9",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5))",
    "tool_count": 0,
    "digests": {}
   },
   {
    "type": "npm",
    "package": "@bytebase/dbhub",
-   "version": "1.7.0",
+   "version": "1.6.1",
    "connected": true,
    "error": null,
    "tool_count": 2,
@@ -1389,7 +1365,7 @@
   {
    "type": "npm",
    "package": "@cachly-dev/mcp-server",
-   "version": "0.10.255",
+   "version": "0.10.253",
    "connected": true,
    "error": null,
    "tool_count": 27,
@@ -2001,7 +1977,7 @@
    "package": "@currents/mcp",
    "version": "2.7.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: [23:09:42.378] ERROR (3783): CURRENTS_API_KEY is not set. Add your Currents API key to the environment (for example: export CURRENTS_API_KEY=<your-key>).)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: [18:01:58.319] ERROR (1613): CURRENTS_API_KEY is not set. Add your Currents API key to the environment (for example: export CURRENTS_API_KEY=<your-key>).)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2041,7 +2017,7 @@
    "package": "@delorenj/mcp-server-trello",
    "version": "1.8.1",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2193,7 +2169,7 @@
    "package": "@esaio/esa-mcp-server",
    "version": "0.15.2",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5))",
    "tool_count": 0,
    "digests": {}
   },
@@ -2223,9 +2199,9 @@
   {
    "type": "npm",
    "package": "@flisk-sh/flisk",
-   "version": "1.4.68",
+   "version": "1.4.67",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: permission denied while trying to connect to the docker API at unix:///var/run/docker.sock)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /var/run/docker.sock: connect: no such file or directory)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2302,7 +2278,7 @@
   {
    "type": "npm",
    "package": "@gaiventures/pilotfish-mcp",
-   "version": "0.1.54",
+   "version": "0.1.53",
    "connected": true,
    "error": null,
    "tool_count": 16,
@@ -2387,7 +2363,7 @@
    "package": "@gitkraken/gk",
    "version": "3.1.77",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2592,7 +2568,7 @@
    "package": "@hasna/todos",
    "version": "0.18.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: env: use -[v]S to pass options in shebang lines)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: /usr/bin/env: 'bun': Permission denied)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2623,7 +2599,7 @@
    "package": "@hubspot/mcp-server",
    "version": "0.4.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2756,7 +2732,7 @@
   {
    "type": "npm",
    "package": "@kubb/mcp",
-   "version": "5.21.0",
+   "version": "5.20.2",
    "connected": true,
    "error": null,
    "tool_count": 3,
@@ -2780,7 +2756,7 @@
    "package": "@larksuiteoapi/lark-mcp",
    "version": "0.5.1",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -2937,7 +2913,7 @@
    "package": "@masonator/coolify-mcp",
    "version": "3.10.1",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5))",
    "tool_count": 0,
    "digests": {}
   },
@@ -4302,7 +4278,7 @@
    "package": "@paperclipai/mcp-server",
    "version": "2026.1106.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5))",
    "tool_count": 0,
    "digests": {}
   },
@@ -5264,7 +5240,7 @@
   {
    "type": "npm",
    "package": "@scavio/mcp-server",
-   "version": "0.64.0",
+   "version": "0.63.0",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed (server stderr: SCAVIO_API_KEY is required for stdio transport)",
    "tool_count": 0,
@@ -5275,7 +5251,7 @@
    "package": "@seanhogg/builderforce-memory-mcp",
    "version": "2026.10.82",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -6687,7 +6663,7 @@
    "package": "@sveltejs/mcp",
    "version": "0.1.30",
    "connected": false,
-   "error": null,
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -6729,7 +6705,7 @@
   {
    "type": "npm",
    "package": "@sync.so/mcp-server",
-   "version": "0.3.28",
+   "version": "0.3.27",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed (server stderr: Fatal error: TypeError: fetch failed)",
    "tool_count": 0,
@@ -6749,7 +6725,7 @@
    "package": "@tacticlaunch/mcp-linear",
    "version": "1.4.6",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5))",
    "tool_count": 0,
    "digests": {}
   },
@@ -7363,7 +7339,7 @@
    "package": "@unleash/mcp",
    "version": "0.6.4",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -7390,7 +7366,7 @@
    "package": "@usercall/mcp",
    "version": "0.4.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -7399,7 +7375,7 @@
    "package": "@vantasdk/vanta-mcp-server",
    "version": "1.2.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5))",
    "tool_count": 0,
    "digests": {}
   },
@@ -7495,14 +7471,14 @@
    "package": "@winor30/mcp-server-datadog",
    "version": "1.8.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
   {
    "type": "npm",
    "package": "@wirecat/cli-memo",
-   "version": "0.143.0",
+   "version": "0.141.0",
    "connected": false,
    "error": "no unambiguous entry point",
    "tool_count": 0,
@@ -7512,17 +7488,118 @@
    "type": "npm",
    "package": "@wonderwhy-er/desktop-commander",
    "version": "0.3.3",
-   "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
-   "tool_count": 0,
-   "digests": {}
+   "connected": true,
+   "error": null,
+   "tool_count": 25,
+   "digests": {
+    "get_config": {
+     "contract": "sha256:5ade9cb01e3c9337c642dc3b001397cfb8edac38b3adeb6a8b0388b72a37d7e1",
+     "definition": "sha256:563c8c326f0d9a4b1a9699e8b5a05b44646628ff6e62a70f3f5db4036d584f3c"
+    },
+    "set_config_value": {
+     "contract": "sha256:ee0bea38c3f8cfa2a3962b31e9fb550d6cfd226aa13480f8910e62a5403c5098",
+     "definition": "sha256:1f02fcd90f5fb42911794bde38a9334ebcfac99f3b0d59310688593300c42ce7"
+    },
+    "read_file": {
+     "contract": "sha256:5c461077c3a3aca5af65d8cd71bfa255cf1bb4cd5f064d02a683fbcd6b0cf628",
+     "definition": "sha256:afff89d5e343666783704dfc7ab6d56b78e40bbccaad81ef593faffb9ff8c8bd"
+    },
+    "read_multiple_files": {
+     "contract": "sha256:5103fd345a713fc8060ba9f69c5b4d8c83e3c7711153e99d0e69da3b6d8a73d0",
+     "definition": "sha256:89edd62fd77c936bceb84408e3e26c4f6fb98a84cd393c19204c3c1ac7229e44"
+    },
+    "write_file": {
+     "contract": "sha256:f9f9bb635ef357012862d69575ea5786237485773629b26b65e4e0d13eabc075",
+     "definition": "sha256:121ef6338df2636118019a8ee845441aa5e8cbbb3f2150c527158fa946283ebf"
+    },
+    "write_pdf": {
+     "contract": "sha256:6906de589da87151a857fbd974c721c35faf91174fcb28ac172ded75f11fdc2b",
+     "definition": "sha256:a3f123190697495611e17bffa0166f24f1b900a40c796152c0e76742ef8b08de"
+    },
+    "create_directory": {
+     "contract": "sha256:9a56ebd21104c6b226a6b27edf7c12c0fdcc02b2761863a33a039915af192d37",
+     "definition": "sha256:038795279ce64f070508d8df6be51eb10c4244d429ef7b944e38f8def63e11bf"
+    },
+    "list_directory": {
+     "contract": "sha256:d6bf780cd16d727bc3a80d45360599dd11ed456cbfb3fb2352d11e3e7b914a77",
+     "definition": "sha256:0459cc6241b2bdb519c2be14f726432f601bd1b7e64e465516f71d9ec65c2c56"
+    },
+    "move_file": {
+     "contract": "sha256:c761ec142addd3dbb301fccce6d5ed1b719e30b3b611333001e83efeabbcd457",
+     "definition": "sha256:9a0e3d7fb158324c089201d7ecdfcc5c23aa76cb9a2524acc07a49fbcfc1b96e"
+    },
+    "start_search": {
+     "contract": "sha256:05640ce476f415bb17468a9714d84c6d5ef7c3a24d919d8c935c9aa8f7566414",
+     "definition": "sha256:00297166532fd6fff370ae3c9c11d8e25b60765defc79e408f6dbfeabef66bcb"
+    },
+    "get_more_search_results": {
+     "contract": "sha256:7282581a58b2fa31e284c973b68e1d68afd61efb30d7f6f0ea09a89aaae8cfb8",
+     "definition": "sha256:b86a8734d7a82e91cf2eaf1cb6425cdb5d27bdfbb571a0ee0914c0ff24148b8e"
+    },
+    "stop_search": {
+     "contract": "sha256:24001e3f7a52671141fa671897f0eec5d2cb489c158904f962f2115bfa2bc475",
+     "definition": "sha256:3dec847d629a57c577350c016530b9dcaa462fb8bf5d0d99bbe0ba96caea4004"
+    },
+    "list_searches": {
+     "contract": "sha256:2d27171a55e5bb89fb483b0fed0a85499a784c82159aaec6541d4b1ceda9e3a4",
+     "definition": "sha256:32f21a943f2746a80b73803b535da6ea16ed74080eb00b7a41db099dcdd25d70"
+    },
+    "get_file_info": {
+     "contract": "sha256:33c071bae7f934968d604bd72851fb719c15260399d8790137e9ed26ceabcaf4",
+     "definition": "sha256:6f68fe04378358792d157362b443e5038703880499ca62f6ce513de730e97d4e"
+    },
+    "edit_block": {
+     "contract": "sha256:00f9442ae4b92323d5c2c10b2ba2d3a35894e604c160df4ffdb9fa1e763ade51",
+     "definition": "sha256:048281ec5e2b5294f9fee0642ed07f3f55fbe1d7f6ce2b2b7ac0f38506ccceca"
+    },
+    "start_process": {
+     "contract": "sha256:176543b52440e3c4a01496b4a34b475a3e77b9e34ac8a0cb89b9297dafdb5290",
+     "definition": "sha256:7930d87ce8e18fb5f76b95723c9f8cfbe1a5075da11375edefbd7e06e46b716f"
+    },
+    "read_process_output": {
+     "contract": "sha256:bc4a3551423dfef7293a932dba5b63a1dd0ab070f6184a94ea3d215a313ab80d",
+     "definition": "sha256:1a9b20ee488e1bebe91b246e51a5824c9834bfe7c99bfaeb078a6aef122714b5"
+    },
+    "interact_with_process": {
+     "contract": "sha256:d2a0843ec2a9d565c2bd61dcace80b5e59055ab1a2a25f5da9ea3bc9ae5b83ac",
+     "definition": "sha256:91aa26e23196b266135862dabe24c9ecf44fef1c15bdb43cf62ba203a0c03386"
+    },
+    "force_terminate": {
+     "contract": "sha256:4d0a40a1c90e546ae71c1cf343be31315b21fae783af2ee3fc44e9317e536c22",
+     "definition": "sha256:b51be669e0f9f870a9900b87cfcbd029883a38214128a4dd7f63718876d38529"
+    },
+    "list_sessions": {
+     "contract": "sha256:4b15deb601d6aaaeb439f03ee2ec67470bd54a70e1d5c744121982b918e98251",
+     "definition": "sha256:3a468cbba9b92a03bea1453e89c6275604b3c9bc3539a783a72e8fdfcfd66c19"
+    },
+    "list_processes": {
+     "contract": "sha256:1ddf94f328a625b5880e1fbc52589e66f75a4e287f256a52e2ce68d04ead5073",
+     "definition": "sha256:635f2a2c76a5c2aa833dcca12f05d9191274763a44e38f5abd2e7931c50766ac"
+    },
+    "kill_process": {
+     "contract": "sha256:0535424b7c6ee4fa0bfbec23808cb8889c7681f0aea780a416dae923927a4dbd",
+     "definition": "sha256:c939799696760a8506922e4c367f1140c8fc9b2a8525c4acad16994d9168987b"
+    },
+    "get_usage_stats": {
+     "contract": "sha256:b1f04e82310a59e28fcff00dba7983024d83a459a0bd24548f7b9ceff083cef7",
+     "definition": "sha256:018771965a452a4e3b583f083808fb759585ae1691b1cabdfea2efa7a0b056f8"
+    },
+    "get_recent_tool_calls": {
+     "contract": "sha256:58495114b302377b06865c988646bc70c8b78b5e0da08b17d369cdf1fb552275",
+     "definition": "sha256:1f12a3316ada3ab870f2c46834618d2fd2c1031c32867008055ddc6e7b947743"
+    },
+    "give_feedback_to_desktop_commander": {
+     "contract": "sha256:cf3925262f1163d2f8dee0d39697fa7ac4b7031a2f8e7e92429ef79e7076b82c",
+     "definition": "sha256:25639e652545cf595f66f438348614ace552248958b9738e21736a199e13ea39"
+    }
+   }
   },
   {
    "type": "npm",
    "package": "@xeroapi/xero-mcp-server",
    "version": "0.0.18",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -7540,7 +7617,7 @@
    "package": "@yawlabs/ctxlint",
    "version": "0.28.3",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Error: /home/runner/work/mcp-audit/mcp-audit is not an existing directory. Check the path argument.)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: - Scanning for context files...)",
    "tool_count": 0,
    "digests": {}
   },
@@ -7567,7 +7644,7 @@
    "package": "@zereight/mcp-gitlab",
    "version": "2.3.28",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: \u001b[32mINFO\u001b[39m [23:13:28.903] (8448): \u001b[36mEither set GITLAB_PERSONAL_ACCESS_TOKEN (or --token, or GITLAB_PERSONAL_ACCESS_TOKEN_FILE), GITLAB_JOB_TOKEN, or GITLAB_AUTH_COOKIE_PATH, or enable OAuth with GITLAB_USE_OAUTH=true. Setup guide: https://zereight.github.io/gitlab-mcp/getting-started/\u001b[39m)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: \u001b[32mINFO\u001b[39m [17:59:57.057] (1169): \u001b[36mEither set GITLAB_PERSONAL_ACCESS_TOKEN (or --token, or GITLAB_PERSONAL_ACCESS_TOKEN_FILE), GITLAB_JOB_TOKEN, or GITLAB_AUTH_COOKIE_PATH, or enable OAuth with GITLAB_USE_OAUTH=true. Setup guide: https://zereight.github.io/gitlab-mcp/getting-started/\u001b[39m)",
    "tool_count": 0,
    "digests": {}
   },
@@ -7583,7 +7660,7 @@
   {
    "type": "npm",
    "package": "agent-device",
-   "version": "0.21.38",
+   "version": "0.21.37",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed",
    "tool_count": 0,
@@ -8036,7 +8113,7 @@
   {
    "type": "npm",
    "package": "alterlab-mcp-server",
-   "version": "1.13.29",
+   "version": "1.13.27",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed (server stderr: Get your API key at: https://alterlab.io/dashboard/api-keys)",
    "tool_count": 0,
@@ -8277,7 +8354,7 @@
    "package": "bitbucket-mcp",
    "version": "5.0.6",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -8302,7 +8379,7 @@
   {
    "type": "npm",
    "package": "brilliant-directories-mcp",
-   "version": "6.59.685",
+   "version": "6.59.682",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed (server stderr: Run with --help for usage.)",
    "tool_count": 0,
@@ -10307,327 +10384,10 @@
    "type": "npm",
    "package": "cookie-mcp",
    "version": "0.9.0",
-   "connected": true,
-   "error": null,
-   "tool_count": 79,
-   "digests": {
-    "submit_signed_tx": {
-     "contract": "sha256:607e25ddb07d71422ac6b62513aadc2dde9c528a8cb3a3d63cfdf6b7cf81b07a",
-     "definition": "sha256:4f774dcae6f2cb03e4d96d7e2e1968d5983f14edb83ec3ac4ff374845c0656f6"
-    },
-    "chain_health": {
-     "contract": "sha256:def02a1ad2849a271777df78f42b9e2cd99818f0d96dd99b371aae21965f9af9",
-     "definition": "sha256:1aa69caa1c216e4cf8275c78e9eeeab15a2a4e61b993a9ba9a892d54948ae5a1"
-    },
-    "get_pools": {
-     "contract": "sha256:33f0553dea4d4448c07fd7be5acb286f8209c8ec5bd7789a3c4fbb715c05ca68",
-     "definition": "sha256:30d2240675286e8387d77ae224c982c6be3ef2c9150573249f56ee30f4467b9f"
-    },
-    "get_token_info": {
-     "contract": "sha256:05eb8dd325c8dd7e9839b40e75adbeb69a2b3ffd34008bc93b5ea80abe321f8b",
-     "definition": "sha256:af6e3ee9ec9221433ca0ec23ac9f498bf8b1dd436a124dd9091991e01c123b0f"
-    },
-    "search_tokens": {
-     "contract": "sha256:90cd1640623639233cff2d665f43c0d4f4a971fddf97a7dab2b799abb5569034",
-     "definition": "sha256:06ea15afd7d2f3d1908671d176dc99544464d354cf4403c79ea3104d8b477f18"
-    },
-    "get_quote": {
-     "contract": "sha256:cb4eadd277665130605c5f1ee485a03c17254fec932a1bd81789322263f942b4",
-     "definition": "sha256:0c160395b46a27240cd364b22b412faf27763ab96ad7fa0f8b7ab86f8c3b19c3"
-    },
-    "get_wallet": {
-     "contract": "sha256:396debe84412071a75dc10f11876ae84e50203654ab0bb1f575dea6973bf9c90",
-     "definition": "sha256:684587242d79543fd7a29455f42882d21a30ce7cafe8d0ddf862b3b932d70d09"
-    },
-    "get_balance": {
-     "contract": "sha256:fdcdb4ea912d20311b96939fc979cbd0994c560effac195f55c64ede33a3968f",
-     "definition": "sha256:7fc72954aa76eb398227d75012d24f6c4bdac610e565ea4df88e45be7a617a48"
-    },
-    "stake_info": {
-     "contract": "sha256:2a6cca09727f14eca7fcdfb43daa3437cb0487921872e88a2e46837242a2be2e",
-     "definition": "sha256:91359b6ad50e6400dab52ca93711f6c37e740df9a7569ce20cdcf2e1325d8d58"
-    },
-    "trade": {
-     "contract": "sha256:7960b2de310d42ccae7dc9cd4b63c19c533fdcc4cb29db0d94f002a4a2375b4c",
-     "definition": "sha256:a488af6bb32ae15c137d72ee20d9ad4e49f6519bf15bfdf702073f38d1bf7206"
-    },
-    "get_limit_orders": {
-     "contract": "sha256:34a63379100054cedd5fd50ace43803e60de67cb069c7bffd14d409616a5ffa0",
-     "definition": "sha256:b571b4e20155a9ad84f54b2b691a75ef5ec48c070d7758da087c05560fcddcef"
-    },
-    "place_limit_order": {
-     "contract": "sha256:0e2ea0caa435196d757cb9d9aa02e349644af2326f29f36adff1570797e7a045",
-     "definition": "sha256:9b195115e2a3b9f61bdc4a5d27d4bf266349f8d6fa7e2dbbc4f718fc61d2c874"
-    },
-    "cancel_limit_order": {
-     "contract": "sha256:1b0049dd04c4fe70c91bf2c48b41f319fe363fba3455c09bb95eda0c6eebf012",
-     "definition": "sha256:d4cc1302b70541ae7239190f2c7f703c2ebc76f94765d3b58b3c518ca12d696d"
-    },
-    "get_dca_schedules": {
-     "contract": "sha256:9dd88d91401f2a4c93fbc1871ea3484fa85ae6f59fb16c3ba644dcb1b82f6357",
-     "definition": "sha256:b4e91cd006b56cd6aa11f35f548cb1ed48237876339c245e982cce0e30e9b25d"
-    },
-    "open_dca": {
-     "contract": "sha256:c68ce9a862beb8886a5444eeeeb78479ac3b5dd71930d21d0e26c140f91089c0",
-     "definition": "sha256:6c449c9bfc62125849d4b63d258b61254b69e261220da44c02b94e8774793323"
-    },
-    "close_dca": {
-     "contract": "sha256:2acb63b23a76975458b292210b72e54ab45bddd2a81d7ba407cd0ebe3411d622",
-     "definition": "sha256:2033c266839a9ace16f60a6d4248aedc66e304c0dbf193af8a4d0731d7f2fd39"
-    },
-    "get_zip_orders": {
-     "contract": "sha256:3f4d78418d48a191e82b7776301cddead5bc41cb15fcc05b3ea88be5467c7581",
-     "definition": "sha256:1ff242a8dfa73981dbdd1ae51f266b55611423ef7977c8b785b4e7a9c02940e1"
-    },
-    "start_zip": {
-     "contract": "sha256:18271ccfa4bc2bf3852b89e5e38c894213ba150b492e40cab0821887baea0cca",
-     "definition": "sha256:77513cd793afcc2ed25221276bdca5278ac53f53b51b7ebaa3f55261430129db"
-    },
-    "stop_zip": {
-     "contract": "sha256:6c9e5161c68e9d94647db856d671e9e44bfd2384f4f7cf0a88d35778a4dc792e",
-     "definition": "sha256:37aeb1cf3c2b1df1fc93c5aafc004b02cf356912562c1dc93c83724ce1c7f4e5"
-    },
-    "transfer": {
-     "contract": "sha256:1ca59f186f90106a8439bea45174a460bbeea76902fbaef0b62dce641c14ac24",
-     "definition": "sha256:adea6e217908b14d82f565d1880130c575343a57586a7dade77e24d8e7b40127"
-    },
-    "unwrap_cook": {
-     "contract": "sha256:52b729e14848c213421c4c8a5d23b9af12f2e6c0bb9ab4a74585a10564cc371c",
-     "definition": "sha256:c94d5e85a069da113657df79be1167bb1194da134f92bf3fc424fb805c24199e"
-    },
-    "stake": {
-     "contract": "sha256:e5df0a74685c023217ba93a678d3636f16274b592d5d0c9f0baf921524eea79b",
-     "definition": "sha256:7b8bd1b4e6a10d7ea16f45194c4968f470fa66e060a0365345908de82514c5db"
-    },
-    "unstake": {
-     "contract": "sha256:4803cbeb0782e22eeb25218f797abe57d7cce73144e26a4d094db0287b752f79",
-     "definition": "sha256:15c491bbdc764c69b3c67ca11b0e4bda2cdab38558ab9a1974c4736fbd614389"
-    },
-    "get_launchpad_pools": {
-     "contract": "sha256:232b61587516ccfa72c50c9681ec2ac0ee12ce11dfdf5910f5b5efae66d0ef9a",
-     "definition": "sha256:e9c810f09d3ef5b785b18e389bc865d7b57c3774caef313852bae157a63ded51"
-    },
-    "get_launchpad_token": {
-     "contract": "sha256:57e6759865e817bef9dbb9852f6ddcf155203eb81534162464c2020fb4d68e0a",
-     "definition": "sha256:054ce8d7371a523b9120e02bc4c9d9d9ecb498d9cc72cc1489f7f2b435c5ca6a"
-    },
-    "get_launchpad_positions": {
-     "contract": "sha256:66cac8f20a5e43811ff813afbfa97623d11b720daaa3fe1828f0538cdeba0b85",
-     "definition": "sha256:6bf45f788f8a2820d6ce794ce70e619728958af43e5b4502edb1077b762c0b80"
-    },
-    "deploy_token": {
-     "contract": "sha256:a3fde1e14c31660d05c6f98e6d3c7c6c7e35079191c64154cf38d8193b44a968",
-     "definition": "sha256:524a86549fcdb241d715b36e4eb68050df51ab048a0108c8b773b34f2b875420"
-    },
-    "launchpad_buy": {
-     "contract": "sha256:f17975421aa92cd6e3632479dd4a670459f1cf8598a81c41c63c162315076257",
-     "definition": "sha256:6b3228a18df194ff880734db80a10baaef5adc861a12d077c890280e28e88c97"
-    },
-    "launchpad_sell": {
-     "contract": "sha256:83ae19930205b58d9a6d360eaf9ddc0ac57fd9bb3319346b5ab828fba1de8a0b",
-     "definition": "sha256:e0f5bc6d92a7e00f1f5a09a8a32f65e8d19c662d409d0617c7765ce352ac82c2"
-    },
-    "claim_launchpad": {
-     "contract": "sha256:c7898aba85c4faf115b5eb1a46468a965f5519ee2c04f7fd9f9bfb910584567a",
-     "definition": "sha256:ca8b4547dfc0e7a7ee65a615c0d269d5d4e9231eeb4f68686c492374c9e4b8bb"
-    },
-    "claim_creator_fees": {
-     "contract": "sha256:d1dd5ae2358ad3eef462bfea376a080ebb25005d64a12700c4e1a8243ac8adcc",
-     "definition": "sha256:b3fb0a77c3eb168664da185be722ce580a8ecdae8d990bd0138c19cc2e8bb8ce"
-    },
-    "get_nft_drops": {
-     "contract": "sha256:96be75689acf0b5ec72f4358d982856105b6edeeece075c6b66f12e20f35f8aa",
-     "definition": "sha256:d3eb2487a730fd637d3c7fff6325def93094ac1aa332af707b471048f75cba13"
-    },
-    "get_nft_drop": {
-     "contract": "sha256:dd8ffa79f428d79fa62ed072ca8a7bc6575b5f444417e39add55e61e9e0b4242",
-     "definition": "sha256:16570c0847f6ba603581eeebee465ee256169257513edf7eae5dd0aab5214077"
-    },
-    "nft_drop_mint": {
-     "contract": "sha256:365ece2f0eca6ad4b182e40c905add401dad0f94bc1b5699cc1eb91a5a478544",
-     "definition": "sha256:ce40912bf5f770c241e7c2aa665fd6570478d45ba22217b1030ab816dc9e3146"
-    },
-    "nft_drop_sell": {
-     "contract": "sha256:729a462a30a0a1edf1aa57a223debbe117c99a7aa029b70cc7a6e613b095f80d",
-     "definition": "sha256:fd0b4bd82b32a7769749cab10149e245334607f2628a64fb4fe6285976e639db"
-    },
-    "nft_drop_redeem": {
-     "contract": "sha256:d82983bdb415fd3958d6504786e4640bdd68ec80706983a1d034124997739052",
-     "definition": "sha256:79f97ea9ee053ff3ffcdd1b7e71d700322236c31b3bb80180e016386c7bae1f6"
-    },
-    "nft_drop_claim": {
-     "contract": "sha256:dae4d7a814cd64827d248f16d639ec03f79b5abe4005b1812bbfcd73208760d1",
-     "definition": "sha256:6e24da79eedca2012acb19dbd8dafc9518c740a2d0857ee415aa2dcd57878e4d"
-    },
-    "nft_drop_settle": {
-     "contract": "sha256:82b1ebfb6fd80e8248eb9cc092c716caa93799f5296f13245fa90559647225f2",
-     "definition": "sha256:2ae4635f1e654d6775721ee56d8ab62089e0d01c8de4dfb981393c918f61d39c"
-    },
-    "nft_drop_graduate": {
-     "contract": "sha256:e6ec2d78da8732f7c229a6562b06c49aa4c95ae5bc989f40efd1dc6b653d6dff",
-     "definition": "sha256:acb2f766a23dc540f6f193bf8b6df2f67da06f21e24394d3818b77556619ff51"
-    },
-    "create_nft_drop": {
-     "contract": "sha256:d656148345203996ef83fd3b4e6a016972afe0a62e19e0f75b844b5197481d52",
-     "definition": "sha256:bb89b719e16dd0b1a4ff1f8ba62d3323021b998f644c81643c2b9a2d54fec7d9"
-    },
-    "reveal_nft_drop": {
-     "contract": "sha256:88ce5662ab71e96df1d0383ef2658bc099502077ac3c399ae1cc5d68ec9a3212",
-     "definition": "sha256:bc1c5e3393505921f40b2c1abb6a9c9c43c6ca890b1e5d81b3bfb23ba85bcd24"
-    },
-    "create_pool": {
-     "contract": "sha256:97ddc9093610f1cf7fd803dc94bf49d52570f762c1a234bdab9f5b1646522e12",
-     "definition": "sha256:a3958427bc9f172d74ece6d8be41a24e3109b56f832dc9336b10fddc7388bd9c"
-    },
-    "add_liquidity": {
-     "contract": "sha256:252132d5a137b41a470cee2449d5953b1d00367a57f3bf5ce034533f3e8f6a19",
-     "definition": "sha256:e23268379603ed849bbf313042d6674c84a974060c8e77d5d388c6b1d9b081d9"
-    },
-    "remove_liquidity": {
-     "contract": "sha256:f0326c30ed49e0428dc8d0c66576f9a20d2272d0617c1160c89f1da3422b2ba8",
-     "definition": "sha256:a283b68bf5af508e9afc82daf75ebad2fca9b9fa003dc0ae5126bfd656f96832"
-    },
-    "lock_liquidity": {
-     "contract": "sha256:1836dcc407a05e060d0973d658ec7e5edc6275b215e86a9c954db8fd1303c6b2",
-     "definition": "sha256:5b66fa20c087aa25dc861fde04137e18c7a657370adb7265033a32f40cba7349"
-    },
-    "claim_fees": {
-     "contract": "sha256:ae01207086a1bcc8e7bb4d8006cb03834164a64200c37c8e8d0de2d3d1d82da9",
-     "definition": "sha256:ebdf70363fe4e054d5da973981866baed95bc04ac2cdc81c70348caf40edb183"
-    },
-    "get_nft_listings": {
-     "contract": "sha256:263128fbb1db7a7e51da6c19bda4c86f9efb7d156212feb4f5ddce4506424f29",
-     "definition": "sha256:dd23049cadc15273293c25355c78d6b1434749e00310baff9dbbea63ab464f64"
-    },
-    "search_nfts": {
-     "contract": "sha256:e1e107c09cdade8312d1d1b5a69959b95a0848e529f64444b985c5d2cd945599",
-     "definition": "sha256:10d36104c4418e6c8a54ebea831474ea433bdbf8dc64f1549932df22068c2957"
-    },
-    "get_nft": {
-     "contract": "sha256:7060dacada5c527e9c143bcbf6227a4c9cb40d5f4f82e506c5cb83d90f42ccd0",
-     "definition": "sha256:9519a4b149e4bb10a2620306a4a937ade7f0bd4e79462ab5c476c5c6140c84bb"
-    },
-    "get_wallet_nfts": {
-     "contract": "sha256:b7144af4f79e92d6fd27d76c0d4f946623f394850f199cddc2ef13b27760f8af",
-     "definition": "sha256:2a3eb7252803dc9a486b5a820b61704f29e6652d88402047e8ea13d09492eaee"
-    },
-    "get_nft_offers": {
-     "contract": "sha256:949f830ac6d54e8d648ae0d04690d58bb0e1947f63679fabb9bb867444811667",
-     "definition": "sha256:98b00c28b3987ffb1894c824456f6393bb8e3c23a6627870ee01580f552a4d10"
-    },
-    "get_nft_market_stats": {
-     "contract": "sha256:17c91a9ba75eefad462110be1837d0747f8e07c1930f2c06a23760e09fc19876",
-     "definition": "sha256:31a5c891c6af49d95bad00824609c242aef40dbc9430b0444db12a8442b26593"
-    },
-    "list_nft": {
-     "contract": "sha256:854a4ff9780d9e73c5affadb08c354a192055ae6915f7ccc064cc4624b9ed506",
-     "definition": "sha256:36a99ae649315033d9536605ec8b56b831ae2830c4ab3db4db9bb6edf1a723f5"
-    },
-    "cancel_listing": {
-     "contract": "sha256:a2f631a07eb2cad66976c95bceae64c4f2dbc28db73a2d33692e7895fe9341bd",
-     "definition": "sha256:9ff4f9c7b5af764322ab7d36e50b631090da982d7c1774a5c5d4c321be012d80"
-    },
-    "buy_nft": {
-     "contract": "sha256:c7984d79032d365f773a25b3bb097cd4a740410bf0dc834e71409076dfa82360",
-     "definition": "sha256:62f4aee18c0f2a82c2dd6c0a40c88521e0f057c3a35003f9f235c52fe1e66657"
-    },
-    "make_offer": {
-     "contract": "sha256:e5326a67819679331f2e99656aa6f743834b4ac0d3f7a6356938610f76a5a73c",
-     "definition": "sha256:0fdf08451e1ce765b004e23f1f894e2487317bbd969825fc2bf966299c42f4a6"
-    },
-    "cancel_offer": {
-     "contract": "sha256:c53dad40c653d41bf55a7bd1169a614787824a61df5bc54609d86c9d281ec47d",
-     "definition": "sha256:031ee0eede6aadbaf86613c748d4c2ae5a2f6a281bc0f94949493c66fb247c9a"
-    },
-    "accept_offer": {
-     "contract": "sha256:7a0f1b03f96d0930fe43fdeff624bc75c23b3b699ce313a6f4e87234592a5105",
-     "definition": "sha256:a6cccd6e62928d6104853db8fb0f7b91362c3a93096f37308f44100ea5431e33"
-    },
-    "get_bridge_tokens": {
-     "contract": "sha256:a14dd22bd4ab7f9b370b9f203a04e37cb47fb1dface962454d21ac80d9033954",
-     "definition": "sha256:3dffa2e4f8e32272e400b6f36f9030ec9806b0111de40519919dba3ca5b77a4b"
-    },
-    "bridge": {
-     "contract": "sha256:c8508696f3cb77d297fa73ab3e0f6657fa04a5a881acf782502e08e87753b28b",
-     "definition": "sha256:1ced96e48a72d047c84eac9e0a2ead2fa31a4f8ef4801033d11a58a46ee4efe7"
-    },
-    "bridge_status": {
-     "contract": "sha256:b628f45b7eb8f921c0e84c43450a98ea95961e00ab19ddfa5d9f7870dbcb385a",
-     "definition": "sha256:5d9486973901eba72d5e4e5b22f16947bddea9d5059512c50d3ffd740b090084"
-    },
-    "resolve_domain": {
-     "contract": "sha256:2f438c51461b7e3511d88dbec52801628a22a97d12c537707dcb4b27bb67c2fa",
-     "definition": "sha256:5bfeb7d8b65c84851b63437d178b58402fdb4733b3f526253954f8cf9bb325b9"
-    },
-    "get_owned_domains": {
-     "contract": "sha256:dbb735d294bdd07ae26e20732f8d5623d55b3fa4251820254776ee43d833fe38",
-     "definition": "sha256:333df73e69db55e0ac9d308f8cdaa9fc8dec6fd828e33e3a03cdaff3e4a77f39"
-    },
-    "register_domain": {
-     "contract": "sha256:1168087e4126fba33ced252c837b24ef967a698edb870026148adec340c525c8",
-     "definition": "sha256:9b238745fb68f43c0d34e2f1be6a100bb13ee8c450d0c3fa41fbbdf5d65b60e9"
-    },
-    "set_primary_domain": {
-     "contract": "sha256:0b785ef8148e30de6d2096ca3ae2e5046f1eb91c7bc12c513235ba8b4f83c870",
-     "definition": "sha256:a87cf6382d36c7103f0c8890971d58bf06851f2c1ea009a5e6d199e21cf8afb2"
-    },
-    "transfer_domain": {
-     "contract": "sha256:e9191cddbf74d8452b204f030f18548c223d881c49ce3323b51f07cf4ad83917",
-     "definition": "sha256:9c402d6174c9152a61908b6b21fe8f5f9352b8a7be62d4d4458154c3a675a528"
-    },
-    "update_domain": {
-     "contract": "sha256:757517c10c48776ec978ddf7216c6896ba9570c73de58e5ce109480c6aae0a42",
-     "definition": "sha256:f2b9dc66953e7dcaf1b9bff86ba0ad907ecedcdf66f0d9177382cb49582dab03"
-    },
-    "get_domain_listings": {
-     "contract": "sha256:f38a5c6442cb0f824d9f0583f576d4122c91d9e62a0daf8421f0c1a183977105",
-     "definition": "sha256:03c04617af22294ed7ea8520e033a77078418200a4b010554b561a833ffc9093"
-    },
-    "list_domain": {
-     "contract": "sha256:e87a53e4022261d416bbc9f223a96f24fa5caf607aa55c405b8dd1bc3426902b",
-     "definition": "sha256:bbcb81a22d7a82b904cf284998ef99fef11419be86f1c71046b01d96f7611bb4"
-    },
-    "buy_domain": {
-     "contract": "sha256:e9732620682faabe9ec3f1e9bb78167dd67aff1cf1816e3b380efbb07806848c",
-     "definition": "sha256:222cd7a2f7f7f84b8b4600c234da8a4d28bf5156580380eea1d45610b56f3ea0"
-    },
-    "cancel_domain_listing": {
-     "contract": "sha256:e7557a77f7a5f652e754130573693ac2bd384954f6eed05e26a87bbf1d5e1391",
-     "definition": "sha256:9ecb63db2f7e9b60eefc26cb65e5a24b8f3b8d8a15cf3f25551bce51eb43a720"
-    },
-    "get_lending_markets": {
-     "contract": "sha256:c89d51e4d55ffe5acf59c9f9f9aa8c03e54ba87b653bda2fbdcefd405c607fbd",
-     "definition": "sha256:f630f90f328c0d3f4197bb2bae403ee29fbae7709b7805ea13396fe08ac23298"
-    },
-    "get_lending_position": {
-     "contract": "sha256:47dc687d3cdaf4dfee8bca48acd0204de040172166b68391986723fe695dc6f6",
-     "definition": "sha256:36596f934ad2311470c0c1318861cdc0d7fd1d7c17c98825ec2b47f25b3ec5f5"
-    },
-    "lend": {
-     "contract": "sha256:bead65a7873cb422c6aa270a2bbbe879d67b4656bdd6b5940f470ce62b6a9247",
-     "definition": "sha256:085e5038d2904a5c22032f8152ab3befa8265f976f43cc6b42f307886629a140"
-    },
-    "withdraw_lend": {
-     "contract": "sha256:56db39e5b15ec6865510988a8904faaead929cc632db14558ecaea97d44b572f",
-     "definition": "sha256:d80dc3bcce8bcb56cfa7ce02b04df94b37e155a984c8fe79959288c640a9d06b"
-    },
-    "deposit_collateral": {
-     "contract": "sha256:b374c4fa24df7380e3bbdc39012b3ffa3739c2b9a4fa66e3bef6d04e2907de3a",
-     "definition": "sha256:91c219bf1872a3a8acdc3343b82d57fc2463859fee0d8f0f2577c99de2afde64"
-    },
-    "withdraw_collateral": {
-     "contract": "sha256:1d06b73f53b335591b7f3b378171620aecc21fe7e86023c22aeb0b8b81b2a8eb",
-     "definition": "sha256:9e1fa3aaff9eb0636cdf6c9cbf8213e49c060ca4df77924591a84e3d340e3990"
-    },
-    "borrow": {
-     "contract": "sha256:bf4d870b9893dc66aa656f68320f835c2f9ef138f87399b01725d62940d21d61",
-     "definition": "sha256:9b2263615e880e2b527b5e0b3e49b8aff6011f96804ee38dbb38aa84f69a198b"
-    },
-    "repay": {
-     "contract": "sha256:9884084f21cf2ef079d036de29b6d87b482a11a42f121f77454c13efd76ad589",
-     "definition": "sha256:1ef98467d58437fcbff15ce6816ee8516a6964509f938203fae8c64c3dc44a73"
-    }
-   }
+   "connected": false,
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
+   "tool_count": 0,
+   "digests": {}
   },
   {
    "type": "npm",
@@ -11072,9 +10832,9 @@
   {
    "type": "npm",
    "package": "fallow",
-   "version": "3.43.2",
+   "version": "3.43.1",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: hint: Pass --root with an existing, readable project directory.)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: 0 functions analyzed (max cyclomatic: 20, max cognitive: 15, max CRAP: 30.0))",
    "tool_count": 0,
    "digests": {}
   },
@@ -11083,7 +10843,7 @@
    "package": "ffmpeg-skill",
    "version": "3.10.1",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Windows: winget install Gyan.FFmpeg)",
+   "error": "Enumeration failed: MCPError: Connection closed",
    "tool_count": 0,
    "digests": {}
   },
@@ -11101,7 +10861,7 @@
    "package": "firebase-tools",
    "version": "15.36.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -11232,7 +10992,7 @@
    "package": "freee-mcp",
    "version": "0.38.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: {\"level\":\"fatal\",\"time\":1794870915455,\"service\":\"freee-mcp\",\"version\":\"0.38.0\",\"transport_mode\":\"stdio\",\"trace_sampled\":false,\"err\":{\"name\":\"Error\",\"message\":\"\u8a8d\u8a3c\u60c5\u5831\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002\\n`freee-mcp configure` \u3092\u5b9f\u884c\u3057\u3066\u30bb\u30c3\u30c8\u30a2\u30c3\u30d7\u3057\u3066\u304f\u3060\u3055\u3044\u3002\",\"stack\":\"Error: \u8a8d\u8a3c\u60c5\u5831\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002\\n`freee-mcp configure` \u3092\u5b9f\u884c\u3057\u3066\u30bb\u30c3\u30c8\u30a2\u30c3\u30d7\u3057\u3066\u304f\u3060\u3055\u3044\u3002\\n    at ...)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: {\"level\":\"fatal\",\"time\":1794852320396,\"service\":\"freee-mcp\",\"version\":\"0.38.0\",\"transport_mode\":\"stdio\",\"trace_sampled\":false,\"err\":{\"name\":\"Error\",\"message\":\"\u8a8d\u8a3c\u60c5\u5831\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002\\n`freee-mcp configure` \u3092\u5b9f\u884c\u3057\u3066\u30bb\u30c3\u30c8\u30a2\u30c3\u30d7\u3057\u3066\u304f\u3060\u3055\u3044\u3002\",\"stack\":\"Error: \u8a8d\u8a3c\u60c5\u5831\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002\\n`freee-mcp configure` \u3092\u5b9f\u884c\u3057\u3066\u30bb\u30c3\u30c8\u30a2\u30c3\u30d7\u3057\u3066\u304f\u3060\u3055\u3044\u3002\\n    at ...)",
    "tool_count": 0,
    "digests": {}
   },
@@ -11241,7 +11001,7 @@
    "package": "gdharness",
    "version": "1.3.111",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Unsupported protocol version: 2025-11-25 (server stderr: [2026-11-16T23:15:16.854Z] [GodotBridge:INFO] WebSocket bridge stopped)",
+   "error": "Enumeration failed: MCPError: Unsupported protocol version: 2025-11-25 (server stderr: [2026-11-16T18:12:07.133Z] [GodotBridge:INFO] WebSocket bridge stopped)",
    "tool_count": 0,
    "digests": {}
   },
@@ -11249,10 +11009,79 @@
    "type": "npm",
    "package": "gitnexus",
    "version": "1.6.12",
-   "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: install once instead:  bun install -g gitnexus)",
-   "tool_count": 0,
-   "digests": {}
+   "connected": true,
+   "error": null,
+   "tool_count": 17,
+   "digests": {
+    "list_repos": {
+     "contract": "sha256:c03254dd7176ee91a437cbec4bfaddcc5f118445a23f68b69d9c8f59cf573992",
+     "definition": "sha256:082dc80d31d934760608eb75b9bdf7a33381dbd79feffbeb34c68fd89be42d7b"
+    },
+    "query": {
+     "contract": "sha256:7fde922d11fc4546378882ff295f27f8e9a0c2083d3104e719c6835bf37d0d84",
+     "definition": "sha256:ff4b689246dd0aa8563170ebb0f0e8faa202880e026d8e41d81fb36b319546d3"
+    },
+    "cypher": {
+     "contract": "sha256:05bc55b5e67f82f6dcf6b76feec2252c854a293fdf6b50c916c247b85340a7db",
+     "definition": "sha256:f42bfbf059329789e382d8d2fd888c569954d1dfd6517d7a1f36ad2865248331"
+    },
+    "context": {
+     "contract": "sha256:79e826f012bd4f57924e868721618a952da0ae88ea135d889d0b0d2a38da8c3f",
+     "definition": "sha256:4f936bfb260d3f541d44cc11369d4da317c19075549af87a6b409d9a86965fc4"
+    },
+    "detect_changes": {
+     "contract": "sha256:ecc099e39181250e5ecd64543c90a0c3ad6f0f3796dbb4344cc44d97be3178ed",
+     "definition": "sha256:91194f872d0b5fafb891eba0b02c601df9e8fcde4c082b70126739a44d89b960"
+    },
+    "check": {
+     "contract": "sha256:bec9f70cc1b35b39094764181e57b2513748516e1f0e4a29f7fd60bc5f0deccc",
+     "definition": "sha256:737099a6346053574810c27711be584861f776b8c048b0d64cb83ab33cabfbca"
+    },
+    "rename": {
+     "contract": "sha256:755eb6a4e17714e3a80c9e2e0ab2c6183dc05333f21fd503bb76d2bee01c0bd0",
+     "definition": "sha256:2eee7bc49e99def9631117d67ede7745bbc2194c22f8f826d722b9933cb83bab"
+    },
+    "impact": {
+     "contract": "sha256:0a6ca0700fdb848aa79af6a452bd66e2d06f51fcf5c5b4f8b94b5046d1c79500",
+     "definition": "sha256:fa48fc5ed2b8fc9bd3acb9943cf594bf980b95940b706172dc8de78d29f8bff8"
+    },
+    "explain": {
+     "contract": "sha256:cc6217e4d182df25c28f4adf15000e9ce3a089e661ef8dbf3d7af4b39502445a",
+     "definition": "sha256:e3d33c7fdcb68bddd2f42d98aaffb4a1a0100ab8d7d01e164c01822a754ad501"
+    },
+    "pdg_query": {
+     "contract": "sha256:73bd7b69aa588bb01769bf2edcfffe758d6707e698c6d11437d22698316d5b52",
+     "definition": "sha256:1f9c2fc349a1fb0a36d74643e6d5417609ea57af2743a093041c1a5c493b98ca"
+    },
+    "route_map": {
+     "contract": "sha256:db22e363fea9fb7eec5600e230ea7b08270124b64f596c26a8eb18a3c24adc97",
+     "definition": "sha256:02b957250b82f074fb1dabea60a86cc29581e9dd8841d3b65876ebaf43486634"
+    },
+    "tool_map": {
+     "contract": "sha256:b4b8eb2589a326830a5b129e1bba6a8a2e0cfdcd2611293851f7c1e92cff407d",
+     "definition": "sha256:3080a396c234d6f893dfefc8f6c8617b19528f636f65a0a6d418e18b6eeeee5e"
+    },
+    "shape_check": {
+     "contract": "sha256:b3f7ea156736b1dab5ab53bcb1de0b80344aa2cd9d8d973e0f80b67bfbb0df92",
+     "definition": "sha256:46fc8a3ce56dcc4c07c489066d8bc9c642b4f404d760e3d77d180aa0a2753810"
+    },
+    "api_impact": {
+     "contract": "sha256:faa926848d4d82f4e13dd900f1741653ee668ebc829755c81641764eab476a09",
+     "definition": "sha256:f5d5157ea8933af8214691d5574b2ba520bf8962382f8a81eef45b604da00065"
+    },
+    "group_list": {
+     "contract": "sha256:f308095a7152632039f24c563e4ed6eca20ad46cfd875367cdf907cda08a2f84",
+     "definition": "sha256:ae67bbb07ea2bd7be0c8761e53492bcfeb9e3c81147210e914499398170e5ace"
+    },
+    "group_sync": {
+     "contract": "sha256:fb7337eb8984dc7d9c329bd70d17cfb3edeb47ec6271ca6e1931e33f96d14d63",
+     "definition": "sha256:5b6702804db8668e7762a7a8b05d6c3f791f7ea6c44edcc07f575cae970406ff"
+    },
+    "trace": {
+     "contract": "sha256:51feadc1e0648a098499b6df893547cfbe3ee60f82417c6fb6020f923c55dfc8",
+     "definition": "sha256:44d25c1ee7979607c584c661230e23ba3881ef3fb8a7cdd032386a65bc1b884f"
+    }
+   }
   },
   {
    "type": "npm",
@@ -11552,7 +11381,7 @@
   {
    "type": "npm",
    "package": "kordoc",
-   "version": "4.24.82",
+   "version": "4.24.81",
    "connected": true,
    "error": null,
    "tool_count": 22,
@@ -12198,7 +12027,7 @@
    "version": "3.3.0",
    "connected": true,
    "error": null,
-   "tool_count": 31,
+   "tool_count": 27,
    "digests": {
     "aggregate-db": {
      "contract": "sha256:c4453eafdb0e391c2905b47a30ffe81c2987876b1cfbe6e50e8adc06be6c829b",
@@ -12300,22 +12129,6 @@
      "contract": "sha256:fe08d96f269d455f02d14cdd91e98c5627f8c56006042653c476c44b131e5c28",
      "definition": "sha256:87418d92988121ffc77a0a2de7501419380d4e9848c36d697261541409e62986"
     },
-    "atlas-local-create-deployment": {
-     "contract": "sha256:dbdc0bd2f883adf007a9bf0afce504cf8d71c7c8646cc192a099faa46e1f1073",
-     "definition": "sha256:4d6da92a771bac0b101f4d3e711bc2f2b620bbdb5722747955cc9b42da3b8eb6"
-    },
-    "atlas-local-list-deployments": {
-     "contract": "sha256:07a61eac6f97ed0542e76fb7dc81b2f7237716c184673df156001eea534f4477",
-     "definition": "sha256:34ef405ed4e0979244236697962403c7d1f4e7eeccedf9be40829f17020fa290"
-    },
-    "atlas-local-delete-deployment": {
-     "contract": "sha256:d30f44793d54aaed589d497dc17e528c8f56f9309e4ee70defde977f895f3eab",
-     "definition": "sha256:f09dbf526b5c34154d17bd890073482d177df35f76bbbd64915cf2605f050874"
-    },
-    "atlas-local-connect-deployment": {
-     "contract": "sha256:b5fb34430ac7dd739531940a830d12f36236919ad06b4192de00525d5342b46b",
-     "definition": "sha256:395248f59d0be57e4f63006bb66030388501375933d22eee8135a04b6336baec"
-    },
     "search-knowledge": {
      "contract": "sha256:1759384cc2351bd61c5ac327e5268352bc5ec7c7a1cd14aaa1537fe5f9c6a5a5",
      "definition": "sha256:9630530af248f4a3d8b1b12fc544c4346668bed0d5bf147c6f18ae886a221350"
@@ -12416,17 +12229,22 @@
    "type": "npm",
    "package": "nx-mcp",
    "version": "0.25.3",
-   "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed",
-   "tool_count": 0,
-   "digests": {}
+   "connected": true,
+   "error": null,
+   "tool_count": 1,
+   "digests": {
+    "nx_docs": {
+     "contract": "sha256:b496a7d31d30ebcf3c322d197781c4c60a20e4619135438645134ae2a2466ff2",
+     "definition": "sha256:a665feee074ec59e50c51dd9c77230c013520c6ea313becc48bd96444499066c"
+    }
+   }
   },
   {
    "type": "npm",
    "package": "obsidian-mcp-server",
    "version": "3.9.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -14835,7 +14653,7 @@
    "package": "replicate-mcp",
    "version": "0.9.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5))",
    "tool_count": 0,
    "digests": {}
   },
@@ -14844,7 +14662,7 @@
    "package": "repomix",
    "version": "1.19.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: \u2716 Unexpected error: Permission denied while accessing path. Please check folder access permissions for your terminal app. path: /home/runner/work/mcp-audit/mcp-audit)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: \u2716 Unexpected error: EACCES: permission denied, open '/home/claude/mcp-audit/docs/research/2026-12-launch-drift/repomix-output.xml')",
    "tool_count": 0,
    "digests": {}
   },
@@ -17847,7 +17665,7 @@
    "package": "slack-mcp-server",
    "version": "1.3.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v24.22.2)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Node.js v22.23.4)",
    "tool_count": 0,
    "digests": {}
   },
@@ -17856,7 +17674,7 @@
    "package": "snyk",
    "version": "1.1308.4",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:123:26))",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26))",
    "tool_count": 0,
    "digests": {}
   },
@@ -18400,7 +18218,7 @@
    "package": "wikimoth-mcp",
    "version": "0.2.3",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: cause: failed to lookup address information: Temporary failure in name resolution)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: [wikimoth-mcp] Or set WIKIMOTH_PYTHON to a Python that has wikimoth installed.)",
    "tool_count": 0,
    "digests": {}
   },
@@ -18818,7 +18636,7 @@
   {
    "type": "pypi",
    "package": "arxyne",
-   "version": "0.13.4",
+   "version": "0.13.3",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed",
    "tool_count": 0,
@@ -18828,10 +18646,147 @@
    "type": "pypi",
    "package": "astro-airflow-mcp",
    "version": "0.9.1",
-   "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: PermissionError: [Errno 13] Permission denied: '/home/runner/work/mcp-audit/mcp-audit/.astro/config.yaml')",
-   "tool_count": 0,
-   "digests": {}
+   "connected": true,
+   "error": null,
+   "tool_count": 34,
+   "digests": {
+    "list_connections": {
+     "contract": "sha256:1d560138c3104f60f7d999513c94aabb4b07c9f427c4b23595d2cfbda6ac9db1",
+     "definition": "sha256:a9305806766307c975f756a40d9b5e13cd3fa282da8f32059d2ab880ad057f91"
+    },
+    "get_variable": {
+     "contract": "sha256:ab0497aa1b928e570c986ff989ffd537587d989d615fa82458f67adf8bc8334c",
+     "definition": "sha256:2d7f6f60dd37570fdd02f83edd80351ed895a832cd8d194d9408884f3cfdd56c"
+    },
+    "list_variables": {
+     "contract": "sha256:747e86e86ea59d6a59f1689d25c9978772c164538523418e9db89708cf83711f",
+     "definition": "sha256:76d8b0fe03b5fc8fd34a0ce4b02bd1f89befdc958c5d7ee7fec618e67eafb29c"
+    },
+    "get_airflow_version": {
+     "contract": "sha256:6bd31635f27d8ae67defe301b540c4938b1e2c5b03be0f0391216c9c044dd216",
+     "definition": "sha256:f0d12a2501581150185bc61c54e187b92946dffb1c157d14dc51e45b2d12bca1"
+    },
+    "get_airflow_config": {
+     "contract": "sha256:729405d8d82151c35a6cb75a6d56f1e5ed3a5fedfa6eb851381448ed9378ac30",
+     "definition": "sha256:adc3406f5a84b64d7de32025f064a23c169fa5fe09bf93c78e6c8385d84223aa"
+    },
+    "get_pool": {
+     "contract": "sha256:56fd64262f2f668a8a3f70d26c6711a320bf48c28c51c2a82d218ef54c72ac1c",
+     "definition": "sha256:83dec3d0defad94f1ff09bdb9e3f83472b3f593e9a5e74f04cbbf250b26f564d"
+    },
+    "list_pools": {
+     "contract": "sha256:88f9a489a39092d2aba787309329bb88aa353451b2a29a53e5f7c224922cf147",
+     "definition": "sha256:8e2a3ee37bcaceb6470a6f90d1356373b9b5897cccba6c9706df1d82474e79df"
+    },
+    "list_plugins": {
+     "contract": "sha256:ddaadacad4f45040228bd3d78d71200a98b47f3b73ac59210cff4ff2c7a205f9",
+     "definition": "sha256:be14612d91f507806a78befa04160643ae24a23c9b8218d3c59290629791c79c"
+    },
+    "list_providers": {
+     "contract": "sha256:60e6d26109cb69af192fbfaaa3eeb07fe6182705a007d14c6b0faf4f593e5a58",
+     "definition": "sha256:6009cb257d217499d7971143a42daf73c96db940e17998dbb9312692bd632c6a"
+    },
+    "list_assets": {
+     "contract": "sha256:150f0376024a04a5557756358cd2ef2a1046a184e9e5affeb8d55854c0c8d6b4",
+     "definition": "sha256:d99745c53a346558d1a625efe2f228e230789b65b1fd6c9d1f10109100e53eb5"
+    },
+    "list_asset_events": {
+     "contract": "sha256:a2fb247c38a1cd9386d83bb3ba971a99f2b644ed9b3a8b5672309691b3451423",
+     "definition": "sha256:922801904ca33cc23aa8dc38ebfc11deb6a29f7b7007f191dda723a20a880877"
+    },
+    "get_upstream_asset_events": {
+     "contract": "sha256:0cc780c1c6b5d5e351c25e5e648347f6cef9f3c62974f1ea1078b36f8135c73d",
+     "definition": "sha256:175e820d71bf52c854f1936283f90e09bc9c5b729c01f2838497ea5011bc8972"
+    },
+    "get_dag_details": {
+     "contract": "sha256:3b8b9ca9f8ae06f3c27d64364b7e7242ee086197c27c121d0f8ea2d18b5aa6fc",
+     "definition": "sha256:3604fe57b81494aa8e462bb2a92ebf42d5f29483685fd1d65e670018ba343f1b"
+    },
+    "list_dags": {
+     "contract": "sha256:c9a305a5bf804e4390b8d9465ad2895ea592e65e42df402298eb7a7cf16573fd",
+     "definition": "sha256:cd83b3b470a73049c9bead8e4d2d6e2448928ea459983c4663ed8b58b3492075"
+    },
+    "get_dag_source": {
+     "contract": "sha256:27b64ca5d6bced830d74f64e3421d45a13c80e90a9a95c36982e676148cc419a",
+     "definition": "sha256:8f5ec2ce3eb5eb7c991ec995f90ab5d846dd1a18123d680bd3343aa0da729811"
+    },
+    "get_dag_stats": {
+     "contract": "sha256:abac7e18196e74c42e545f7acc395e133a5afcaef566645cbdf42252e27e1f4e",
+     "definition": "sha256:002fc47a9c2b3bc2256e9724fc4a5188a870949343f574592bc9a0a9a9c918fa"
+    },
+    "pause_dag": {
+     "contract": "sha256:69db55743d409ce3a1b7e6293b49d6f4e7841ef1ac3f940de308db801381e14b",
+     "definition": "sha256:63ca510cb24e43c7d5c089147bdd5b53bb99f061310285dfed01dfc23eb55ec5"
+    },
+    "unpause_dag": {
+     "contract": "sha256:c94cb70e39e1fcce6c53685ae90749711f401b2e1fa7800f27dfbe5867e759d3",
+     "definition": "sha256:78c6b9c058267afda4da45b589529901dafef2c984069a6b9b2625a1f6c5600e"
+    },
+    "list_dag_runs": {
+     "contract": "sha256:b14301344334f26067432b3f329345a208b2ab511176069bf3340d08e679b4e0",
+     "definition": "sha256:08e125ac8ebaa9275cc843beb382f4db5cff771e083c31c9a66edeeee601b2f6"
+    },
+    "get_dag_run": {
+     "contract": "sha256:5cbf4c57f4b4d40e9a93c984e1453b2c431f244069859ec192df5469e5fae3b3",
+     "definition": "sha256:55f8905f8d697da73828c9ee6ce32e991a2364d080e2d988dad322d921e2728e"
+    },
+    "trigger_dag": {
+     "contract": "sha256:446c11ee421d7147d94c0483daf9352c3c8cca0ff688bf004b029d3587b3d67d",
+     "definition": "sha256:2f1020debde6ba2b7fe8844d1c9b7a2815df7c6e31b71a6b6d61982fce4051d6"
+    },
+    "trigger_dag_and_wait": {
+     "contract": "sha256:c990af83d2161e511ef05a30fe2d104f4f4827220fd71739c50ce9e3ed4a1dcd",
+     "definition": "sha256:b16be6e3d1bc052376d7c9ce43a0b1230af0e45775be6efa1655d324c300f465"
+    },
+    "delete_dag_run": {
+     "contract": "sha256:53132c2e255b81e96b5b3bd7c35663130938d1f9efb8d5f42d863d216b8fc83c",
+     "definition": "sha256:946bab65ab941babfb4a5400de9013c01d72c558f0710a6012ed27ee3a89950f"
+    },
+    "clear_dag_run": {
+     "contract": "sha256:a6627ee89914a43f4b6e54ad7b7acc35f62ff7351a02d436ba89c8a0dcded950",
+     "definition": "sha256:d23273d24a4c30c472537570901c042ccb77e9ed9a8fd9263da227e3f6e27228"
+    },
+    "list_dag_warnings": {
+     "contract": "sha256:8cefcfde5976cc45bf2db28471093b7f4d7bb49add1e2a9113ad8893ce01727c",
+     "definition": "sha256:2a2a706ecf3d1991cb9dcefd216e75f8a31999ef92c2db4e1a98ce9a943bf11c"
+    },
+    "list_import_errors": {
+     "contract": "sha256:0799195c51d381f863fcda4c790177276eb3a70215c4d533aaf5d3d254450898",
+     "definition": "sha256:c8de8063a8d6ad2b16d90b4acfa29616b789ae833ef4335661fa139de7181177"
+    },
+    "explore_dag": {
+     "contract": "sha256:efa4b2b7c07262406eedb4aa8d32526de779fcd218b4e859a89a21308ea0a012",
+     "definition": "sha256:9e0e9c792acd203c52f42fafd06bdb877741dfd782c88f88a091782a6d632735"
+    },
+    "diagnose_dag_run": {
+     "contract": "sha256:30e558df8da1c83b47e41a1e43dd4c381c1cfd0e179d4594f414b379ab0b7895",
+     "definition": "sha256:bbbf68b4ca3fa0b6a43cdb10704d7e52748afdcf8ab8ab962d94fcc71066cc68"
+    },
+    "get_system_health": {
+     "contract": "sha256:e3f5f0e4f2d0847cf0ad24cb31010e046285a3e46e90a3e8c5010306dbc212ef",
+     "definition": "sha256:21c47d933db4e33201d8f5c2bf8dabb6b12b8c3ebf488883150352410181086e"
+    },
+    "get_task": {
+     "contract": "sha256:5f60f0cffa67b24f97011bc5165a7296031d8cf0b6aad8e0b1b7bd22615c7714",
+     "definition": "sha256:5870755b8cb0c2ed8ffee2229c8235f30dac84c228f04e0e5af76b6a820aee05"
+    },
+    "list_tasks": {
+     "contract": "sha256:d6228bf339baf38b23e34268b6c9ef8844add236bebf96000078038569863ca8",
+     "definition": "sha256:48784caf52fa02ca7aed22c9f20cea9b73a0cd4b0baa6e17636a7231873c2bbc"
+    },
+    "get_task_instance": {
+     "contract": "sha256:f4b532730c3756ad2be7e625356d360113d4e9afbc1f38bb58ca26cdf27f363d",
+     "definition": "sha256:981bf2302f153e8b31991be4c63f841bcbc91251399fcdbdb0d0fd739c68512c"
+    },
+    "get_task_logs": {
+     "contract": "sha256:5a4d6effa9716b253a045b76717c089e9f4406d0faea3a11177d5ea678a62583",
+     "definition": "sha256:0642fc20b9d3a575a78bf11655090b2a830307ef193ae706f88411435c4d600b"
+    },
+    "clear_task_instances": {
+     "contract": "sha256:1c7b844356ca9e3ff3839e1f8bf8056ba490c01ab876a4df80da479702f3ce68",
+     "definition": "sha256:77b955bb748010605a92f0b3e05b3f600abd4a2a2563c00d4db7fa4c0bbb9978"
+    }
+   }
   },
   {
    "type": "pypi",
@@ -19303,7 +19258,7 @@
    "package": "bernstein",
    "version": "3.24.1",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: \u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f)",
+   "error": "Connection timed out after 60s",
    "tool_count": 0,
    "digests": {}
   },
@@ -19344,9 +19299,9 @@
   {
    "type": "pypi",
    "package": "browser-use",
-   "version": "1.0.6",
+   "version": "1.0.5",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: OSError: Starting path not found)",
+   "error": "Connection timed out after 60s",
    "tool_count": 0,
    "digests": {}
   },
@@ -19389,46 +19344,46 @@
   {
    "type": "pypi",
    "package": "deepseek-search-everywhere-mcp",
-   "version": "3.3.0",
+   "version": "3.2.0",
    "connected": true,
    "error": null,
    "tool_count": 9,
    "digests": {
     "deepseek_search": {
-     "contract": "sha256:2f7c932048f8a819bcf59f2749520738300744b4558b44113a34d5d7576c9968",
-     "definition": "sha256:d12818859403499ea3b6774dadca800a2bb7262fbd6077cbfb9ee79c0128b7e3"
+     "contract": "sha256:1e782ae31271f61b294ec16509ff392769c3896344eab5296a063d6d0d7f9286",
+     "definition": "sha256:37399d9667887b2d604ef1ae8b960d43222f2eb5be1de760ecdc8f11ab06efc6"
     },
     "deepseek_search_many": {
-     "contract": "sha256:f89e05faaa8b9b1b22f3498357216dfb5d52649f3a9c1d2a602b7b758dcf2804",
-     "definition": "sha256:fdae1c8db19ad58a38914838743e2c725ac9bf8fa244257226de98cb9ffc95e5"
+     "contract": "sha256:0c191a86303534c8c7e16bab671bd50b88985462fb4045ea43e64ee680f7f0b3",
+     "definition": "sha256:ed7f52ae092f192e38caae55bb0051e05415d473f818c949c2eb62e966df90a2"
     },
     "deepseek_fetch": {
-     "contract": "sha256:1af9aba24a7a8715ab1d6915ba453f83ab497e6dd6864976041d2c1d948ee84d",
-     "definition": "sha256:97efc9eaa43ff82b2f6779ece9f6f523f5a745fb923624760a435b3ad754caa8"
+     "contract": "sha256:1902eded5a96d8ce1a2d65aa537517948044ba9aeed8134a1245fd52a568c469",
+     "definition": "sha256:c1b6e26376a09ae3b8d2d1d454ac16e7115211a98a4c311175f95a400179f9dc"
     },
     "deepseek_fetch_many": {
-     "contract": "sha256:77d76ff0373699da9b1c238156ad2e45f4de02b44ca590872629d1724171a922",
-     "definition": "sha256:c9f5b119325c3a094f0b582371b9ec2140626b60fe008026774636ed26315101"
+     "contract": "sha256:ca4c0924bc4304fb473dff4242f626be693651ae2d67d485ceb888a88a21d0d8",
+     "definition": "sha256:077e34897bb501d6cbfe5347b1839b04e978a74011515d90138472cff998faf3"
     },
     "deepseek_research": {
-     "contract": "sha256:269b180867d23608483defe6f9b810c84eef33d14bac0874d236f1d00e57c980",
-     "definition": "sha256:50e16fa3730aa7977fde9a965c61180c8306258705d0fbb40f390e2b8ee1d0b8"
+     "contract": "sha256:6c2fad86fc86bda10e98de54eee986ff27bd548cd955dfbdaa34487b8d7b516d",
+     "definition": "sha256:6b5073427868b1f3cc851f9d4c443d225fc3f9d5889b810537f55347c79114f9"
     },
     "deepseek_check_research": {
-     "contract": "sha256:f80dd752ade5be285b95b031683a778ae7e6eaa40737a053f2ed08b5504b7600",
-     "definition": "sha256:883ce09b788aee66eb2175155609e33e15ec73a3edf44112a90d1f25ad57e5c4"
+     "contract": "sha256:04e8171c48c8b2d9766a5011955a868cf0a82635ed359b7cac78fd8cb026c0b7",
+     "definition": "sha256:5ebcc7490d3d020ee7fe64ebf9e19878485b1a594252c8f9cb9f1cc34fc5b6b7"
     },
     "deepseek_extract": {
-     "contract": "sha256:8df068a1fde1d139c5807617116edc7896a00bfac477ae7dd4283f535eaa4424",
-     "definition": "sha256:d2ab2e99a98778bc833a0167ce0bcf50ef5a91a196972d62d855af5543687a3d"
+     "contract": "sha256:61e0a37ba642426f266e05b299a3e721c210392446f96c598221f88c773f9d45",
+     "definition": "sha256:1e871c2f68c5c1d443c83f973aa26aa4b2318d19f8098077c8032fc2d4db0624"
     },
     "deepseek_extract_many": {
-     "contract": "sha256:b7737e8b0bd70cca59da5f02dc07ef06a8c332c4b48ebcc38b5b7b8c3f0f42dc",
-     "definition": "sha256:c5248ebada0a71b16877ac4627c949b7df2203ed78962c92885a7cbf37ead644"
+     "contract": "sha256:fba345c49a6a54c30dc027b6d5ced97fb42a2ec6a7147a588dd16f5884dd8d7e",
+     "definition": "sha256:49c0948723d45a5699a6dd3fd669ee1b32ebe06405af032e1357e32b47b731c4"
     },
     "deepseek_check_balance": {
-     "contract": "sha256:f47ee8393122cd953ac7e9de5e2b7f76b9eda6a71a9f37fec52ad1da292fda74",
-     "definition": "sha256:5abbeab8a2ace14026a81844b8f92bfe208d32d92348f7fc23190f7d019762f3"
+     "contract": "sha256:4d55e56e8821babca2bffa6f3bdb727feee6411303ff8220a3233496a1cb017a",
+     "definition": "sha256:1b756ff6f7c9330b00b63218b4eebad061bd19b018e4b1d155884f5cc00759a7"
     }
    }
   },
@@ -19528,7 +19483,7 @@
   {
    "type": "pypi",
    "package": "edgescaleai-cube-mcp",
-   "version": "0.3.66",
+   "version": "0.3.65",
    "connected": true,
    "error": null,
    "tool_count": 45,
@@ -19736,9 +19691,9 @@
   {
    "type": "pypi",
    "package": "exomem",
-   "version": "0.184.1",
+   "version": "0.184.0",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: PermissionError: [Errno 13] Permission denied: '/home/runner/work/mcp-audit/mcp-audit/.env')",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: Windows:      setx EXOMEM_VAULT_PATH \"C:/path/to/your/Obsidian\")",
    "tool_count": 0,
    "digests": {}
   },
@@ -19765,7 +19720,7 @@
    "package": "falcon-mcp",
    "version": "0.20.2",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: 2026-11-16 23:18:31,621 - falcon_mcp.server - ERROR - Configuration error: Falcon API credentials not provided. Either pass client_id and client_secret parameters or set FALCON_CLIENT_ID and FALCON_CLIENT_SECRET environment variables.)",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: 2026-11-16 18:07:01,000 - falcon_mcp.server - ERROR - Configuration error: Falcon API credentials not provided. Either pass client_id and client_secret parameters or set FALCON_CLIENT_ID and FALCON_CLIENT_SECRET environment variables.)",
    "tool_count": 0,
    "digests": {}
   },
@@ -20111,15 +20066,10 @@
    "type": "pypi",
    "package": "markitdown-mcp",
    "version": "0.0.1a8",
-   "connected": true,
-   "error": null,
-   "tool_count": 1,
-   "digests": {
-    "convert_to_markdown": {
-     "contract": "sha256:d48eac675e772749cbe5c3065704a47bdeec0ff41c4fcb279192494283c1bc9a",
-     "definition": "sha256:f7a823d6b530f03dc6141f5ad2c9c87226d04e044eebb2f362b08a553aecdcd8"
-    }
-   }
+   "connected": false,
+   "error": "install failed",
+   "tool_count": 0,
+   "digests": {}
   },
   {
    "type": "pypi",
@@ -20627,7 +20577,7 @@
    "package": "mcp-server-appwrite",
    "version": "2.6.2",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: PermissionError: [Errno 13] Permission denied: '/home/runner/work/mcp-audit/mcp-audit/.env')",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: [appwrite-mcp] ERROR: APPWRITE_PROJECT_ID and APPWRITE_API_KEY must be set in environment variables)",
    "tool_count": 0,
    "digests": {}
   },
@@ -21384,7 +21334,7 @@
    "package": "prometheus-mcp-server",
    "version": "1.6.2",
    "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: {\"event\": \"Environment setup failed, exiting\", \"level\": \"error\", \"timestamp\": \"2026-11-16T23:19:12.932018Z\"})",
+   "error": "Enumeration failed: MCPError: Connection closed (server stderr: {\"event\": \"Environment setup failed, exiting\", \"level\": \"error\", \"timestamp\": \"2026-11-16T18:06:53.923593Z\"})",
    "tool_count": 0,
    "digests": {}
   },
@@ -21663,7 +21613,7 @@
   {
    "type": "pypi",
    "package": "skilltotal",
-   "version": "1.3.0",
+   "version": "1.2.0",
    "connected": false,
    "error": "Enumeration failed: MCPError: Connection closed (server stderr: skilltotal: error: the following arguments are required: command)",
    "tool_count": 0,
@@ -21866,10 +21816,31 @@
    "type": "pypi",
    "package": "tooluniverse",
    "version": "1.5.10",
-   "connected": false,
-   "error": "Enumeration failed: MCPError: Connection closed (server stderr: \u274c Error starting server: [Errno 13] Permission denied: '/home/runner/work/mcp-audit/mcp-audit/.tooluniverse/.env')",
-   "tool_count": 0,
-   "digests": {}
+   "connected": true,
+   "error": null,
+   "tool_count": 5,
+   "digests": {
+    "list_tools": {
+     "contract": "sha256:029d99cb7f0637c01d563d9ef262847b0eb57e4f4712c1615e576ec066b11dda",
+     "definition": "sha256:ed88da7b3f7b99a5f412a26958789858bb6484776cf50a18205c90d51797b090"
+    },
+    "grep_tools": {
+     "contract": "sha256:ee2a963eb33a7e2384e71a6e3722147d83aa5f6e33d7ebb4f2fa02ccc45254fa",
+     "definition": "sha256:49fbc8b90900e9e852643518e5f65a530cd7d6943852d38545766bf5cef75485"
+    },
+    "get_tool_info": {
+     "contract": "sha256:61bb67fe9c3ed7caa3f90014d579ee0b87c35eae44213ea6e3ada6b3559b8a09",
+     "definition": "sha256:eadeb6f47fed719f48fc4fab3e4278ead6aa7df1c2e3ff32ede53ad25f0e9744"
+    },
+    "execute_tool": {
+     "contract": "sha256:668857aec022eb852c779ac15832d0a44251e0a0af0c7067cb0bf2d35299a50a",
+     "definition": "sha256:55e67d4dc461fce0692d9272e9b93a0e05c24a55db4dc5053efeb08fc0b77dc2"
+    },
+    "find_tools": {
+     "contract": "sha256:6cd5eeefea2ab3fffe23aae1f787f66d06c9f065cd6ffda1e43e3358f85e21dc",
+     "definition": "sha256:917362fcfbe32a6aa61c996a22c72edccd19eb2e52250c1ec451edc7972c0dfd"
+    }
+   }
   },
   {
    "type": "pypi",
