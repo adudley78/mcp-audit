@@ -779,6 +779,12 @@ def _discover_and_parse(
         from mcp_audit.analyzers import secret_reach as _secret_reach  # noqa: PLC0415
 
         result.findings.extend(_secret_reach.secret_reach_findings(result.errors))
+        # Known-malicious packages npx downloaded (STORY-0158, SC-011): reads
+        # name and version from package.json files in the npm cache's _npx
+        # folder; exact-name match against the SC-008 mirror.  Never raises.
+        from mcp_audit.analyzers import npx_cache as _npx_cache  # noqa: PLC0415
+
+        result.findings.extend(_npx_cache.npx_cache_findings(result.errors))
         # Editor extension allowlists (STORY-0144, EXTPOL-001..003): is the
         # AllowedExtensions policy enforced, or only a user setting?  Reads the
         # vendors' documented policy locations; read-only, never raises.
