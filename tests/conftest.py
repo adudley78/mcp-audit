@@ -134,6 +134,13 @@ def _isolate_claude_plugins(
         "mcp_audit.discovery.gemini_user_config_path",
         lambda: tmp_path_factory.getbasetemp() / "no-gemini-home" / "settings.json",
     )
+    # The npx cache (STORY-0158, SC-011) is read in every default scan: keep a
+    # contributor's own ~/.npm/_npx out of it.  tests/test_npx_cache.py passes
+    # its own cache directory.
+    monkeypatch.setattr(
+        "mcp_audit.analyzers.npx_cache.npm_cache_dir",
+        lambda environ=None, home=None: base / "no-npm-cache",
+    )
 
 
 @pytest.fixture(autouse=True)
