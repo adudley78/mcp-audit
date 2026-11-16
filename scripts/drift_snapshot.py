@@ -417,6 +417,11 @@ async def run(
         keys = keys[: cfg.limit]
     for directory in (cfg.pkgs, cfg.homes):
         await as_probe(cfg, ["mkdir", "-p", directory], timeout=30)
+    # This process reads each installed package's manifest to find its command.
+    # `useradd --create-home` makes the home 0750, which hides it from us when
+    # we are not root (found on the first GitHub runner test: 12 of 12 pairs
+    # reported "no unambiguous entry point").
+    _run(cfg, ["chmod", "755", cfg.home, cfg.pkgs])
     sem = asyncio.Semaphore(cfg.conc)
     await asyncio.gather(*(one(cfg, sem, k, pairs[k], overrides, out) for k in keys))
 
