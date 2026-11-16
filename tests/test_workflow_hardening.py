@@ -115,7 +115,14 @@ def test_setup_action_verifies_provenance_after_cache_and_download() -> None:
     assert verify > names.index("Restore binary from cache")
     assert verify > names.index("Download binary (Windows)")
     assert "if" not in steps[verify], "must run on cache hits too"
-    assert "gh attestation verify" in steps[verify]["run"]
+    run = steps[verify]["run"]
+    assert "gh attestation verify" in run
+    # The repository rename: a binary signed under either name passes, each
+    # name is paired with its own release workflow, and no third name appears.
+    assert "for REPO in adudley78/mcp-audit adudley78/credenzo; do" in run
+    assert '--repo "$REPO"' in run
+    assert '--signer-workflow "$REPO/.github/workflows/release.yml"' in run
+    assert '[ -z "$VERIFIED" ]' in run
 
 
 def test_release_paths_use_no_actions_cache() -> None:
