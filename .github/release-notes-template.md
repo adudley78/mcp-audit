@@ -43,7 +43,7 @@ Cursor, VS Code, Windsurf, and any MCP-compatible host.
 ### Install
 
 ```bash
-pip install --upgrade mcp-audit-scanner   # PyPI — CLI command: mcp-audit
+pip install --upgrade credenzo   # PyPI — CLI command: mcp-audit
 ```
 
 Or grab a pre-built binary from **Assets** below (no Python required):
@@ -75,7 +75,7 @@ after v1, `@v1` will track the latest 1.x release automatically.
 
 ### Upgrading
 
-`pip install --upgrade mcp-audit-scanner` or download the new binary from
+`pip install --upgrade credenzo` or download the new binary from
 the release assets. Anything you must do for this version is in the
 changelog section above.
 

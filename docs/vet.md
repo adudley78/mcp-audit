@@ -177,7 +177,7 @@ server (exit 0) and warns that the npm package `mcp-server-git` is
 │ After installing and configuring, run:                       │
 │   credenzo scan                                             │
 │                                                              │
-│ Help grow the registry: https://mcp-audit.dev/contribute     │
+│ Help grow the registry: https://credenzo.io/contribute     │
 ╰──────────────────────────────────────────────────────────────╯
 ```
 Exit code: **0** (1 with `--strict`)

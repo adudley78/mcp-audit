@@ -68,8 +68,8 @@ Paste this Markdown into your README.
 
 ### Option 2 — Copy from mcp-audit.dev
 
-Visit `https://mcp-audit.dev/servers/<eco>/<slug>/` (e.g.
-`https://mcp-audit.dev/servers/npm/at-modelcontextprotocol-server-filesystem/`) and
+Visit `https://credenzo.io/servers/<eco>/<slug>/` (e.g.
+`https://credenzo.io/servers/npm/at-modelcontextprotocol-server-filesystem/`) and
 copy the badge snippet from the package page.
 
 ### URL structure

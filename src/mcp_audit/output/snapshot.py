@@ -537,7 +537,7 @@ def sign_snapshot(path: Path) -> Path:
     sigstore bundle JSON.  The unsigned snapshot at *path* is **not** modified.
 
     Signing requires:
-    - The ``sigstore`` library (``pip install 'mcp-audit-scanner[attestation]'``).
+    - The ``sigstore`` library (``pip install 'credenzo[attestation]'``).
     - An ambient OIDC credential (GitHub Actions ``id-token``, Google Cloud
       Workload Identity, or an interactive browser flow).
 
@@ -562,7 +562,7 @@ def sign_snapshot(path: Path) -> Path:
     except ImportError as exc:
         raise ImportError(
             "sigstore is not installed. "
-            "Enable signing with: pip install 'mcp-audit-scanner[attestation]'"
+            "Enable signing with: pip install 'credenzo[attestation]'"
         ) from exc
 
     sig_path = Path(str(path) + ".sig")

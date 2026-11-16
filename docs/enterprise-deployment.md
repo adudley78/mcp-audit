@@ -77,16 +77,16 @@ No Python installation required. The binary bundles the Python runtime and all d
 
 ### Option B — Python package (PyPI)
 
-The PyPI package is `mcp-audit-scanner`; the command it installs is `credenzo`.
+The PyPI package is `credenzo`; the command it installs is `credenzo`. (The `credenzo` package installs the same version of `mcp-audit-scanner`, which holds the code.)
 
 ```bash
-pip install mcp-audit-scanner
+pip install credenzo
 ```
 
 Pin to a specific version in production:
 
 ```bash
-pip install mcp-audit-scanner==0.32.0
+pip install credenzo==0.32.0
 ```
 
 ### Option C — Source install
@@ -421,7 +421,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install mcp-audit
-        run: pip install mcp-audit-scanner
+        run: pip install credenzo
 
       - name: Scan MCP configs
         run: |

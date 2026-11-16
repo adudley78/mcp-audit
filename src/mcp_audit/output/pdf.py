@@ -203,7 +203,7 @@ def _make_page_callback(
         canvas.drawString(
             0.75 * inch,
             footer_y,
-            "https://github.com/mcp-audit/mcp-audit-scanner",
+            "https://credenzo.io",
         )
         canvas.drawRightString(
             width - 0.75 * inch,

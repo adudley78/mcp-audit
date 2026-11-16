@@ -1,4 +1,4 @@
-# Strict mcp-audit pre-commit integration.
+# Strict Credenzo pre-commit integration.
 # Fails the commit if any MEDIUM, HIGH, or CRITICAL findings are detected
 # in your MCP server configurations.
 #

@@ -14,11 +14,14 @@ case "$ARCH" in
 esac
 
 BINARY="mcp-audit-${OS}-${ARCH}"
-DEST="/usr/local/bin/mcp-audit"
+DEST="/usr/local/bin/credenzo"
 
-echo "Downloading mcp-audit ${VERSION} for ${OS}/${ARCH}..."
+echo "Downloading Credenzo ${VERSION} for ${OS}/${ARCH}..."
 curl -sSL "${BASE_URL}/${BINARY}" -o "${DEST}"
 chmod +x "${DEST}"
 
-echo "Installed mcp-audit to ${DEST}"
-mcp-audit version
+# The old command name continues to work.
+ln -sf "${DEST}" /usr/local/bin/mcp-audit
+
+echo "Installed credenzo to ${DEST}"
+credenzo version

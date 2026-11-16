@@ -25,7 +25,7 @@ sudo mv mcp-audit /usr/local/bin/
 **From PyPI (Python 3.11+ required):**
 
 ```bash
-pip install mcp-audit-scanner
+pip install credenzo
 ```
 
 **From source (for contributors):**

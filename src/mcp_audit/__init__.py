@@ -16,12 +16,12 @@ def __getattr__(name: str) -> str:
     from importlib.metadata import PackageNotFoundError, version
 
     try:
-        # The PyPI distribution name is ``mcp-audit-scanner`` (the shorter
-        # ``credenzo`` name was already taken).  The CLI command remains
-        # ``credenzo`` — only the wheel/sdist distribution carries the longer
-        # name.  Looking up the wrong key here silently falls through to the
-        # hard-coded fallback, so every release pre-PyPI-publish used to ship
-        # with a stale version string embedded in the binary.
+        # The code ships in the ``mcp-audit-scanner`` distribution (the name
+        # from before the rename to Credenzo; the ``credenzo`` distribution
+        # holds no code and pins this one).  Looking up the wrong key here
+        # silently falls through to the hard-coded fallback, so every release
+        # pre-PyPI-publish used to ship with a stale version string embedded
+        # in the binary.
         value = version("mcp-audit-scanner")
     except PackageNotFoundError:
         value = "0.5.0"

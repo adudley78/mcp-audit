@@ -879,7 +879,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **V-11: Resolved (2026-04-23).** `yarn dlx` detection added to both `TransportAnalyzer` and `SupplyChainAnalyzer`. `pipx` added to `_RUNTIME_FETCH_COMMANDS`. PyPI typosquatting for `uvx`/`pipx` packages requires a separate known-packages list for PyPI — tracked as a future supply-chain coverage gap.
 
-**V-12: Resolved.** `httpx` moved from `dependencies` to the `mcp` optional group (`pip install 'mcp-audit-scanner[mcp]'`). It is not installed in the default distribution and carries no transitive attack surface for users who don't need live server connections.
+**V-12: Resolved.** `httpx` moved from `dependencies` to the `mcp` optional group (`pip install 'credenzo[mcp]'`). It is not installed in the default distribution and carries no transitive attack surface for users who don't need live server connections.
 
 ### Low
 
@@ -1150,7 +1150,7 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 
 **Semgrep is not bundled in the Credenzo binary:**
 - `credenzo scan --sast` and `credenzo sast` require `pip install semgrep` separately. The rule files are bundled; the semgrep engine is not. This matches how other SAST tools (bandit, eslint, etc.) work in the ecosystem.
-- Rule file discovery works correctly in all installation modes: PyInstaller binary, `pip install mcp-audit-scanner` wheel, and editable dev installs. The resolution uses `mcp_audit._paths.resolve_bundled_resource()` with an `importlib.resources` step so that pip-installed wheels find `mcp_audit/semgrep-rules/` without requiring a source checkout.
+- Rule file discovery works correctly in all installation modes: PyInstaller binary, `pip install credenzo` wheel, and editable dev installs. The resolution uses `mcp_audit._paths.resolve_bundled_resource()` with an `importlib.resources` step so that pip-installed wheels find `mcp_audit/semgrep-rules/` without requiring a source checkout.
 
 **SSRF guards that only block IP literals (`mcp-ssrf-ip-literal-only-guard`, `mcp-ts-ssrf-ip-literal-only-guard`, STORY-0081):**
 - Both rules can't tell which way a guard's return value points. `except ValueError: return False` is fail-open in `is_blocked()` but fail-closed in `is_safe()`. The rules exclude a handler that raises or throws and report the rest; a fail-closed guard that returns needs `nosemgrep`.
@@ -1955,7 +1955,7 @@ trust"). Recorded limits:
 
 ~~**Multi-arch binary CI release matrix**~~ **Resolved v0.4.0.** `release.yml` builds four PyInstaller executables in parallel on `v*.*.*` tag push: `macos-15-intel` (x86_64), `macos-latest` (arm64), `ubuntu-latest`, and `windows-latest`.
 
-~~**pip packaging and TestPyPI dry run**~~ **Resolved v0.3.3.** PyPI Trusted Publishing (OIDC) pipeline in `release.yml` publishes to PyPI on every tag push. `pip install mcp-audit-scanner` resolves the current release. PEP 740 sigstore attestations are published alongside each wheel and sdist.
+~~**pip packaging and TestPyPI dry run**~~ **Resolved v0.3.3.** PyPI Trusted Publishing (OIDC) pipeline in `release.yml` publishes to PyPI on every tag push. `pip install credenzo` resolves the current release. PEP 740 sigstore attestations are published alongside each wheel and sdist.
 
 ~~**Documentation beyond README**~~ **Resolved (incrementally through v0.9.0).** Comprehensive docs now exist in `docs/`: scoring, registry, writing-rules, governance, SAST rules, extensions, fleet scanning, baselines, snapshot, diff, killchain, shadow, live-connection, enterprise-deployment, and more.
 

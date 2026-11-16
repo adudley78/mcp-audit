@@ -88,4 +88,4 @@ The PDF is a self-contained audit artifact. When filing:
 
 ## Dependencies
 
-`reportlab` (BSD licence, pure Python) is a required dependency added in v0.11.0. It is installed automatically with `pip install mcp-audit-scanner` and is bundled in the PyInstaller binary — no additional setup is needed.
+`reportlab` (BSD licence, pure Python) is a required dependency added in v0.11.0. It is installed automatically with `pip install credenzo` and is bundled in the PyInstaller binary — no additional setup is needed.

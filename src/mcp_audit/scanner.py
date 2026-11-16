@@ -826,7 +826,7 @@ async def run_scan_async(
 
     Requires the ``mcp`` optional dependency when *connect* is ``True``::
 
-        pip install 'mcp-audit-scanner[mcp]'
+        pip install 'credenzo[mcp]'
 
     Args:
         extra_paths: Additional config paths to scan.

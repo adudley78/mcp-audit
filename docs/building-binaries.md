@@ -79,7 +79,7 @@ Each GitHub Release attaches CycloneDX 1.5 JSON next to the artifacts:
 | Asset | Covers |
 |---|---|
 | `mcp-audit-<platform>.cdx.json` | Python packages frozen into that PyInstaller binary (PYZ ∩ build-venv versions). Not the full `--all-extras` venv. |
-| `mcp-audit-scanner-wheel.cdx.json` | A default `pip install mcp-audit-scanner` (no extras). Not a binary. |
+| `mcp-audit-scanner-wheel.cdx.json` | A default `pip install credenzo` (no extras). Not a binary. |
 
 `credenzo sbom` is unrelated — it inventories **scanned MCP servers**, not Credenzo itself.
 

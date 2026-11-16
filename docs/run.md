@@ -166,7 +166,7 @@ passes through and the client's next `tools/list` is compared afresh, so a
 server that changes back is released again. A paginated list is judged as a
 whole: removed tools only once the last page has arrived.
 
-`lock --connect` needs the `mcp` extra (`pip install 'mcp-audit-scanner[mcp]'`),
+`lock --connect` needs the `mcp` extra (`pip install 'credenzo[mcp]'`),
 which the standalone binary doesn't include. Without a tool record, enforce
 mode withholds every tool (RUN-003).
 

@@ -1,22 +1,22 @@
 # Credenzo
 
-**The taste test for agent tools.** Credenzo (formerly Credenzo) is an offline security scanner and committable lock for the MCP servers your AI coding tools run.
+**The taste test for agent tools.** Credenzo (formerly mcp-audit) is an offline security scanner and committable lock for the MCP servers your AI coding tools run.
 
 > In 16th-century Italy, a *credenza* was the act of a servant who tasted a lord's food and drink to check for poison. Credenzo is the taster: it does that for the tools your agent consumes.
 >
-> **The rename is in progress.** The package is still `mcp-audit-scanner` and the command is still `credenzo`; `credenzo` now works as a second command name. Nothing you have installed or configured breaks.
+> **mcp-audit is now Credenzo.** The command is `credenzo`. The old command (`mcp-audit`) and the old package (`mcp-audit-scanner`) continue to work, and nothing you have installed or configured breaks.
 
 [![CI](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Open VSX](https://img.shields.io/open-vsx/v/mcp-audit/mcp-audit-vscode)](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode)
 
-[![Credenzo in 58 seconds: why agent files are a risk, how a scan works, and what it checks](docs/media/explainer-thumb.jpg)](https://mcp-audit.dev/assets/mcp-audit-explainer.mp4)
+[![Credenzo in 58 seconds: why agent files are a risk, how a scan works, and what it checks](docs/media/explainer-thumb.jpg)](https://credenzo.io/assets/credenzo-explainer.mp4)
 
 ```bash
-pip install mcp-audit-scanner
+pip install credenzo
 ```
 
-> PyPI package name is `mcp-audit-scanner`; the CLI command is `credenzo`.
+> The command is `credenzo`. `uv tool install credenzo` and `pipx install credenzo` also work.
 
 ## Lock the MCP servers you approved
 
@@ -123,18 +123,18 @@ FlexConnect output all ship in the same binary.
 ## Install
 
 ```bash
-pip install mcp-audit-scanner
+pip install credenzo
 ```
 
 or with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv add mcp-audit-scanner
+uv add credenzo
 ```
 
-> **Note:** The PyPI package name is `mcp-audit-scanner` (the `credenzo` name
-> was already taken). The CLI command is still `credenzo`.
-> Standalone binaries are also available on
+> **Note:** The `credenzo` package installs the same version of
+> `mcp-audit-scanner`, the package that holds the code. Both names install the
+> same tool. Standalone binaries are also available on
 > [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
 > Each run of a standalone binary is silent for about ten seconds while it starts; that is expected.
 > Each release attaches a CycloneDX 1.5 SBOM per binary (`mcp-audit-<platform>.cdx.json`)
@@ -144,13 +144,13 @@ uv add mcp-audit-scanner
 For live server connection support:
 
 ```bash
-pip install 'mcp-audit-scanner[mcp]'
+pip install 'credenzo[mcp]'
 ```
 
 For Sigstore-based signature verification (`scan --verify-signatures`):
 
 ```bash
-pip install 'mcp-audit-scanner[attestation]'
+pip install 'credenzo[attestation]'
 ```
 
 > **Note:** `scan --verify-hashes` uses stdlib SHA-256 and works without any extra.
@@ -161,7 +161,7 @@ pip install 'mcp-audit-scanner[attestation]'
 If `pip install` fails with `bad interpreter: /usr/bin/python: no such file or directory`, invoke pip through Python directly:
 
 ```bash
-python3 -m pip install mcp-audit-scanner
+python3 -m pip install credenzo
 ```
 
 After installing, if `credenzo` is not found in your shell, add Python's bin directory to your PATH:
@@ -404,7 +404,7 @@ credenzo scan --connect
 Requires the optional MCP SDK dependency:
 
 ```bash
-pip install 'mcp-audit-scanner[mcp]'
+pip install 'credenzo[mcp]'
 ```
 
 Connection is best-effort: servers that do not respond within 10 seconds produce an error finding rather than crashing the scan. All static analysis still runs regardless.
@@ -597,7 +597,7 @@ Install the [Credenzo extension](https://open-vsx.org/extension/mcp-audit/mcp-au
 - Command palette: `mcp-audit: Scan current file`, `mcp-audit: Scan workspace`, `mcp-audit: Fix current file`
 - Works in both VS Code and Cursor (Cursor is a VS Code fork — no changes needed)
 
-The extension requires the `credenzo` command to be installed (`pip install mcp-audit-scanner`, or a binary from the [Releases page](https://github.com/adudley78/mcp-audit/releases)). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
+The extension requires the `credenzo` command to be installed (`pip install credenzo`, or a binary from the [Releases page](https://github.com/adudley78/mcp-audit/releases)). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
 
 ## GitHub Action
 

@@ -414,7 +414,7 @@ lock time) — never confirmed against the registry
 | `--resolve` | off | With `--verify`, also re-resolve floating specs against the registry (network; produces `LOCK-004`) |
 | `--allow-unverified` | off | With `--verify`, waive unresolved entries and populated foreign sections from the exit code (restores exit 0), printing exactly what was waived. Never waives an actual LOCK-001/002/004/005 finding. See "Unverified state now fails the exit code" above. |
 | `--accept` | off | Re-write the lock from the current state, preserving each surviving entry's `first_locked` — the explicit "I reviewed the drift" step after a failed `--verify` |
-| `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'mcp-audit-scanner[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
+| `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'credenzo[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
 | `--save-tool-text` | off | With `--connect`: also write the tool definitions to `mcp-lock.tools.json` beside the lock. `mcp-lock.json` is unchanged. See [Saved tool text](#saved-tool-text---save-tool-text). |
 | `--tool-text-path` | `<lock dir>/mcp-lock.tools.json` | Where the tool-text file is written (with `--save-tool-text`) or read (with `--verify --connect`) |
 | `--connect-token` | none | Bearer token sent to remote (SSE/HTTP) servers during `--connect`. Never stored or logged. |

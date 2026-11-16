@@ -14,7 +14,7 @@ already know from ESLint and Pyright.
    not bundle it):
 
    ```bash
-   pip install mcp-audit-scanner
+   pip install credenzo
    # or download a standalone binary from the Releases page
    ```
 

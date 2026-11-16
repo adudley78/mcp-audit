@@ -41,12 +41,12 @@ class CycloneDxFormatter(BaseFormatter):
 
         Raises:
             ImportError: When ``cyclonedx-python-lib`` is not installed.
-                Install via ``pip install 'mcp-audit-scanner[sbom]'``.
+                Install via ``pip install 'credenzo[sbom]'``.
         """
         if not _CYCLONEDX_AVAILABLE:
             raise ImportError(
                 "The 'sbom' extra is required for CycloneDX output. "
-                "Install it with: pip install 'mcp-audit-scanner[sbom]'"
+                "Install it with: pip install 'credenzo[sbom]'"
             )
 
         from cyclonedx.model import XsUri  # noqa: PLC0415

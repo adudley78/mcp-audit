@@ -1,4 +1,4 @@
-# mcp-audit governance policy — Enterprise with Client Overrides
+# Credenzo governance policy — Enterprise with Client Overrides
 #
 # Demonstrates per-client policy overrides. The base policy is strict
 # (like strict.yml), but specific clients have tailored rules:
@@ -7,8 +7,8 @@
 #   - claude-desktop: restricted to stdio only (no network transports)
 #
 # Usage:
-#   mcp-audit scan --policy examples/policies/enterprise.yml
-#   mcp-audit policy validate examples/policies/enterprise.yml
+#   credenzo scan --policy examples/policies/enterprise.yml
+#   credenzo policy validate examples/policies/enterprise.yml
 #
 version: 1
 name: "Enterprise governance policy with client overrides"

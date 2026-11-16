@@ -1,4 +1,4 @@
-# Minimal mcp-audit pre-commit integration.
+# Minimal Credenzo pre-commit integration.
 # Fires whenever a JSON file is staged; fails the commit if any HIGH or
 # CRITICAL findings are detected in your MCP server configurations.
 #

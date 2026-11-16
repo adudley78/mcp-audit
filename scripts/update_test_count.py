@@ -22,7 +22,7 @@ Canonical sources of truth:
   ``v<version>`` into every ``uses: adudley78/mcp-audit[/setup-action]@`` ref
   and pinned ``version:`` input in README.md and the Action docs, every
   pre-commit ``rev:`` for this repo in README.md, docs/ and
-  examples/pre-commit/, and ``mcp-audit-scanner==<version>`` in
+  examples/pre-commit/, and ``credenzo==<version>`` in
   docs/enterprise-deployment.md. A
   release PR bumps the version, so CI's ``--check`` fails until the same PR
   updates the pins; the examples can never point at a tag older than the
@@ -90,7 +90,7 @@ _ACTION_REF_PATTERN = (
 # ``latest``) in examples that pin it. Unquoted ``vX.Y.Z`` only; the
 # ``'latest'`` examples are left alone.
 _VERSION_INPUT_PATTERN = r"(\n[ \t]+version:[ \t]*)v\d+\.\d+\.\d+(?![\w.])"
-_PIP_PIN_PATTERN = r"(mcp-audit-scanner==)\d+\.\d+\.\d+(?![\w.])"
+_PIP_PIN_PATTERN = r"((?:mcp-audit-scanner|credenzo)==)\d+\.\d+\.\d+(?![\w.])"
 
 _PRE_COMMIT_PIN_FILES = (
     "README.md",
@@ -210,7 +210,7 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
         (rel, _PRE_COMMIT_REV_PATTERN, "\\g<1>{release_tag}")
         for rel in _PRE_COMMIT_PIN_FILES
     ),
-    # --- release pin — ``pip install mcp-audit-scanner==X.Y.Z`` examples.
+    # --- release pin — ``pip install credenzo==X.Y.Z`` examples.
     *((rel, _PIP_PIN_PATTERN, "\\g<1>{release_version}") for rel in _PIP_PIN_DOCS),
 ]
 

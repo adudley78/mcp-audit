@@ -348,7 +348,7 @@ MCP servers as components and any known VULN findings as CycloneDX
 fields. Compatible with SBOM tooling such as `grype`, `trivy`, and GitHub
 Dependency Review.
 
-`credenzo sbom` is **free for all tiers**. Requires `pip install 'mcp-audit-scanner[sbom]'`
+`credenzo sbom` is **free for all tiers**. Requires `pip install 'credenzo[sbom]'`
 (the `cyclonedx-python-lib` dependency is optional and not included in the default install
 or the PyInstaller binary).
 

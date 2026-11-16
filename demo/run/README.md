@@ -15,7 +15,7 @@ three cases:
    run` refuses to start it (LOCK-001, exit 78) and says how to approve it.
 
 ```bash
-uv sync --all-extras        # or: pip install 'mcp-audit-scanner[mcp]'
+uv sync --all-extras        # or: pip install 'credenzo[mcp]'
 bash demo/run/run.sh
 ```
 

@@ -54,7 +54,7 @@ credenzo snapshot --rehydrate old-snapshot.json
 | `--format / -f` | `cyclonedx` | `cyclonedx` (CycloneDX 1.5 AI/ML-BOM) or `native` (Credenzo JSON). |
 | `--input / -i` | — | Use a previous `credenzo scan --output-file` JSON instead of running a new scan. |
 | `--path / -p` | auto-discover | Restrict config discovery to this path. |
-| `--sign` | off | Sign the snapshot with sigstore ambient OIDC identity. Requires `pip install 'mcp-audit-scanner[attestation]'`. |
+| `--sign` | off | Sign the snapshot with sigstore ambient OIDC identity. Requires `pip install 'credenzo[attestation]'`. |
 | `--rehydrate` | — | Path to a saved snapshot. Reconstructs the historical attack-path graph. |
 | `--stream` | off | Emit one JSON object per finding on stdout (NDJSON). Ignores `--format`. |
 
@@ -178,7 +178,7 @@ Each finding becomes a `vulnerability` entry:
 
 ```bash
 # Requires sigstore optional dep and an ambient OIDC credential:
-pip install 'mcp-audit-scanner[attestation]'
+pip install 'credenzo[attestation]'
 credenzo snapshot --output snapshot.json --sign
 ```
 

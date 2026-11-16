@@ -9,7 +9,7 @@ static config file.
 **Requires the optional `mcp` extra:**
 
 ```bash
-pip install 'mcp-audit-scanner[mcp]'
+pip install 'credenzo[mcp]'
 ```
 
 The GitHub Release standalone binary does **not** bundle the MCP SDK — `mcp`
@@ -146,12 +146,12 @@ a bearer token through your identity provider and pass it via `--connect-token`.
 
 ## Troubleshooting
 
-**`MCP SDK not installed`** — Run `pip install 'mcp-audit-scanner[mcp]'`. The standalone
+**`MCP SDK not installed`** — Run `pip install 'credenzo[mcp]'`. The standalone
 binary does not include the SDK; switch to a pip/uv install with the `[mcp]` extra.
 
 **`MCP SDK is not bundled in the standalone binary`** — Same cause, different
 wording: you ran the GitHub Release binary. Live `--connect` needs a pip or
-uv install of mcp-audit-scanner with the mcp extra.
+uv install of credenzo with the mcp extra.
 
 **Connection timed out** — The server did not complete the handshake within the
 default 10 s window.  Check that the server process starts correctly with

@@ -64,14 +64,14 @@ SAFE_ENV_VARS: frozenset[str] = frozenset(
 
 # Shown to the user when the optional mcp package is absent.
 MCP_NOT_INSTALLED = (
-    "MCP SDK not installed. Run: pip install 'mcp-audit-scanner[mcp]' "
+    "MCP SDK not installed. Run: pip install 'credenzo[mcp]' "
     "or pip install mcp"
 )
 # Standalone binary: pip-installing into the frozen artifact is not possible.
 # See the four *.spec files — `mcp` is excluded the same way `sigstore` is.
 MCP_NOT_INSTALLED_FROZEN = (
     "MCP SDK is not bundled in the standalone binary. "
-    "Live --connect requires a pip install of mcp-audit-scanner with the mcp extra."
+    "Live --connect requires a pip install of credenzo with the mcp extra."
 )
 
 

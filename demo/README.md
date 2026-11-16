@@ -54,7 +54,7 @@ uv sync --all-extras
 Or if installed globally:
 
 ```bash
-pip install mcp-audit-scanner
+pip install credenzo
 ```
 
 ## Run the demo

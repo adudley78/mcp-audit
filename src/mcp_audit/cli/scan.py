@@ -516,7 +516,7 @@ def _apply_signature_verification(
     except ImportError:
         console.print(
             "[yellow]⚠  --verify-signatures requires the attestation extra.[/yellow]\n"
-            "   Install: [bold]pip install 'mcp-audit-scanner\\[attestation]'[/bold]"
+            "   Install: [bold]pip install 'credenzo\\[attestation]'[/bold]"
         )
         return result
 
@@ -1850,7 +1850,7 @@ def scan(
         help=(
             "Connect to running MCP servers via the protocol handshake and "
             "analyze live tool descriptions "
-            "(requires: pip install 'mcp-audit-scanner\\[mcp]')"
+            "(requires: pip install 'credenzo\\[mcp]')"
         ),
     ),
     connect_token: str | None = typer.Option(  # noqa: B008

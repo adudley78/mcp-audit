@@ -3,10 +3,10 @@
 # appears as a DriftFinding alongside normal security findings.
 #
 # Setup:
-#   1. Run `mcp-audit baseline save ci-baseline` locally.
+#   1. Run `credenzo baseline save ci-baseline` locally.
 #   2. Commit the exported baseline to the repo:
-#        mcp-audit baseline export ci-baseline > .mcp-audit-baseline.json
-#        git add .mcp-audit-baseline.json && git commit -m "chore: add mcp-audit baseline"
+#        credenzo baseline export ci-baseline > .mcp-audit-baseline.json
+#        git add .mcp-audit-baseline.json && git commit -m "chore: add credenzo baseline"
 #   3. On CI, restore it into the baselines directory before the action runs
 #      (the action uses the user-config baseline store; it does not import
 #      a committed file automatically).
