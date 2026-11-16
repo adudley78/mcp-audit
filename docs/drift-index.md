@@ -12,7 +12,7 @@ One number each week: **of the servers that started on both dates, how many chan
 
 1. `current_versions.py` (launch study) resolves the version of each corpus package that is current that day.
 2. `scripts/drift_snapshot.py` installs each package and starts it. npm installs use `--ignore-scripts` and PyPI installs use wheels only, so no package code runs at install time. Each server runs as an unprivileged user, with no network interface and an empty environment.
-3. The script records the lock digests of each tool (`lock/tool_digests.py`), the same digests that `mcp-audit lock --connect` writes. It publishes digests and tool names. It does not publish tool text.
+3. The script records the lock digests of each tool (`lock/tool_digests.py`), the same digests that `credenzo lock --connect` writes. It publishes digests and tool names. It does not publish tool text.
 4. `scripts/drift_compare.py` compares the new snapshot with the one before it.
 5. A second job, which runs no package code, commits the two files.
 

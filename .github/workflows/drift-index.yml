@@ -62,12 +62,12 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Set up Python 3.12 (for mcp-audit)
+      - name: Set up Python 3.12 (for Credenzo)
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
-      - name: Install uv and mcp-audit
+      - name: Install uv and Credenzo
         run: |
           pip install uv
           uv pip install -e ".[mcp]" --system
