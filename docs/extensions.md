@@ -25,12 +25,12 @@ Two recent incidents illustrate the risk:
 - **Claude Code 2.1.313 from Cursor's marketplace** (2026-10-29): a tampered build of
   `Anthropic.claude-code` was served for about 11 hours and planted an SSH key
   (`svc-telemetry`), persistence and a reverse tunnel. It is in the known-bad list, so
-  `mcp-audit extensions scan` reports it as CRITICAL where 2.1.313 is still installed.
+  `credenzo extensions scan` reports it as CRITICAL where 2.1.313 is still installed.
   The backdoor outlives the extension: a machine that has since updated needs
   Cursor's own check (`grep svc-telemetry ~/.ssh/authorized_keys`). See
   [Cursor's notice](https://cursor.com/blog/claude-code-extension-security-notice).
 
-mcp-audit's extension scanner performs static manifest analysis to surface these
+Credenzo's extension scanner performs static manifest analysis to surface these
 issues before they are exploited.
 
 ---
@@ -70,10 +70,10 @@ The same extension installed in multiple clients is reported once per client ins
 
 ## Commands
 
-### `mcp-audit extensions discover` (free, all tiers)
+### `credenzo extensions discover` (free, all tiers)
 
 ```bash
-mcp-audit extensions discover [--client <name>] [--format terminal|json]
+credenzo extensions discover [--client <name>] [--format terminal|json]
 ```
 
 Discovers all installed extensions without analysis.  Use this to understand your
@@ -103,10 +103,10 @@ Found 2 extension(s) across 2 client(s)
 
 ---
 
-### `mcp-audit extensions scan`
+### `credenzo extensions scan`
 
 ```bash
-mcp-audit extensions scan [--client <name>] [--format terminal|json|sarif]
+credenzo extensions scan [--client <name>] [--format terminal|json|sarif]
 ```
 
 Discovers extensions and runs all analysis layers, producing security findings.
@@ -122,10 +122,10 @@ Discovers extensions and runs all analysis layers, producing security findings.
 
 ---
 
-### `mcp-audit scan --include-extensions`
+### `credenzo scan --include-extensions`
 
 ```bash
-mcp-audit scan --include-extensions [all other scan flags]
+credenzo scan --include-extensions [all other scan flags]
 ```
 
 Runs the standard MCP config scan **and** the extension scanner in a single pass.
@@ -227,7 +227,7 @@ Severity: **INFO**.
 - **No runtime behavior monitoring.**  The scanner analyzes static manifest data
   only.  Extensions that conceal capabilities in their JS bundle are not detected.
 
-- **Fleet extension inventory** via `mcp-audit merge` is not yet implemented
+- **Fleet extension inventory** via `credenzo merge` is not yet implemented
   (post-launch roadmap).
 
 ---
@@ -265,7 +265,7 @@ To add a new entry:
 
 ## Roadmap
 
-- **Fleet extension inventory** — `mcp-audit merge` aggregating extension findings
+- **Fleet extension inventory** — `credenzo merge` aggregating extension findings
   across machines (post-launch).
 - **OpenVSX Registry cross-check** — validate publisher identity against the
   OpenVSX API.

@@ -1,4 +1,4 @@
-"""Advisory data model for mcp-audit.
+"""Advisory data model for Credenzo.
 
 Serializes to OSV schema_version 1.6.0 (https://ossf.github.io/osv-schema/) so that
 any osv-scanner-compatible tool can consume our feed. All MCP-specific and OWASP
@@ -33,7 +33,7 @@ ID_PREFIX = "x_MCPSA"  # MCP Security Advisory (OSV experimental namespace)
 FindingClass = str  # one of FIXABLE_FINDING_CLASSES (for fixable findings)
 Transport = str  # "stdio" | "sse" | "http"
 
-# The three finding classes `mcp-audit fix` remediates, each with the OWASP MCP Top 10
+# The three finding classes `credenzo fix` remediates, each with the OWASP MCP Top 10
 # category it always maps to. Codes are the bare `MCP01`..`MCP10` form defined in
 # mcp_audit.owasp_mcp — the repo's single source of truth for this taxonomy — so that a
 # consumer can join advisory records to our SARIF output and to docs/owasp-mapping.json
@@ -105,7 +105,7 @@ class Reference:
 
 @dataclass(frozen=True)
 class VerifiedPatch:
-    """Populated by `mcp-audit fix` once a patch lands. Null-equivalent until then."""
+    """Populated by `credenzo fix` once a patch lands. Null-equivalent until then."""
 
     fixed_version: str | None = None
     pr_url: str | None = None
@@ -149,7 +149,7 @@ class Advisory:
     # Package-intrinsic sub-location the finding applies to (e.g. an MCP tool name).
     # Deliberately NEVER a filesystem path or anything else derived from the scanning
     # host — advisory IDs must be identical on every machine that observes the same
-    # vulnerability, and mcp-audit is privacy-first. Empty string = whole package.
+    # vulnerability, and Credenzo is privacy-first. Empty string = whole package.
     location: str = ""
     # "package-intrinsic" | "deployment" — see module docstring constants.
     observation: str = OBSERVATION_DEPLOYMENT

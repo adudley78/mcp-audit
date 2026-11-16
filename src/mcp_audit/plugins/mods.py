@@ -24,7 +24,7 @@ your mod").  This module reads the source and never executes it.
 
 **The built-in guard.**  ``sec-default@builtin`` stops user mods overriding
 deny rules and managed hooks, but loads only on a machine with managed
-settings or for a Team/Enterprise sign-in.  mcp-audit can see a managed
+settings or for a Team/Enterprise sign-in.  Credenzo can see a managed
 settings *file*; it can't see MDM, registry or server-delivered policy, or how
 the user signs in, so "no managed settings file found" is reported as
 "guard not detected", never as "guard off".
@@ -104,7 +104,7 @@ class Mod:
 
 @dataclass(frozen=True)
 class GuardState:
-    """What mcp-audit can see of the built-in mod guard on this machine.
+    """What Credenzo can see of the built-in mod guard on this machine.
 
     Attributes:
         managed_settings_path: The managed settings file found, if any.
@@ -437,7 +437,7 @@ def analyze_mods(mods: list[Mod], guard: GuardState | None = None) -> list[Findi
 
     Args:
         mods: Mods from :func:`discover_mods`.
-        guard: What mcp-audit can see of the built-in guard; read from the
+        guard: What Credenzo can see of the built-in guard; read from the
             managed settings directory when omitted.
     """
     guard = guard or read_guard_state()

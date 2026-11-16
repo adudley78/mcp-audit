@@ -1,7 +1,7 @@
 # Claude Code plugins
 
-`mcp-audit plugins discover` and `mcp-audit plugins scan` look at the plugins Claude
-Code has installed (STORY-0080), and a normal `mcp-audit scan` includes them by
+`credenzo plugins discover` and `credenzo plugins scan` look at the plugins Claude
+Code has installed (STORY-0080), and a normal `credenzo scan` includes them by
 default. Fully offline: mcp-audit
 reads the files Claude Code keeps under its plugins root and never runs git, a
 package manager, or the agent.
@@ -75,8 +75,8 @@ detached commit a real pinned checkout leaves; a *tag* named like a full SHA doe
 win (git takes a full 40-hex name as the object), but for an abbreviated SHA a tag or
 branch of that name does.
 
-**What mcp-audit reads, and never runs.** Running git in a checkout someone else
-shaped is the GitSpawn attack (`docs/git-exec.md`), so mcp-audit reads `.git/HEAD`,
+**What Credenzo reads, and never runs.** Running git in a checkout someone else
+shaped is the GitSpawn attack (`docs/git-exec.md`), so Credenzo reads `.git/HEAD`,
 the loose ref files and `packed-refs` as text, follows at most five symbolic refs as
 git does, and reads no objects. The install directory must sit under the plugins root
 with no symbolic link between them; a symlinked `.git`, a ref that is a symbolic link
@@ -139,7 +139,7 @@ inside Claude Code with your permissions and aren't sandboxed. A mod can read fi
 environment variables, start programs, make network requests, rewrite prompts and tool
 descriptions, and approve a tool call before the permission prompt appears.
 
-mcp-audit finds mods in three places:
+Credenzo finds mods in three places:
 
 - installed plugins;
 - mods Claude wrote during a session, in `~/.claude/dev-mods/<session>/<mod>/`;
@@ -162,7 +162,7 @@ written in full, so this static read sees the same hooks and calls that
 
 **The built-in guard.** `sec-default@builtin` stops user mods from overriding deny
 rules and managed hooks, but it loads only on a machine with managed settings or for a
-Team or Enterprise sign-in. mcp-audit reads the managed settings file
+Team or Enterprise sign-in. Credenzo reads the managed settings file
 (`/Library/Application Support/ClaudeCode/`, `/etc/claude-code/`,
 `C:\Program Files\ClaudeCode\`, plus `managed-settings.d/`). When it finds none, the
 findings say the guard wasn't detected; they don't say it's off, because MDM, registry
@@ -180,22 +180,22 @@ With `allowModsToOverrideDenyRules` set, MOD-001 says so.
 ## In a normal scan
 
 A plugin's MCP servers run in Claude Code like any other configured server, so
-`mcp-audit scan` (and `check`, `dashboard`, `shadow`, `sbom`, `watch`, everything that
+`credenzo scan` (and `check`, `dashboard`, `shadow`, `sbom`, `watch`, everything that
 auto-discovers configs) includes them by default, along with PLUGIN-001..004:
 
 | Command | Plugin MCP servers | PLUGIN-001..004 and MOD-* | Plugin skills and commands |
 |---|---|---|---|
-| `mcp-audit scan` | yes | yes | with `--include-agent-files` |
-| `mcp-audit scan --path <file>` | no | no | with `--include-agent-files` |
-| `mcp-audit scan --no-plugins` | no | no | no |
-| `mcp-audit plugins scan` | yes | yes | yes |
+| `credenzo scan` | yes | yes | with `--include-agent-files` |
+| `credenzo scan --path <file>` | no | no | with `--include-agent-files` |
+| `credenzo scan --no-plugins` | no | no | no |
+| `credenzo plugins scan` | yes | yes | yes |
 
-`mcp-audit plugins discover` shows a Mod column (the number of hooks), and its JSON
+`credenzo plugins discover` shows a Mod column (the number of hooks), and its JSON
 gives each mod's events and calls, including Claude-written dev mods and
 `CLAUDE_CODE_PLUGIN_DIRS` directories.
 
 An explicit `--path` means "scan exactly this", so plugin servers stay out of it.
-`mcp-audit lock` never records plugin servers: their marketplace `sha` already pins
+`credenzo lock` never records plugin servers: their marketplace `sha` already pins
 them (PLUGIN-001 checks it), and their cache paths differ per machine.
 
 See `GAPS.md` for what is not covered.

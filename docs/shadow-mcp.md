@@ -1,4 +1,4 @@
-# Shadow MCP Servers — `mcp-audit shadow`
+# Shadow MCP Servers — `credenzo shadow`
 
 > Find your shadow MCP servers — every one on every developer's machine,
 > classified, scored, and event-logged. OWASP MCP09. Open source. No agent.
@@ -18,7 +18,7 @@ external networks, a single undiscovered shadow server can give an attacker or
 a malicious prompt-injected agent everything it needs to exfiltrate data or
 execute arbitrary code.
 
-The `mcp-audit shadow` command gives security teams one opinionated workflow to
+The `credenzo shadow` command gives security teams one opinionated workflow to
 answer the question every CISO needs answered:
 
 > _What MCP servers are running on our developers' machines, and are any of them
@@ -30,23 +30,23 @@ answer the question every CISO needs answered:
 
 ```bash
 # Single sweep — all shadow, no allowlist
-mcp-audit shadow
+credenzo shadow
 
 # JSON output, pipeline-friendly
-mcp-audit shadow --format json | jq '.[] | select(.classification == "shadow")'
+credenzo shadow --format json | jq '.[] | select(.classification == "shadow")'
 
 # With an allowlist of approved servers
-mcp-audit shadow --allowlist .mcp-audit-allowlist.yml
+credenzo shadow --allowlist .mcp-audit-allowlist.yml
 
 # Continuous daemon mode — emits events on config change
-mcp-audit shadow --continuous
+credenzo shadow --continuous
 ```
 
 ---
 
 ## How It Works
 
-On each invocation `mcp-audit shadow`:
+On each invocation `credenzo shadow`:
 
 1. **Sweeps** every known MCP config location on the host (Claude Desktop,
    Cursor, VS Code, Windsurf, Augment, Claude Code, Copilot CLI, project-local
@@ -96,7 +96,7 @@ sanctioned_capabilities: []  # informational only — does not affect classifica
 
 ### Allowlist Resolution Order
 
-When `--allowlist` is not given, `mcp-audit shadow` auto-discovers the allowlist
+When `--allowlist` is not given, `credenzo shadow` auto-discovers the allowlist
 in this order:
 
 1. `.mcp-audit-allowlist.yml` / `.mcp-audit-allowlist.yaml` / `mcp-audit-allowlist.yml`
@@ -163,11 +163,11 @@ against the registry to request capability enrichment.
 
 ## Continuous Mode
 
-`--continuous` turns `mcp-audit shadow` into a long-running daemon that emits
+`--continuous` turns `credenzo shadow` into a long-running daemon that emits
 structured events whenever the underlying MCP config files change:
 
 ```bash
-mcp-audit shadow --continuous --format json
+credenzo shadow --continuous --format json
 ```
 
 ### Event Types
@@ -183,7 +183,7 @@ All events carry `owasp_mcp_top_10: ["MCP09"]` and an ISO 8601 timestamp.
 ### Writing Events to a File
 
 ```bash
-mcp-audit shadow --continuous --format json --output-file /var/log/mcp-shadow.jsonl
+credenzo shadow --continuous --format json --output-file /var/log/mcp-shadow.jsonl
 ```
 
 ### Wiring to syslog / SIEM
@@ -191,7 +191,7 @@ mcp-audit shadow --continuous --format json --output-file /var/log/mcp-shadow.js
 Pipe stdout directly to a syslog forwarder:
 
 ```bash
-mcp-audit shadow --continuous --format json | logger -t mcp-audit-shadow
+credenzo shadow --continuous --format json | logger -t mcp-audit-shadow
 ```
 
 Or use the built-in syslog sink (uses `SysLogHandler` — `/dev/log` on Linux,
@@ -274,7 +274,7 @@ standard category code without custom parsing.
 
 - **No network calls.** `shadow` runs fully offline by default; capability
   lookup uses the bundled registry. The user-cached registry update path
-  (`mcp-audit update-registry`) is unchanged.
+  (`credenzo update-registry`) is unchanged.
 - **Allowlist ≠ governance policy.** The allowlist is specific to `shadow` and
   is not coupled to the governance engine's `approved_servers` list (see
   [governance.md](governance.md)). A future story may unify them.

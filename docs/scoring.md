@@ -1,6 +1,6 @@
 # Scan Score Methodology
 
-mcp-audit assigns every scan a letter grade (A–F) and numeric score (0–100)
+Credenzo assigns every scan a letter grade (A–F) and numeric score (0–100)
 based on the findings produced.
 
 ## Scoring Algorithm
@@ -59,7 +59,7 @@ terminal output. The score is still calculated and included in JSON and HTML
 output regardless.
 
 ```
-mcp-audit scan --no-score
+credenzo scan --no-score
 ```
 
 ## Custom Scoring Weights

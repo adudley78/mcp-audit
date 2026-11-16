@@ -1,27 +1,27 @@
 # Research records
 
-Some of the most important findings about coding agents and MCP clients are published as research write-ups, not CVEs: a named attack, a bypass, a campaign. They often have no CVE for weeks or never. A **research record** is mcp-audit's machine-readable, credited copy of one of those findings, so that a command can answer "am I affected" for it the way it does for a CVE. That command, `mcp-audit affected`, is planned (EPIC-0008) and does not exist yet; today the file is data and a loader.
+Some of the most important findings about coding agents and MCP clients are published as research write-ups, not CVEs: a named attack, a bypass, a campaign. They often have no CVE for weeks or never. A **research record** is Credenzo's machine-readable, credited copy of one of those findings, so that a command can answer "am I affected" for it the way it does for a CVE. That command, `credenzo affected`, is planned (EPIC-0008) and does not exist yet; today the file is data and a loader.
 
 The records are in `src/mcp_audit/data/research-records.json`. They ship inside the wheel and all four binaries and are read offline.
 
 ## What a record says, and does not say
 
-A record states what the write-up reported: who found it, which products it affected, where each was fixed, and which mcp-audit checks test the condition. It does not say that you are affected. That comes from running the checks on your machine.
+A record states what the write-up reported: who found it, which products it affected, where each was fixed, and which Credenzo checks test the condition. It does not say that you are affected. That comes from running the checks on your machine.
 
 Nothing is inferred. A field the write-up does not give is empty, not guessed:
 
 - **Products are named as the write-up names them** (for example "Claude Code", "Codex"). `affected` reads installed Claude Code, Codex and Gemini CLI versions from files (`harness_versions.py`, never executing them) and compares them with a product's `fixed_in`; with no install found it says "could not check" and points at the checks that test the condition directly.
 - **No CVE is invented.** An alias is added only when an authority assigns one.
 - **A fix is "fixed" only with a first fixed version.** Otherwise the status is `unfixed` (no fix yet), `wontfix` (the vendor said none will ship), or `fixed-server-side` (the vendor fixed its own service, so no client version is affected or fixed; `fixed_in` stays null and the note gives the date), with who said so.
-- **`status` can gain values.** `fixed-server-side` was added in 0.25.0; read the field tolerantly. mcp-audit's own loader before 0.25.0 skips a record with a status it does not know rather than failing the file. In `affected`, a product row of a record with no checks carries `reason: vendor-service` (no local version or check can answer it).
+- **`status` can gain values.** `fixed-server-side` was added in 0.25.0; read the field tolerantly. Credenzo's own loader before 0.25.0 skips a record with a status it does not know rather than failing the file. In `affected`, a product row of a record with no checks carries `reason: vendor-service` (no local version or check can answer it).
 
 ## Credit
 
-Every record names the finders, by person and company, in the record, in `PROVENANCE.md` and in the CHANGELOG. A record never implies the finders endorse mcp-audit.
+Every record names the finders, by person and company, in the record, in `PROVENANCE.md` and in the CHANGELOG. A record never implies the finders endorse Credenzo.
 
 ## Record format
 
-OSV-shaped (schema 1.6.0 fields, validated in tests), with mcp-audit's fields under `database_specific.mcp_audit`:
+OSV-shaped (schema 1.6.0 fields, validated in tests), with Credenzo's fields under `database_specific.mcp_audit`:
 
 | Field | Meaning |
 |---|---|
@@ -31,7 +31,7 @@ OSV-shaped (schema 1.6.0 fields, validated in tests), with mcp-audit's fields un
 | `aliases` | CVE or GHSA IDs once one exists. |
 | `database_specific.mcp_audit.kind` | `research`. |
 | `database_specific.mcp_audit.products` | Product, vendor, `status` (`fixed`, `unfixed`, `wontfix`, `fixed-server-side`), `fixed_in`, a note saying who reported it, and optionally `introduced` and `platforms` (below). |
-| `database_specific.mcp_audit.checks` | mcp-audit finding IDs that test the condition. |
+| `database_specific.mcp_audit.checks` | Credenzo finding IDs that test the condition. |
 
 Two optional product fields narrow who is affected, for write-ups that say so:
 
@@ -49,9 +49,9 @@ A malformed record is skipped and reported, and a file that cannot be read gives
 | ID | Finding | Credited to |
 |---|---|---|
 | `x_MCPRS-4ad8c07d80d7` | **Plugin4Shell** (2026-09-17): a plugin's pinned commit replaced by a branch named like the SHA, or by `FETCH_HEAD`. Fixed in Claude Code 2.1.179 and Codex 0.146.0; not fixed in GitHub Copilot; Google will not fix Gemini CLI (deprecated). PLUGIN-003 and PLUGIN-004 test the condition, but only on Claude Code's plugin directory and only for installs that kept their `.git`; they do not examine the other three. | Or Nevo, Dor Granat and Niv Hoffman, [AIR Security](https://www.air.security/blog-posts/plugin4shell) |
-| `x_MCPRS-32fc646f6f96` | **ContextCrush** (2026-03-05): Context7's Custom Rules ("AI Instructions") were served verbatim to agents by the Context7 MCP server, so a library owner's text reached every user's agent as documentation. Noma's proof of concept had the agent read `.env` files, post them to an attacker's GitHub issue and delete files. Noma reports a server-side fix on 2026-02-23; Upstash's own confirmation was not found. No CVE. No client version is affected, so no local version shows exposure, and no mcp-audit check tests the condition (`checks` is empty). Its status is `fixed-server-side` (added for this record): the vendor fixed its own service, so `fixed_in` is null and the note gives the date. | Eli Ainhorn, [Noma Security](https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/) |
+| `x_MCPRS-32fc646f6f96` | **ContextCrush** (2026-03-05): Context7's Custom Rules ("AI Instructions") were served verbatim to agents by the Context7 MCP server, so a library owner's text reached every user's agent as documentation. Noma's proof of concept had the agent read `.env` files, post them to an attacker's GitHub issue and delete files. Noma reports a server-side fix on 2026-02-23; Upstash's own confirmation was not found. No CVE. No client version is affected, so no local version shows exposure, and no Credenzo check tests the condition (`checks` is empty). Its status is `fixed-server-side` (added for this record): the vendor fixed its own service, so `fixed_in` is null and the note gives the date. | Eli Ainhorn, [Noma Security](https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/) |
 | `x_MCPRS-c83726dd3047` | **Claude Code: PreToolUse "ask" overridden in `bypassPermissions` when the same call writes into `.git/` or `.claude/`** (reported 2026-10-21, [anthropics/claude-code#103994](https://github.com/anthropics/claude-code/issues/103994)). A **reported bug**, not behaviour Claude Code's documentation describes: a hook that returns `permissionDecision: "ask"` is normally turned into a denial when no one can be asked (`claude -p`), but the reporter shows the protected-path approval of `bypassPermissions` winning over the hook for a call that also touches those directories. Reported against 2.1.302 on Windows 11; open and not addressed in Claude Code's CHANGELOG through 2.1.316 when read on 2026-11-01. Status `unfixed`, no CVE. No check tests the condition (`checks` is empty; HARNESS-001 reports the `bypassPermissions` default, a precondition only), so `affected` answers COULDN'T CHECK. | sergvss, via the [GitHub issue](https://github.com/anthropics/claude-code/issues/103994) |
-| `x_MCPRS-3a7e475c087d` | **OpenCode: remote code execution through the MCP OAuth sign-in flow** (no CVE). A remote MCP server could make OpenCode run a PowerShell command during OAuth sign-in. npm package `opencode-ai` 1.0.137 through 1.18.32, **on Windows and WSL only**; fixed in 1.18.33 (published to npm 2026-09-28). Uses `introduced` and `platforms`. No mcp-audit check tests the OAuth flow (`checks` is empty), so `affected` answers from the installed version and the host platform: 1.18.32 on Windows or WSL is AFFECTED, 1.18.33 and later NOT AFFECTED, below 1.0.137 NOT AFFECTED, any version on macOS or Linux NOT AFFECTED. OpenCode's own installer (`~/.opencode/bin`) keeps no version file, so it is COULDN'T CHECK. | Eilon Cohen, [Pillar Security](https://www.pillar.security/blog/open-and-shut-remote-code-execution-in-opencode-via-mcp-oauth) |
+| `x_MCPRS-3a7e475c087d` | **OpenCode: remote code execution through the MCP OAuth sign-in flow** (no CVE). A remote MCP server could make OpenCode run a PowerShell command during OAuth sign-in. npm package `opencode-ai` 1.0.137 through 1.18.32, **on Windows and WSL only**; fixed in 1.18.33 (published to npm 2026-09-28). Uses `introduced` and `platforms`. No Credenzo check tests the OAuth flow (`checks` is empty), so `affected` answers from the installed version and the host platform: 1.18.32 on Windows or WSL is AFFECTED, 1.18.33 and later NOT AFFECTED, below 1.0.137 NOT AFFECTED, any version on macOS or Linux NOT AFFECTED. OpenCode's own installer (`~/.opencode/bin`) keeps no version file, so it is COULDN'T CHECK. | Eilon Cohen, [Pillar Security](https://www.pillar.security/blog/open-and-shut-remote-code-execution-in-opencode-via-mcp-oauth) |
 | `x_MCPRS-1fec894b3c53` | **Claude Code: Edit-tool time-of-check to time-of-use race** (CVE-2026-88968, GHSA-5xjx-9qx6-jcrv, OSV 2026-11-09). A process inside Claude Code's Bash sandbox could swap an in-workspace directory for a symlink after validation, so the Edit tool wrote a file outside the workspace (described on macOS). Fixed in Claude Code 2.1.251; no lower bound or platform limit is recorded. No check tests the condition (`checks` is empty), so `affected` answers from the installed version: below 2.1.251 AFFECTED, 2.1.251 and later NOT AFFECTED. This record has a CVE, unlike the others above. | Sunder Singh (hackerone.com/mahoraga007), via the [GitHub advisory](https://github.com/anthropics/claude-code/security/advisories/GHSA-5xjx-9qx6-jcrv) |
 
 ## Adding one

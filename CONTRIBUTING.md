@@ -1,6 +1,6 @@
 # Contributing to mcp-audit
 
-Thank you for your interest in contributing. mcp-audit is an open-core
+Thank you for your interest in contributing. Credenzo is an open-core
 project — the community scanner is Apache 2.0, and we welcome contributions
 to detection rules, the known-server registry, and the core scanner.
 
@@ -24,7 +24,7 @@ Open an issue with:
 
 Open an issue with:
 
-- mcp-audit version (`mcp-audit version`)
+- credenzo version (`credenzo version`)
 - OS and Python version
 - The command you ran
 - The full output including any error messages
@@ -198,7 +198,7 @@ Create `tests/test_your_analyzer.py`. Tests must cover:
 
 ## Adding a new feature
 
-mcp-audit is fully open source (Apache 2.0) and every feature is available
+Credenzo is fully open source (Apache 2.0) and every feature is available
 to every user.  All paid-license plumbing (Ed25519 key verification,
 `activate` / `license` commands, `_FEATURE_TIERS`, the `gate()` shim,
 `cached_is_pro_feature_available`) was removed in v0.2.0.
@@ -230,10 +230,10 @@ bootstrap that returns a plausible-but-wrong environment is worse than one
 that refuses.
 
 **semgrep is installed system-wide via `pipx`, deliberately outside the
-Python environment mcp-audit's own deps live in.** `pyproject.toml`'s `dev`
+Python environment Credenzo's own deps live in.** `pyproject.toml`'s `dev`
 extra explains why: `pysemgrep` breaks with a `pkg_resources` import error
 under `capture_output=True` (used by `sast/runner.py`) when it shares an
-environment with mcp-audit's own dependencies.
+environment with Credenzo's own dependencies.
 
 **cosign is pinned to `v3.0.6` by hand, not parsed.** `ci.yml` installs
 cosign via `sigstore/cosign-installer@6f9f177...` (pinned action SHA, v4.1.2)
@@ -269,7 +269,7 @@ pytest tests/ -q -rs
 ruff check src/ tests/ && ruff format --check src/ tests/
 uv run python scripts/update_test_count.py --check
 uv run python scripts/validate_owasp_mapping.py
-mcp-audit sast --help
+credenzo sast --help
 ```
 
 Use `-rs` (report skips), not a bare `-q`. **A green `pytest` run with

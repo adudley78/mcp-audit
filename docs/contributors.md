@@ -1,7 +1,7 @@
-# mcp-audit Community Contributors
+# Credenzo Community Contributors
 
 Thank you to everyone who has contributed detection rules, research citations, or
-bug reports that improved mcp-audit's accuracy.
+bug reports that improved Credenzo's accuracy.
 
 ---
 

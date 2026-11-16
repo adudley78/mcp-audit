@@ -1,7 +1,7 @@
 """The ``affected`` command: "is this advisory in my agent stack?" (STORY-0121).
 
-``mcp-audit affected CVE-2025-53109`` or ``mcp-audit affected litellm@==1.107.0``
-reads every MCP server mcp-audit discovers and answers per server: AFFECTED,
+``credenzo affected CVE-2025-53109`` or ``credenzo affected litellm@==1.107.0``
+reads every MCP server Credenzo discovers and answers per server: AFFECTED,
 NOT AFFECTED or COULDN'T CHECK, with the evidence and where the version came
 from (the launch command's exact pin, or a lock's ``resolved_version``).
 
@@ -75,7 +75,7 @@ def _fail(message: str) -> typer.Exit:
 def _discover(
     paths: list[Path], errors: list[str], unreadable: list[Row]
 ) -> list[ServerConfig]:
-    """Every server mcp-audit can find (or the ones in the given files).
+    """Every server Credenzo can find (or the ones in the given files).
 
     A config that cannot be parsed hides all of its servers, so it becomes a
     COULDN'T CHECK row in *unreadable* as well as a warning.
@@ -156,7 +156,7 @@ def _live_rules(advisory_id: str, report: Report) -> RuleSet:
     rules = [RecordRule(rec, curated=False) for rec in records_from_osv(osv)]
     if not rules:
         raise _fail(
-            f"{advisory_id} has no npm or PyPI version ranges mcp-audit can evaluate"
+            f"{advisory_id} has no npm or PyPI version ranges Credenzo can evaluate"
         )
     report.live = True
     return RuleSet(rules=list(rules), sources=["OSV.dev (--live)"])
@@ -249,8 +249,8 @@ def _run_fix(
         )
     if apply:
         con.print(
-            "\n[dim]Pinned. Re-run `mcp-audit affected` to confirm, and "
-            "`mcp-audit lock` to record the new version in your lock.[/dim]"
+            "\n[dim]Pinned. Re-run `credenzo affected` to confirm, and "
+            "`credenzo lock` to record the new version in your lock.[/dim]"
         )
     elif by_config:
         con.print("\n[dim]Dry run, no files modified. Pass --apply to write.[/dim]")
@@ -292,7 +292,7 @@ def _write_policy(
         "of an AFFECTED server, so it does not block the same package launched "
         "another way, and Claude Code is the only client that reads it. Deploy it "
         "as a managed-settings drop-in "
-        "(https://code.claude.com/docs/en/managed-mcp); mcp-audit does not."
+        "(https://code.claude.com/docs/en/managed-mcp); Credenzo does not."
     )
     if unchecked:
         out.append(
@@ -430,7 +430,7 @@ def affected(
         None,
         "--bundle-key",
         help=(
-            "Minisign public key for --bundle (default: mcp-audit's project key, "
+            "Minisign public key for --bundle (default: Credenzo's project key, "
             "or $MCP_AUDIT_SIGNING_PUBKEY)."
         ),
     ),

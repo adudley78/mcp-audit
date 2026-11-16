@@ -23,7 +23,7 @@ known-server registry lists, a range that says *every* version
 explicit versions.  GitHub's malware advisories use that blanket range even
 for a single compromised release of a real package (``@browserbasehq/mcp``:
 OSV ``MAL-2025-191195`` lists ``2.1.1`` beside a blanket range, while npm
-still serves the clean ``3.0.0``).  The registry is mcp-audit's statement that
+still serves the clean ``3.0.0``).  The registry is Credenzo's statement that
 the package as a whole is legitimate, so the explicit list wins there.
 
 The loader is tolerant: a missing or malformed file yields an empty index
@@ -98,7 +98,7 @@ class MaliciousRecord:
         ranges: Each range's events, as ``((kind, version), …)`` tuples in
             file order; ``kind`` is ``introduced``, ``fixed`` or
             ``last_affected``.
-        note: mcp-audit's own context note, if the sync script added one.
+        note: Credenzo's own context note, if the sync script added one.
     """
 
     id: str

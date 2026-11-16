@@ -1,6 +1,6 @@
 """Rehydrate a historical snapshot into a live attack-path graph.
 
-Given an old ``mcp-audit snapshot`` JSON file, reconstruct the
+Given an old ``credenzo snapshot`` JSON file, reconstruct the
 :class:`~mcp_audit.models.AttackPathSummary` as it was at the snapshot
 timestamp — bypassing live config discovery entirely.
 
@@ -34,7 +34,7 @@ class RehydratedSnapshot:
     Attributes:
         snapshot_timestamp: ISO 8601 timestamp recorded in the snapshot.
         host_id: Hostname recorded in the snapshot.
-        version: mcp-audit version that produced the snapshot.
+        version: Credenzo version that produced the snapshot.
         result: Reconstructed :class:`~mcp_audit.models.ScanResult` with the
             attack-path graph as it was at snapshot time.
     """

@@ -159,25 +159,25 @@ Reproduced with the **literal README commands** — no path arguments, which is
 the form the first screen actually shows:
 
 ```
-$ mcp-audit lock
+$ credenzo lock
 Locked 1 server(s).   claude-code/notion  2.5.1              [exit 0]
 
-$ mcp-audit lock --verify
+$ credenzo lock --verify
 Lock: 1 servers verified; not verified: tools, trees          [exit 0]
 
-$ mcp-audit check
+$ credenzo check
   Grade: D  (Score: 55/100)
   Lock: 2 finding(s) across 1 locked server
   4. [HIGH]   Server not in lock: 'notion'
-     -> This server is not in the lock. Run `mcp-audit lock` to add it once
+     -> This server is not in the lock. Run `credenzo lock` to add it once
         you've reviewed it.
   5. [MEDIUM] Locked server missing: 'notion'
      -> This server is in the lock but no longer in your config. Run
-        `mcp-audit lock` to remove it, or restore the server.    [exit 1]
+        `credenzo lock` to remove it, or restore the server.    [exit 1]
 ```
 
 The two remediation hints contradict each other about the same server, and
-both tell the user to run `mcp-audit lock` — which changes nothing, because
+both tell the user to run `credenzo lock` — which changes nothing, because
 the lock is already correct. There is no escape from the loop except
 `--no-lock`.
 
@@ -202,7 +202,7 @@ only way to a truthful result is `--no-lock`, i.e. turning the feature off.
 
 ### R60-02 — `fix` cannot remediate `CRED-003` (POST-LAUNCH)
 
-`check` prints "Run `mcp-audit fix --apply` to auto-remediate [CRED-003]";
+`check` prints "Run `credenzo fix --apply` to auto-remediate [CRED-003]";
 `fix --apply --fix-type credentials` replies "No fixable findings in this
 scan." and exits 0. `_FIX_TYPE_IDS["credentials"]` in `fixer/fixer.py` is
 `{"CRED-001", "CRED-002"}` — `CRED-003` is filtered out before
@@ -237,7 +237,7 @@ with `\\[`, so the codebase knows about this hazard — the raised-exception
 paths just never got the same treatment.
 
 R60-05 is the separate, sharper half: `scan --connect` names distribution
-**`mcp-audit`**, which is **unclaimed on PyPI** (`/pypi/mcp-audit/json` → 404;
+**`credenzo`**, which is **unclaimed on PyPI** (`/pypi/mcp-audit/json` → 404;
 ours is `mcp-audit-scanner`). A supply-chain scanner that detects typosquatting
 is telling users to `pip install` a name it does not own. Also at
 `mcp_client.py:66` and `scanner.py:412`.

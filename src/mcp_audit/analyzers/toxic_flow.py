@@ -651,7 +651,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
 #     (FILE_READ + SHELL_EXEC) rather than borrowed from an exfiltration
 #     pair: the shape is identical (attacker-controlled content reaches a
 #     shell-exec sink), just via a write instead of a read, and SHELL_EXEC's
-#     reach is not scoped by mcp-audit's capability model any more for a
+#     reach is not scoped by Credenzo's capability model any more for a
 #     write than for a read — so the write-target problem that blocks
 #     FILE_WRITE + NETWORK_OUT (see below) does not apply here.
 #   - FILE_WRITE + NETWORK_OUT was measured and explicitly REJECTED as a
@@ -663,7 +663,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
 #     paired against every one of the 21 NETWORK_OUT-capable registry
 #     entries. Severity for this pair depends almost entirely on WHERE the
 #     write lands — a scratch directory is nothing, `~/.claude/CLAUDE.md`
-#     is critical — and mcp-audit's capability model has no notion of write
+#     is critical — and Credenzo's capability model has no notion of write
 #     target (tag_server() never inspects a server's configured directory
 #     argument). Shipping one severity for two situations that differ by
 #     orders of magnitude was rejected as indefensible per this project's

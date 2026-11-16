@@ -527,7 +527,7 @@ def build_info_symlink_finding(path: Path, client_name: str) -> Finding:
             f"'{path}' is a symlink ({detail}). This is commonly how dotfile"
             " managers (GNU Stow, chezmoi, yadm, dotbot) keep client configs"
             " under version control — no action is required if this was set"
-            " up intentionally. mcp-audit scanned the file's real content"
+            " up intentionally. Credenzo scanned the file's real content"
             " through the link."
         ),
         evidence=f"Visible path: {path} | Resolved target: {resolved_str}",
@@ -544,7 +544,7 @@ def build_info_symlink_finding(path: Path, client_name: str) -> Finding:
 def build_untraversed_symlink_dir_finding(path: Path, client_name: str) -> Finding:
     """TRUST-005: a symlinked directory was not traversed during discovery.
 
-    mcp-audit never follows a symlinked directory while walking a tree — loop
+    Credenzo never follows a symlinked directory while walking a tree — loop
     and blow-up protection that predates this finding and does not change.
     That refusal used to be entirely silent; this finding makes it visible so
     a config or agent-instruction file nested only inside a symlinked
@@ -560,7 +560,7 @@ def build_untraversed_symlink_dir_finding(path: Path, client_name: str) -> Findi
         server=path.name,
         title="Symlinked directory was not scanned",
         description=(
-            f"'{path}' is a symlinked directory. mcp-audit does not follow"
+            f"'{path}' is a symlinked directory. Credenzo does not follow"
             " symlinked directories while walking a tree (this prevents"
             " symlink loops and runaway recursion), so nothing under this"
             " path was examined by this scan."
@@ -926,7 +926,7 @@ def discover_project_agent_configs(
     """Walk *root* for subagent definitions (``.claude/agents/**/*.md``).
 
     The ``scan --project`` counterpart of :func:`discover_project_configs`,
-    kept separate so ``mcp-audit lock`` (which records
+    kept separate so ``credenzo lock`` (which records
     :func:`discover_project_configs` output) never sees inline subagent
     servers. Uses the agent-file walk (same depth cap, skip list and symlink
     rules), restricted to the subagent entries of ``AGENT_INSTRUCTION_PATTERNS``.
@@ -1056,7 +1056,7 @@ _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
 # via the official MCP Registry) planted a `.claude/settings.json`
 # SessionStart hook (already covered by CFHYG-005/HOOK-001/002) AND a
 # `.vscode/tasks.json` task with `"runOn": "folderOpen"` — the second file
-# was previously invisible to mcp-audit.
+# was previously invisible to Credenzo.
 #
 # TRUST-008 (STORY-0090) adds other harnesses' repo-planted auto-run files,
 # each confirmed from the vendor's own docs (see docs/agent-execution-surface.md):
@@ -1151,7 +1151,7 @@ def discover_project_configs(
 ) -> list[DiscoveredConfig]:
     """Walk a repository tree and find all project-level MCP config files.
 
-    This function is the discovery back-end for ``mcp-audit scan --project``.
+    This function is the discovery back-end for ``credenzo scan --project``.
     It is entirely separate from :func:`discover_configs` and does **not**
     alter the default scan behaviour.
 
@@ -1178,7 +1178,7 @@ def discover_project_configs(
         include_gateways: Also return MCP gateway project configs
             (:data:`mcp_audit.gateways.PROJECT_GATEWAY_FILES`, STORY-0111),
             with the same symlink rules.  ``scan --project`` passes ``True``;
-            ``mcp-audit lock`` does not, so locks never record gateway
+            ``credenzo lock`` does not, so locks never record gateway
             upstreams.
 
     Returns:

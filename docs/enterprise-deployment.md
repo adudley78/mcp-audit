@@ -4,16 +4,16 @@
 > path have been confirmed against a live Nucleus instance. The
 > multipart/form-data upload, job polling, and JSON schema are all verified.
 >
-> **Note:** mcp-audit is fully open source (Apache 2.0). Every feature
+> **Note:** Credenzo is fully open source (Apache 2.0). Every feature
 > described below — the dashboard, FlexConnect output, `push-nucleus`, fleet
 > merge, governance — is available to every user with no license key
 > required. This guide is kept as "enterprise-deployment.md" for URL
-> stability but applies to any team rolling out mcp-audit across multiple
+> stability but applies to any team rolling out Credenzo across multiple
 > machines.
 
 ## Overview
 
-mcp-audit is a CLI scanner that runs on individual developer machines to
+Credenzo is a CLI scanner that runs on individual developer machines to
 discover and assess MCP server configurations. MCP servers give AI agents
 (Claude, Cursor, VS Code Copilot) access to file systems, databases, and
 external APIs. Misconfigured or compromised MCP servers are an endpoint-level
@@ -21,7 +21,7 @@ risk — they live on developer laptops, not in your data center.
 
 For fleet-wide visibility:
 
-1. Deploy mcp-audit to every developer machine.
+1. Deploy Credenzo to every developer machine.
 2. Run it on a schedule (daily is sufficient for most teams).
 3. Collect results into your vulnerability management platform.
 
@@ -77,7 +77,7 @@ No Python installation required. The binary bundles the Python runtime and all d
 
 ### Option B — Python package (PyPI)
 
-The PyPI package is `mcp-audit-scanner`; the command it installs is `mcp-audit`.
+The PyPI package is `mcp-audit-scanner`; the command it installs is `credenzo`.
 
 ```bash
 pip install mcp-audit-scanner
@@ -100,7 +100,7 @@ uv tool install -e ".[mcp]"
 Verify the install on any machine:
 
 ```bash
-mcp-audit version
+Credenzo version
 ```
 
 ---
@@ -110,7 +110,7 @@ mcp-audit version
 The standard fleet command:
 
 ```bash
-mcp-audit scan \
+credenzo scan \
   --format nucleus \
   --asset-prefix "$(hostname)" \
   -o /tmp/mcp-audit-results.json
@@ -130,7 +130,7 @@ mcp-audit scan \
 **Example with asset tag and severity filter:**
 
 ```bash
-mcp-audit scan \
+credenzo scan \
   --format nucleus \
   --asset-prefix "ASSET-1042" \
   --severity-threshold HIGH \
@@ -152,7 +152,7 @@ the import job in a single command — no manual curl required.
 ```bash
 export NUCLEUS_API_KEY="$NUCLEUS_API_KEY"
 
-mcp-audit push-nucleus \
+credenzo push-nucleus \
   --url https://<your-nucleus-url> \
   --project-id 7 \
   --asset-prefix "$(hostname)" \
@@ -186,7 +186,7 @@ shared location into Nucleus.
 
 ### Option C — Direct Nucleus connector
 
-If a native mcp-audit connector is available in the Nucleus connector
+If a native Credenzo connector is available in the Nucleus connector
 marketplace, configure it to pull from your shared storage location. This
 automates ingestion without a separate push script.
 
@@ -280,7 +280,7 @@ Register-ScheduledTask `
 ### Ansible — cron module
 
 ```yaml
-- name: Schedule mcp-audit daily scan
+- name: Schedule Credenzo daily scan
   ansible.builtin.cron:
     name: mcp-audit-daily
     minute: "0"
@@ -323,7 +323,7 @@ Once FlexConnect files are ingested:
 
 ## Optional: Continuous Monitoring
 
-For high-security environments, `mcp-audit watch` runs as a background daemon
+For high-security environments, `credenzo watch` runs as a background daemon
 that re-scans every time a config file changes. This catches supply-chain
 compromises and tool-poisoning attacks within seconds of a config modification.
 
@@ -425,7 +425,7 @@ jobs:
 
       - name: Scan MCP configs
         run: |
-          mcp-audit scan \
+          credenzo scan \
             --severity-threshold HIGH \
             --offline \
             --format sarif \

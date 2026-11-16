@@ -1,6 +1,6 @@
-# `mcp-audit run`
+# `credenzo run`
 
-`mcp-audit run` launches an MCP server through mcp-audit. Your AI client runs it
+`credenzo run` launches an MCP server through Credenzo. Your AI client runs it
 in place of the server's own command:
 
 ```json
@@ -15,21 +15,21 @@ in place of the server's own command:
 ```
 
 Everything after `--` is the server's original command, passed on verbatim, so
-server flags such as `--help` reach the server rather than mcp-audit.
+server flags such as `--help` reach the server rather than Credenzo.
 
 ## Wrapping your clients' servers (Story 1.2)
 
 You don't have to edit configs by hand:
 
 ```bash
-mcp-audit wrap                      # dry run: every discovered config, diff + gate decision per server
-mcp-audit wrap --mode enforce       # same, for enforce mode
-mcp-audit wrap --apply              # write (backup next to each file), then restart the client
-mcp-audit unwrap --apply            # put everything back
+credenzo wrap                      # dry run: every discovered config, diff + gate decision per server
+credenzo wrap --mode enforce       # same, for enforce mode
+credenzo wrap --apply              # write (backup next to each file), then restart the client
+credenzo unwrap --apply            # put everything back
 ```
 
 `--path FILE`, `--client NAME` and `--server NAME` narrow it down. `wrap`
-writes the absolute path of the `mcp-audit` it runs from (GUI clients don't
+writes the absolute path of the `credenzo` it runs from (GUI clients don't
 inherit your shell's PATH); `--exe` overrides it.
 
 Supported: Claude Code (`~/.claude.json`, `.mcp.json`), Cursor, Claude
@@ -54,10 +54,10 @@ A wrapped entry changes only `command` and `args`:
 uses it to confirm it restored exactly what was there, and says when the
 entry was edited in between.
 
-Everything else in mcp-audit reads a wrapped entry as the server it runs:
+Everything else in Credenzo reads a wrapped entry as the server it runs:
 scans analyse the real package, and `lock`/`lock --verify` record and compare
 the inner command, so wrapping a locked server isn't drift. Only an
-mcp-audit executable named by absolute path or bare name counts as the
+Credenzo executable named by absolute path or bare name counts as the
 wrapper; a relative `./mcp-audit` in a cloned repository is analysed as the
 command it is.
 
@@ -75,13 +75,13 @@ from its list.
 **Claude Code** (2.1.322, checked 2026-11-11 with the `demo/run/` server, a
 project `.mcp.json` wrapped in enforce mode):
 
-| Case | `/mcp` panel | `claude mcp list` | Where the mcp-audit line is |
+| Case | `/mcp` panel | `claude mcp list` | Where the Credenzo line is |
 |---|---|---|---|
-| Launch refused (LOCK-001) | `✘ calculator`; detail view `Status: ✘ failed`, with Reconnect / Disable | `✗ Failed to connect — CONNECTION_CLOSED: Connection closed` | `claude mcp list` writes it to `~/.cache/claude-cli-nodejs/<project>/mcp-logs-<server>/*.jsonl` as `Server stderr: mcp-audit run: refused: LOCK-001 …`. An interactive session shows it only when started with `claude --debug` (the panel says so). |
-| Tool withheld (LOCK-008) | `⚠ calculator  no tools · connected` | `✓ Connected` | Same as above; the agent itself gets mcp-audit's JSON-RPC error if it calls the tool. |
+| Launch refused (LOCK-001) | `✘ calculator`; detail view `Status: ✘ failed`, with Reconnect / Disable | `✗ Failed to connect — CONNECTION_CLOSED: Connection closed` | `claude mcp list` writes it to `~/.cache/claude-cli-nodejs/<project>/mcp-logs-<server>/*.jsonl` as `Server stderr: credenzo run: refused: LOCK-001 …`. An interactive session shows it only when started with `claude --debug` (the panel says so). |
+| Tool withheld (LOCK-008) | `⚠ calculator  no tools · connected` | `✓ Connected` | Same as above; the agent itself gets Credenzo's JSON-RPC error if it calls the tool. |
 
 Claude Code doesn't show the reason in its main view, so after wrapping in
-enforce mode, check `/mcp` for `✘` or `no tools` and run `mcp-audit lock
+enforce mode, check `/mcp` for `✘` or `no tools` and run `credenzo lock
 --verify --connect` to see the finding. Cursor, Claude Desktop and VS Code are
 not checked yet.
 
@@ -113,7 +113,7 @@ against the nearest `mcp-lock.json` before starting the server:
 The refusal is one line naming the finding and the fix, for example:
 
 ```
-mcp-audit run: refused: LOCK-002 server 'memory' is not in mcp-lock.json. Fix: review it, then run `mcp-audit lock` to approve it
+credenzo run: refused: LOCK-002 server 'memory' is not in mcp-lock.json. Fix: review it, then run `credenzo lock` to approve it
 ```
 
 How it compares:
@@ -137,7 +137,7 @@ there is nothing to check the launch against.
 ## Tool check (Story 1.4)
 
 Once a server passes the gate, every `tools/list` answer it sends is compared
-with the tool digests `mcp-audit lock --connect` recorded for it, the same
+with the tool digests `credenzo lock --connect` recorded for it, the same
 comparison `lock --verify --connect` makes:
 
 | Finding | Meaning | Monitor | `--mode enforce` |
@@ -152,7 +152,7 @@ comparison `lock --verify --connect` makes:
 
 - The tool is removed from the `tools/list` result the client sees, so the
   agent never reads its description.
-- A `tools/call` for it is answered by mcp-audit with a JSON-RPC error
+- A `tools/call` for it is answered by Credenzo with a JSON-RPC error
   (`-32602`, `data.finding` names the ID) and never reaches the server. Enforce
   mode only lets a call through for a tool that matched the lock in a
   `tools/list` it has already checked, so a call made before the client has
@@ -214,7 +214,7 @@ policy. An invalid policy is reported once and the default applies.
 - **No orphans.** When the server exits, anything still running in its
   process group (an `npx` → `node` grandchild, for example) is sent SIGTERM.
 - **Can't start.** A missing command exits 127 and a non-executable one 126,
-  with one line on stderr: `mcp-audit run: command not found: <cmd>`.
+  with one line on stderr: `credenzo run: command not found: <cmd>`.
 
 Pinned launch, the event log and the sandbox are later stories of EPIC-0009.
 

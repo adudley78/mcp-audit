@@ -66,7 +66,7 @@ def fix(
         "-i",
         help=(
             "Path to an existing scan JSON file produced by "
-            "'mcp-audit scan --output json'. "
+            "'credenzo scan --output json'. "
             "Reads findings and config_path from the JSON "
             "instead of running a fresh scan."
         ),
@@ -144,7 +144,7 @@ def fix(
     if _is_gateway_config(config_path, findings):
         err_console.print(
             f"[red]Error:[/red] {config_path} is an MCP gateway config;"
-            " mcp-audit fix does not edit gateway configs. Fix it by hand."
+            " credenzo fix does not edit gateway configs. Fix it by hand."
         )
         raise typer.Exit(2)
     findings = [f for f in findings if f.client not in GATEWAY_UPSTREAM_CLIENTS]
@@ -261,7 +261,7 @@ def _resolve_findings(
         if not scan_result.servers:
             raise ValueError(
                 "Scan result has no servers; cannot determine config_path. "
-                "Re-run 'mcp-audit scan --output json' and pass the output here."
+                "Re-run 'credenzo scan --output json' and pass the output here."
             )
         # Use the config path from the first server found (a gateway's
         # upstreams only when nothing else was found; fix then refuses).
@@ -307,7 +307,7 @@ def _print_result(result, *, apply: bool) -> None:  # type: ignore[no-untyped-de
         result: :class:`~mcp_audit.fixer.fixer.FixResult` instance.
         apply: Whether the fix was applied to disk.
     """
-    console.print(Rule("[bold]mcp-audit fix[/bold]"))
+    console.print(Rule("[bold]credenzo fix[/bold]"))
 
     if result.no_fixable:
         console.print("[green]No fixable findings in this scan.[/green]")

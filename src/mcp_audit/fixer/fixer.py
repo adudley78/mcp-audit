@@ -135,7 +135,7 @@ def run_fix(
         # Codex's config.toml (STORY-0110): fix writes JSON only, and
         # rewriting TOML would drop the user's comments and layout.
         raise ValueError(
-            f"{config_path} is a TOML file (Codex). mcp-audit fix edits JSON MCP"
+            f"{config_path} is a TOML file (Codex). credenzo fix edits JSON MCP"
             " configs only; apply the remediation in this file by hand."
         )
 
@@ -200,10 +200,10 @@ def write_config_change(
 ) -> FixResult:
     """Diff *new_config* against *original_text* and, with *apply*, write it.
 
-    The same backup-then-atomic-write path ``mcp-audit fix`` uses (a ``.bak``
+    The same backup-then-atomic-write path ``credenzo fix`` uses (a ``.bak``
     that is never overwritten, permissions kept, symlinked configs edited
     where they live), for other commands that rewrite a JSON MCP config
-    (``mcp-audit wrap``/``unwrap``).
+    (``credenzo wrap``/``unwrap``).
     """
     return _finish(
         FixResult(config_path=config_path),
@@ -310,7 +310,7 @@ def run_pins(
     _refuse_opencode(config_path)
     if config_path.suffix.lower() == ".toml":
         raise ValueError(
-            f"{config_path} is a TOML file (Codex). mcp-audit edits JSON MCP "
+            f"{config_path} is a TOML file (Codex). Credenzo edits JSON MCP "
             "configs only; apply the pin in this file by hand."
         )
     original_text = config_path.read_text(encoding="utf-8")

@@ -121,7 +121,7 @@ def _analyzer_crash_finding(
         evidence=f"{type(exc).__name__}: {exc}",
         remediation=(
             "Manually inspect this server configuration. Report this error "
-            "to the mcp-audit maintainers if it persists."
+            "to the Credenzo maintainers if it persists."
         ),
         finding_path=str(server.config_path),
     )

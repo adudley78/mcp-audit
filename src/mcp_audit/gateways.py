@@ -249,7 +249,7 @@ def _read_text(path: Path) -> str:
         raise ValueError(f"Cannot read {path}: {e}") from e
     if len(data) > GATEWAY_CONFIG_MAX_BYTES:
         raise ValueError(
-            f"{path} is over mcp-audit's {GATEWAY_CONFIG_MAX_BYTES}-byte limit for"
+            f"{path} is over Credenzo's {GATEWAY_CONFIG_MAX_BYTES}-byte limit for"
             " a gateway config; it was not read. Review its servers by hand."
         )
     try:

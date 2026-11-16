@@ -1,6 +1,6 @@
 """Resolve paths to bundled data files in both source and frozen (PyInstaller) modes.
 
-When mcp-audit runs as a PyInstaller one-file binary, Python's ``__file__``
+When Credenzo runs as a PyInstaller one-file binary, Python's ``__file__``
 attributes point into a temporary extraction directory (``sys._MEIPASS``), not
 the original source tree.  All modules that need to read from ``data/`` must
 call :func:`data_dir` instead of constructing paths relative to ``__file__``.

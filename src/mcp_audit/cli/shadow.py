@@ -1,4 +1,4 @@
-"""``mcp-audit shadow`` — continuous detection of shadow MCP servers.
+"""``credenzo shadow`` — continuous detection of shadow MCP servers.
 
 Find your shadow MCP servers — every one on every developer's machine,
 classified, scored, and event-logged. OWASP MCP09. Open source. No agent.
@@ -275,7 +275,7 @@ def _print_terminal_results(
     console.print(
         Panel(
             "\n".join(header_lines),
-            title="[bold blue]mcp-audit shadow[/bold blue]",
+            title="[bold blue]credenzo shadow[/bold blue]",
             border_style="blue",
         )
     )

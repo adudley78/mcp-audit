@@ -984,7 +984,7 @@ def _classify_command(cmd: str, rule: _Rule, ctx: _Ctx) -> _Verdict:
             "unknown",
             None,
             f"the program is {tool}, but `{unsafe}` is not one of the arguments"
-            f" mcp-audit knows to be safe for it (an option outside its allowlist,"
+            f" Credenzo knows to be safe for it (an option outside its allowlist,"
             " or a value naming a file in the repository), so the repository can"
             " steer what it loads or writes",
         )

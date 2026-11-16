@@ -2,7 +2,7 @@
 
 An organization can decide which MCP servers Claude Code loads on its developers'
 machines. It deploys files to a system directory, and Claude Code reads them above
-every user and project setting. mcp-audit reads the same files and compares them with
+every user and project setting. Credenzo reads the same files and compares them with
 the servers it found, so you can see three things a developer normally can't:
 
 - which policy is on this machine;
@@ -78,7 +78,7 @@ the managed files present the output is exactly what earlier versions printed, o
 platform.
 
 The device plist is ranked before the current user's profile plist. Anthropic's page
-does not rank those two against each other; mcp-audit treats them as two admin documents
+does not rank those two against each other; Credenzo treats them as two admin documents
 of the same tier, device first.
 
 Not read: server-managed settings (above), and MDM profiles for any user other than the
@@ -111,7 +111,7 @@ The rules are Anthropic's, from
    add loads. Otherwise a remote server must match a `serverUrl` entry and a stdio
    server a `serverCommand` entry; "A `serverName` match counts only when the
    allowlist contains no" entries of that kind. When `allowManagedMcpServersOnly` is
-   not true, allowlists from every settings scope merge, so mcp-audit merges the
+   not true, allowlists from every settings scope merge, so Credenzo merges the
    entries in `~/.claude/settings.json` and the project's `.claude/settings.json` and
    `.claude/settings.local.json` into the managed list and applies the per-transport
    rule to the merged list before reporting a server as blocked. `allowedMcpServers:
@@ -148,7 +148,7 @@ say it does.
 | MANAGED-005 | LOW | The managed allowlist has `serverName` entries and no `serverUrl` entries (remote servers) and/or no `serverCommand` entries (stdio servers): "A `serverName` entry, in either list, is not a security control." |
 
 | MANAGED-006 | MEDIUM | Policy exists only where the user can change it: **HKCU** with no admin document present (and at least one policy key), or managed policy files in a place the current non-root user can write. Probed: the managed directory, `managed-settings.d` (even empty: a user can add a drop-in), each settings file with policy keys and `managed-mcp.json`; a path counts when the current user owns it or `access(W_OK)` is true (the evidence says "owned" or "writable through group or other permission bits or an ACL"). Under WSL Anthropic notes "/etc/claude-code is user-writable as well", so policy files there count. Title "Claude Code policy is set, not enforced"; evidence names the source and the policy key names (each capped at 64 characters). Windows reports the HKCU half only, and a scan run as root skips the file half. Not an advisory. |
-| MANAGED-007 | INFO | An admin source Claude Code can't parse: a plist that is not a plist or whose top level is not a dictionary, or an `HKLM` value that is not a string, is empty, is not JSON or not an object. Claude Code "refuses to start" on it, even when another source delivers a valid policy, and MANAGED-002..005 are withheld. A source the operating system denied reading ("every session starts without that source's policies") or that failed for another reason (or hit mcp-audit's 1 MiB / complexity limit) is not reported as 007: MANAGED-001 says what happened. A malformed `HKCU` value never blocks launch and is ignored. Not an advisory. |
+| MANAGED-007 | INFO | An admin source Claude Code can't parse: a plist that is not a plist or whose top level is not a dictionary, or an `HKLM` value that is not a string, is empty, is not JSON or not an object. Claude Code "refuses to start" on it, even when another source delivers a valid policy, and MANAGED-002..005 are withheld. A source the operating system denied reading ("every session starts without that source's policies") or that failed for another reason (or hit Credenzo's 1 MiB / complexity limit) is not reported as 007: MANAGED-001 says what happened. A malformed `HKCU` value never blocks launch and is ignored. Not an advisory. |
 
 Commands and URLs in finding text have secrets removed: the values of secret-named
 flags (`--api-key VALUE`, `--token=VALUE`) and assignments (`-e GITHUB_TOKEN=…`,
@@ -167,7 +167,7 @@ document it can't parse, so a verdict built from the remaining files would be a 
 
 - A `${VAR}` in a policy entry or a server's command or URL is not expanded; such a
   pair is never reported as blocked.
-- Whether server-managed settings from the claude.ai console replace the source mcp-audit evaluated (see above).
+- Whether server-managed settings from the claude.ai console replace the source Credenzo evaluated (see above).
 - Cursor and VS Code organization MCP controls are not checked. VS Code documents
   `ChatAllowedMcpServers`, `ChatDeniedMcpServers` and `ChatAllowManagedMcpServersOnly`
   policies but not, on the pages read for this story, the shape of their entries.

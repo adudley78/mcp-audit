@@ -1,16 +1,16 @@
-# demo/run — `mcp-audit run` in enforce mode
+# demo/run — `credenzo run` in enforce mode
 
 EPIC-0009 Phase 1 demo. One small MCP server (`server.py`, one `add` tool),
-locked with its tools and wrapped by `mcp-audit wrap --mode enforce`, then
+locked with its tools and wrapped by `credenzo wrap --mode enforce`, then
 three cases:
 
 1. **Approved.** The agent sees `add`, and `add(2, 3)` returns 5, exactly as
    without the wrapper.
 2. **Rug pull.** The server's config entry stays the same, but its tool
    description now tells the agent to read `~/.ssh/id_rsa` and hide it.
-   Launched directly, the agent reads that text. Through `mcp-audit run`,
+   Launched directly, the agent reads that text. Through `credenzo run`,
    the tool is withheld (LOCK-008): it's left out of `tools/list` and a call
-   to it gets mcp-audit's error, so the injected text never reaches the agent.
+   to it gets Credenzo's error, so the injected text never reaches the agent.
 3. **Drift.** Someone edits the server's launch in the config. `mcp-audit
    run` refuses to start it (LOCK-001, exit 78) and says how to approve it.
 

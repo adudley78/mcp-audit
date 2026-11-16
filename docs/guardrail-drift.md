@@ -1,6 +1,6 @@
 # Guardrail drift: flag when an agent's safety settings got weaker
 
-mcp-audit already tracks MCP servers (`pin`, `baseline`, `lock`) and instruction files
+Credenzo already tracks MCP servers (`pin`, `baseline`, `lock`) and instruction files
 ([INSTR-001/002](agent-files.md)) over time. Guardrail drift does the same for the settings that
 decide what an agent may do without asking: permission rules and modes, sandbox settings, hooks,
 approval policy and MCP server approval, for Claude Code, Codex and Gemini CLI.
@@ -8,9 +8,9 @@ approval policy and MCP server approval, for Claude Code, Codex and Gemini CLI.
 Why it exists: a text file in a download folder made Codex and Claude Code change their own
 settings and install malware (reported by The Cyber News and aviatrixtrc), a malicious `AGENTS.md`
 made both rewrite their configs, and OpenAI disclosed internal coding agents weakening their own
-monitoring. A loosening is visible in the files alone, so mcp-audit says so the next time it looks.
+monitoring. A loosening is visible in the files alone, so Credenzo says so the next time it looks.
 
-Everything here is offline and read-only. mcp-audit reads the files, keeps a small record, and never
+Everything here is offline and read-only. Credenzo reads the files, keeps a small record, and never
 executes a hook or contacts a vendor.
 
 ## What is checked
@@ -29,7 +29,7 @@ Every scan with no explicit path (`scan`, `check`, `scan --project`) reads:
 directory only the user files are read. A project file that is a symlink is not read here (it is
 reported as TRUST-002/TRUST-004 elsewhere).
 
-For each file mcp-audit keeps a normalised record of only the settings in the table below, as sorted
+For each file Credenzo keeps a normalised record of only the settings in the table below, as sorted
 sets. **No secret value is stored**: strings are masked with the credential patterns and then
 with CRED-004's rule redaction (`PGPASSWORD=`-style values, npm `_authToken=`, `token key:secret`;
 STORY-0151), a Gemini `tools.sandbox` command is stored only as "on", and each hook is stored as the
@@ -42,13 +42,13 @@ redacted the same way first, which gives exactly what this version stores for th
 the first scan after upgrading reports no GUARD-001/002, `lock --verify` on an old lock reports no
 LOCK-014 (the lock's checksums and `section_digests` are over its bytes, which `--verify` never
 changes), and the next scan rewrites `guardrails.json` without the values: every entry, including
-tombstones and records of files that scan does not read (another repository's settings). Run `mcp-audit lock`
+tombstones and records of files that scan does not read (another repository's settings). Run `credenzo lock`
 again to drop them from a committed lock: only the records that held such a string change in this
 section, which is outside the top-level checksum (that checksum changes only because
 `generated_by` names the new version, as on any re-lock after an upgrade), and the new lock verifies. The
 digest kept for a list longer than 2,000 entries or with an entry over 512 characters is over the
 older form on purpose, so it does not change on upgrade; it is a SHA-256, never the text. Domain
-lists keep their form. **An older mcp-audit verifying a lock written by this version** compares the
+lists keep their form. **An older Credenzo verifying a lock written by this version** compares the
 redacted record with its own unredacted reading of the same file and reports LOCK-014 for every rule
 that holds such a value: upgrade CI before re-running `lock`.
 
@@ -132,7 +132,7 @@ Tightening (a deny rule gained, a mode moved down, a hook added) and neutral cha
   turned off, or a deny rule or sandbox `denyRead` entry removed. Evidence names the file (the home
   directory shown as `~`), each loosened key, and old to new; a hook is only ever "hook for
   `<event>` removed" or "changed".
-* **GUARD-002**, INFO: a managed settings file's bytes changed. mcp-audit keeps only a hash, so it
+* **GUARD-002**, INFO: a managed settings file's bytes changed. Credenzo keeps only a hash, so it
   does not judge the direction.
 
 The first sighting of a file is recorded silently. A file that disappears is reported (GUARD-001)
@@ -155,7 +155,7 @@ seen dropped). The code is shared with `agent_files/drift.py`.
 
 ## `lock`: guardrails in the repository
 
-`mcp-audit lock` also records the **repository's own** guardrail files in a `guardrails` section of
+`credenzo lock` also records the **repository's own** guardrail files in a `guardrails` section of
 `mcp-lock.json`: `.claude/settings.json`, `.codex/config.toml` and `.gemini/settings.json` (nested
 roots included). Never `settings.local.json`, never a file in your home directory. See
 [lock.md](lock.md#guardrails-section-story-0143). `lock --verify` reports **LOCK-014** (HIGH, fails
@@ -165,6 +165,6 @@ the exit code) for each file that now allows more than its record; `lock --accep
 
 * Settings that arrive another way (managed server settings, MDM, environment variables, command-line
   flags such as Gemini `--yolo`) are not files and are not seen.
-* mcp-audit compares the keys above only. A file can change in other ways without a finding.
+* Credenzo compares the keys above only. A file can change in other ways without a finding.
 * A file changed and changed back between two scans shows nothing.
 * Sources and unconfirmed items: `GAPS.md` ("Guardrail drift").

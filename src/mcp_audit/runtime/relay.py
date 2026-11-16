@@ -188,7 +188,7 @@ def _signal_group(proc: subprocess.Popen[bytes], signum: int) -> None:
 def _report(message: str) -> None:
     """Write one diagnostic line to the wrapper's stderr."""
     with contextlib.suppress(OSError):
-        sys.stderr.write(f"mcp-audit run: {message}\n")
+        sys.stderr.write(f"credenzo run: {message}\n")
         sys.stderr.flush()
 
 
@@ -247,7 +247,7 @@ def relay(
         :func:`mirror_exit`.
     """
     if not command:
-        _report("no server command given (usage: mcp-audit run -- <command> [args])")
+        _report("no server command given (usage: credenzo run -- <command> [args])")
         return 2
 
     in_fd = sys.stdin.fileno() if stdin_fd is None else stdin_fd

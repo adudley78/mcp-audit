@@ -1,6 +1,6 @@
-"""Argument parsing for ``mcp-audit run`` (lean path, stdlib only).
+"""Argument parsing for ``credenzo run`` (lean path, stdlib only).
 
-``mcp-audit run`` is on every wrapped server's launch path, so it is parsed
+``credenzo run`` is on every wrapped server's launch path, so it is parsed
 with :mod:`argparse` rather than through the Typer app, which imports the
 whole scanner. :mod:`mcp_audit._entry` dispatches here before anything heavy
 is imported.
@@ -16,12 +16,12 @@ from pathlib import Path
 from mcp_audit.runtime.relay import mirror_exit, relay
 
 USAGE = (
-    "mcp-audit run [--config FILE --server NAME [--lock FILE] [--policy FILE] "
+    "credenzo run [--config FILE --server NAME [--lock FILE] [--policy FILE] "
     "[--mode monitor|enforce]] -- <server command> [args...]"
 )
 
 DESCRIPTION = (
-    "Launch an MCP server through mcp-audit. The AI client runs this "
+    "Launch an MCP server through Credenzo. The AI client runs this "
     "instead of the server; stdin, stdout and stderr are relayed unchanged, "
     "and signals and the exit code pass through. With --config and --server, "
     "the launch is first checked against mcp-lock.json: monitor mode (the "
@@ -38,9 +38,9 @@ EXIT_USAGE = 2
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Return the parser for ``mcp-audit run``."""
+    """Return the parser for ``credenzo run``."""
     parser = argparse.ArgumentParser(
-        prog="mcp-audit run",
+        prog="credenzo run",
         usage=USAGE,
         description=DESCRIPTION,
     )
@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--original-sha256",
-        help=argparse.SUPPRESS,  # written by `mcp-audit wrap` for `unwrap`
+        help=argparse.SUPPRESS,  # written by `credenzo wrap` for `unwrap`
     )
     parser.add_argument(
         "--mode",
@@ -103,7 +103,7 @@ def parse_command(argv: Sequence[str]) -> list[str] | None:
 
 
 def _say(message: str) -> None:
-    sys.stderr.write(f"mcp-audit run: {message}\n")
+    sys.stderr.write(f"credenzo run: {message}\n")
     sys.stderr.flush()
 
 
@@ -158,7 +158,7 @@ def _gate(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run ``mcp-audit run`` and return (or die with) the server's exit status."""
+    """Run ``credenzo run`` and return (or die with) the server's exit status."""
     args = sys.argv[1:] if argv is None else argv
     options, command = parse(args)
     if not command:

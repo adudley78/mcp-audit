@@ -1,6 +1,6 @@
-# Splunk Ingestion — mcp-audit snapshot
+# Splunk Ingestion — credenzo snapshot
 
-Ingest `mcp-audit snapshot --stream` output into Splunk via HTTP Event Collector
+Ingest `credenzo snapshot --stream` output into Splunk via HTTP Event Collector
 (HEC) or a Universal Forwarder.
 
 ---
@@ -10,7 +10,7 @@ Ingest `mcp-audit snapshot --stream` output into Splunk via HTTP Event Collector
 Requires `curl` and a Splunk HEC token.
 
 ```bash
-mcp-audit snapshot --stream \
+credenzo snapshot --stream \
   | while IFS= read -r line; do
       curl -s -o /dev/null \
         -H "Authorization: Splunk $SPLUNK_HEC_TOKEN" \
@@ -29,7 +29,7 @@ Set `SPLUNK_HEC_URL` (e.g. `https://splunk.corp.example.com:8088`) and
 
 ```bash
 # Write NDJSON to a monitored file
-mcp-audit snapshot --stream >> /var/log/mcp-audit/findings.ndjson
+credenzo snapshot --stream >> /var/log/mcp-audit/findings.ndjson
 
 # Splunk inputs.conf — monitor the file
 [monitor:///var/log/mcp-audit/findings.ndjson]
@@ -73,7 +73,7 @@ sourcetype = "mcp-audit"
 
 Run:
 ```bash
-mcp-audit snapshot --stream | vector --config /etc/vector/mcp_audit.toml
+credenzo snapshot --stream | vector --config /etc/vector/mcp_audit.toml
 ```
 
 ---
@@ -97,5 +97,5 @@ index=security sourcetype="mcp-audit-findings"
 ## Recommended index
 
 Create a `security` index (or `mcp_audit`) with a 90-day retention policy.
-Use the `mcp-audit` sourcetype to take advantage of automatic JSON key
+Use the `credenzo` sourcetype to take advantage of automatic JSON key
 extraction in Splunk 8+.

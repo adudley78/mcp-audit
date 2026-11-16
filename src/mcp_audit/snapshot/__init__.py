@@ -1,4 +1,4 @@
-"""mcp-audit snapshot — forensic export package.
+"""credenzo snapshot — forensic export package.
 
 Provides time-stamped, sigstore-signed snapshots of every MCP server on a
 host.  CycloneDX AI/ML-BOM by default; native JSON optional.

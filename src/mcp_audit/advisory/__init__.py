@@ -12,7 +12,7 @@ Module map:
 ``canonical``  RFC 8785 (JCS) canonicalization, the input to every signature
 ``freshness``  snapshot_version / expires / published_at on index.json only
 ``feed``       building advisories from findings and writing the feed to disk
-``sign``       cosign / minisign signing and ``mcp-audit feed verify``
+``sign``       cosign / minisign signing and ``credenzo feed verify``
 
 The vendored OSV 1.6.0 JSON schema lives in ``osv_schema/`` so validation works
 offline and in the PyInstaller binary.

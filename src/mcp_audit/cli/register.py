@@ -16,15 +16,15 @@ from mcp_audit.registration.models import RegistrationConfig
 # contact for project updates only — never early access or anything withheld
 # from unregistered users. Pinned by tests/test_register.py.
 REGISTER_PROMPT_LINES: tuple[str, ...] = (
-    "Registering shares your contact details with the mcp-audit maintainer so",
+    "Registering shares your contact details with the Credenzo maintainer so",
     "you can be contacted about project updates, such as new detection rules.",
     "You can also ask for a follow-up if your scan grade is C or below.",
     "Every feature works the same whether or not you register.",
     "",
     "It sends your name, org, email, follow-up choice and mcp-audit",
     'version, with a placeholder grade of "?", once. After that, each',
-    "`mcp-audit check` sends the version and grade only. Remove it any",
-    "time with `mcp-audit register --clear`.",
+    "`credenzo check` sends the version and grade only. Remove it any",
+    "time with `credenzo register --clear`.",
 )
 
 
@@ -51,10 +51,10 @@ def register(
         help="Show current registration state without modifying anything.",
     ),
 ) -> None:
-    """Opt-in registration: share contact details for mcp-audit project updates.
+    """Opt-in registration: share contact details for Credenzo project updates.
 
-    Registration is optional and changes nothing about how mcp-audit works.
-    It sends only what you type (name, org, email) plus the mcp-audit
+    Registration is optional and changes nothing about how Credenzo works.
+    It sends only what you type (name, org, email) plus the Credenzo
     version; after that, each ``check`` sends the version and grade only.
     No config data, server names, or credentials are ever sent.
 
@@ -92,7 +92,7 @@ def _handle_status(console: Console) -> None:
     if config is None:
         console.print("[dim]Not registered.[/dim]")
         console.print(
-            "Run [bold]mcp-audit register[/bold] to opt in to project updates."
+            "Run [bold]credenzo register[/bold] to opt in to project updates."
         )
         return
 
@@ -107,7 +107,7 @@ def _handle_status(console: Console) -> None:
     console.print(f"  Follow-up:   {'yes' if config.follow_up_requested else 'no'}")
     console.print(f"  Registered:  {config.registered_at.strftime('%Y-%m-%d')}")
     console.print()
-    console.print("[dim]Run [bold]mcp-audit register --clear[/bold] to remove.[/dim]")
+    console.print("[dim]Run [bold]credenzo register --clear[/bold] to remove.[/dim]")
     console.print()
 
 
@@ -119,17 +119,17 @@ def _handle_register(console: Console) -> None:
         label = existing.org or existing.name or _truncate_email(existing.email)
         console.print(f"[green]Already registered[/green] as [bold]{label}[/bold].")
         console.print(
-            "Run [bold]mcp-audit register --clear[/bold] to remove, "
-            "or [bold]mcp-audit register --status[/bold] to view details."
+            "Run [bold]credenzo register --clear[/bold] to remove, "
+            "or [bold]credenzo register --status[/bold] to view details."
         )
         console.print()
         return
 
     console.print()
-    console.print(Rule("[bold]mcp-audit — Optional Registration[/bold]"))
+    console.print(Rule("[bold]Credenzo — Optional Registration[/bold]"))
     console.print()
     console.print(
-        "mcp-audit is [bold]free and open source[/bold]."
+        "Credenzo is [bold]free and open source[/bold]."
         " Registration is [bold]optional[/bold]."
     )
     console.print()
@@ -184,7 +184,7 @@ def _handle_register(console: Console) -> None:
 
     console.print()
     console.print(
-        "[green]Registered.[/green] Run [bold]mcp-audit register --clear[/bold]"
+        "[green]Registered.[/green] Run [bold]credenzo register --clear[/bold]"
         " to remove it at any time."
     )
     console.print(f"[dim]Registration stored at {path}[/dim]")

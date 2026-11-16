@@ -162,7 +162,7 @@ def load(path: Path) -> tuple[dict | None, str | None]:
         or doc.get("_schema_version") != TOOL_TEXT_SCHEMA_VERSION
         or not isinstance(doc.get("servers"), dict)
     ):
-        return None, f"{path.name} is not a tool-text file this mcp-audit can read"
+        return None, f"{path.name} is not a tool-text file this Credenzo can read"
     return doc, None
 
 

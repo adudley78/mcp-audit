@@ -1,4 +1,4 @@
-"""CycloneDX 1.5 SBOM formatter for mcp-audit scan results.
+"""CycloneDX 1.5 SBOM formatter for Credenzo scan results.
 
 Supports cyclonedx-python-lib 7.x AND 8.x-11.x. The two major-version series
 differ in two ways we care about:

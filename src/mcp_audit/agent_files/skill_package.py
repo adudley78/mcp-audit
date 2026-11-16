@@ -1,6 +1,6 @@
 """A skill is a package: read every file in a Claude Code skill directory.
 
-STORY-0095.  Before this module mcp-audit judged a skill by its ``SKILL.md``
+STORY-0095.  Before this module Credenzo judged a skill by its ``SKILL.md``
 (SKILL-001..003) and the filenames in ``scripts/`` (SKILL-004).  The largest
 2026 skill campaign (Paperclip, Zenity Labs) kept ``SKILL.md`` clean and put
 the payload in a sidecar file; SkillCloak (arXiv 2607.02357) packed payloads
@@ -154,7 +154,7 @@ _SKILL_DIR_PARENTS = frozenset(
 CARRIED_SERVER_CLIENT = "claude-code-skill"
 #: A skills-directory plugin *is* a Claude Code plugin (``<name>@skills-dir``),
 #: so its servers join default discovery under the existing plugin client and
-#: inherit its exclusions: ``mcp-audit lock`` passes ``include_plugins=False``,
+#: inherit its exclusions: ``credenzo lock`` passes ``include_plugins=False``,
 #: ``rug_pull.derive_state_path`` drops the client, ``lock.auto_verify`` skips it.
 SKILLS_DIR_PLUGIN_CLIENT = "claude-code-plugin"
 
@@ -935,7 +935,7 @@ class _Walk:
                 _Opaque(
                     rel,
                     path,
-                    f"{label} ({size:,} bytes); mcp-audit does not unpack archives",
+                    f"{label} ({size:,} bytes); Credenzo does not unpack archives",
                     Severity.LOW,
                 )
             )
@@ -1149,7 +1149,7 @@ def _skill_007(pkg: SkillPackage, inv: _Inventory) -> list[Finding]:
             "Skill contains content that cannot be inspected",
             (
                 f"The skill '{pkg.name}' contains '{item.rel}': {item.reason}."
-                " mcp-audit reads every file in a skill directory, including .git/"
+                " Credenzo reads every file in a skill directory, including .git/"
                 " and build/, because a scanner that skips opaque files can be"
                 " evaded by packing the payload into one (SkillCloak, arXiv"
                 " 2607.02357). Nothing is unpacked or run."
@@ -1394,7 +1394,7 @@ def _frontmatter_hooks(
             "Skill ships hooks",
             (
                 f"The skill '{pkg.name}' declares hooks in SKILL.md frontmatter"
-                f" that mcp-audit did not parse (the frontmatter {why}), so the"
+                f" that Credenzo did not parse (the frontmatter {why}), so the"
                 f" hook commands were not inspected. {_FRONTMATTER_HOW}"
             ),
             f"SKILL.md frontmatter: hooks key present, not parsed ({why})",
@@ -2069,7 +2069,7 @@ def _followed_link_finding(link: Path, target: str) -> Finding:
         description=redact(
             f"'{link}' is a symlink to '{target}'. Claude Code reads a skill"
             " through a symlinked folder (the skills CLI installs skills this way"
-            " by default), so mcp-audit read the skill at its target. Links"
+            " by default), so Credenzo read the skill at its target. Links"
             " inside the skill are not followed."
         ),
         evidence=redact(f"Visible path: {link} | Resolved target: {target}"),

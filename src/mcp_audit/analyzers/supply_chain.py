@@ -441,7 +441,7 @@ def launch_package(server: ServerConfig) -> tuple[Literal["npm", "pypi"], str] |
 
     Returns:
         The ecosystem and bare package name, or ``None`` when the launch
-        command installs no package mcp-audit can name.
+        command installs no package Credenzo can name.
     """
     launcher, args = normalize_launch(server.command, server.args)
     if launcher == "yarn":
@@ -503,7 +503,7 @@ def _pinned_version(server: ServerConfig) -> str | None:
     """Return the exact package version the launch command pins, or ``None``.
 
     Only an exact pin counts.  A range, a dist-tag, ``latest``, or no version
-    at all returns ``None``, because mcp-audit never resolves ranges and an
+    at all returns ``None``, because Credenzo never resolves ranges and an
     offline scan cannot know what an unpinned launch will install.
 
     Handles ``npx [flags] pkg@1.2.3`` / ``@scope/pkg@1.2.3`` (and ``yarn dlx``,
@@ -737,7 +737,7 @@ def build_archived_finding(server: ServerConfig, entry: RegistryEntry) -> Findin
         )
         remediation = (
             f"Replace {entry.name!r} with {entry.successor!r}, the project the "
-            "archive notice points to, and re-run `mcp-audit scan`."
+            "archive notice points to, and re-run `credenzo scan`."
         )
     else:
         replacement = "The upstream notice names no successor."
@@ -860,13 +860,13 @@ def _emit_known_cve_findings(
             version_note += (
                 f" Not counted here: {', '.join(undecidable)}, whose recorded fix "
                 "uses a different version numbering scheme (calendar versus "
-                "semantic), so mcp-audit cannot tell offline whether "
+                "semantic), so Credenzo cannot tell offline whether "
                 f"{pinned} includes it."
             )
         severity = Severity.HIGH
     else:
         version_note = (
-            " The config does not pin an exact version, so mcp-audit cannot "
+            " The config does not pin an exact version, so Credenzo cannot "
             "tell offline whether the installed release is affected."
         )
         if highest_fix:
@@ -895,7 +895,7 @@ def _emit_known_cve_findings(
         title = f"Known CVE advisory: {entry.name} ({cve_id})"
         description = (
             f"Package {entry.name!r} has a public CVE advisory "
-            f"({cve_id}) recorded in the mcp-audit known-server registry."
+            f"({cve_id}) recorded in the Credenzo known-server registry."
             f"{version_note} The full advisory is at {_advisory_url(cve_id)}."
         )
         evidence = f"package: {entry.name} | cve: {cve_id}"
@@ -904,12 +904,12 @@ def _emit_known_cve_findings(
         if len(affected) > _MAX_LISTED_CVES:
             listed += (
                 f" and {len(affected) - _MAX_LISTED_CVES} more"
-                f" (`mcp-audit vet {entry.name}` lists them all)"
+                f" (`credenzo vet {entry.name}` lists them all)"
             )
         title = f"Known CVE advisories: {entry.name} ({len(affected)} CVEs)"
         description = (
             f"Package {entry.name!r} has {len(affected)} public CVE advisories "
-            f"recorded in the mcp-audit known-server registry: {listed}."
+            f"recorded in the Credenzo known-server registry: {listed}."
             f"{version_note} Each advisory is at "
             "https://nvd.nist.gov/vuln/detail/<CVE-ID>."
         )
@@ -985,7 +985,7 @@ def _undecidable_finding(
         title=f"Known CVE fix not comparable with pinned version: {entry.name}",
         description=(
             f"Package {entry.name!r} has public advisories recorded in the "
-            f"mcp-audit known-server registry: {listed}. The config pins "
+            f"Credenzo known-server registry: {listed}. The config pins "
             f"version {pinned}, which uses a different version numbering scheme "
             "from the recorded fix (calendar versions such as 2025.7.1 versus "
             "semantic versions such as 2.0.0). A package that changes scheme "
@@ -1030,7 +1030,7 @@ def _userinfo_is_secret(userinfo: str) -> bool:
     matches SECRET_PATTERNS (a token used as the user name, as GitHub accepts).
     A plain account name such as ``git`` in ``git+ssh://git@github.com`` (a
     letter then up to 19 letters, digits, ``.``, ``_`` or ``-``) is not a
-    secret: redacting it hid nothing and made ``mcp-audit diff`` report a
+    secret: redacting it hid nothing and made ``credenzo diff`` report a
     credential.  Any other user name is redacted.
     """
     if ":" in userinfo:
@@ -1158,7 +1158,7 @@ def secret_arg_values(args: list[str]) -> list[str]:
 
 #: What :func:`redact_args` / :func:`redact_command` put in place of the value of
 #: a secret-named flag that matches no SECRET_PATTERNS entry (STORY-0108).  It is
-#: a weaker signal than :data:`REDACTION_MARKER`: ``mcp-audit diff`` reports it as
+#: a weaker signal than :data:`REDACTION_MARKER`: ``credenzo diff`` reports it as
 #: a possible credential (HIGH), not a hardcoded one (CRITICAL).
 FLAG_REDACTION_MARKER = "[REDACTED-FLAG]"
 
@@ -1951,7 +1951,7 @@ def redact_env_values(env: dict) -> dict:
     Used for every server's ``env`` in JSON, snapshots and the PDF hash input
     (STORY-0118; gateway upstreams since STORY-0111, whose ``env`` comes from
     a gateway config that often holds every upstream's API keys).  Values that
-    are plainly settings (``NODE_ENV=production``) stay, so ``mcp-audit diff``
+    are plainly settings (``NODE_ENV=production``) stay, so ``credenzo diff``
     between two scan files does not read every variable as a credential.  A
     value that is only a reference (``$VAR``, ``${VAR}``, ``%VAR%``) is kept.
     A value SECRET_PATTERNS recognises, or URL userinfo, becomes
@@ -2014,7 +2014,7 @@ def build_twin_finding(
     article = "an" if eco == "npm" else "a"
     description = (
         f"This unscoped name mirrors the {kind} {official.name!r}, which the "
-        f"mcp-audit registry lists (maintainer: {official.maintainer}, "
+        f"Credenzo registry lists (maintainer: {official.maintainer}, "
         f"{verified}): {package!r} is {primary.explain()}, and it is not in the "
         f"registry as {article} {eco} package.{also} Confirm the publisher. Some "
         "names of this shape are squats that receive installs meant for the "
@@ -2135,14 +2135,14 @@ def build_malicious_finding(
     else:
         launch = (
             f" OSV lists {_affected_phrase(matches[0])}. The config does not pin a "
-            "version, so mcp-audit cannot tell offline which release this launch "
+            "version, so Credenzo cannot tell offline which release this launch "
             "installs. A registry normally removes a malicious release, but npx "
             "and uvx can reuse a cached copy."
         )
     curated_note = ""
     if any(m.blanket_range_ignored for m in matches):
         curated_note = (
-            " The record also carries a range covering every version; mcp-audit's "
+            " The record also carries a range covering every version; Credenzo's "
             "registry lists this package as legitimate, so the record's explicit "
             "version list is used instead."
         )

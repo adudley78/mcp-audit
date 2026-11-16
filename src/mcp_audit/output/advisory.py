@@ -2,7 +2,7 @@
 
 This is the single-document face of the advisory subsystem: it turns a
 :class:`~mcp_audit.models.ScanResult` into the same JSON array that
-``mcp-audit advise`` writes to ``feed/osv/all.json``, so anything that already
+``credenzo advise`` writes to ``feed/osv/all.json``, so anything that already
 consumes a formatter (``--format`` dispatch, piping to a file, an HTTP handler) can
 emit advisories without knowing the feed layout exists.
 

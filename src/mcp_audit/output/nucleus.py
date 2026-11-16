@@ -3,7 +3,7 @@
 Produces a JSON document that conforms to the Nucleus FlexConnect universal
 ingestion schema. Import this file into a Nucleus project via
 Settings → Integrations → FlexConnect → Upload File, or push directly with
-``mcp-audit push-nucleus``.
+``credenzo push-nucleus``.
 
 Schema reference: Nucleus Security FlexConnect framework documentation.
 

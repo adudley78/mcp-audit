@@ -1,6 +1,6 @@
 """Guardrail drift: an agent's safety settings got weaker since the last scan.
 
-mcp-audit tracks MCP servers (``pin``, ``baseline``, ``lock``) and instruction
+Credenzo tracks MCP servers (``pin``, ``baseline``, ``lock``) and instruction
 files (INSTR-001/002) over time, but an agent's permission, sandbox, hook and
 approval settings were only checked at a point in time.  An agent can write
 its own settings (a prompt-injected agent that edits ``settings.json`` or
@@ -1772,7 +1772,7 @@ def _loosened_finding(
             " it is reported because an agent, a skill or a sync tool can write"
             " these files too, and an agent that loosens its own settings has"
             " removed the check that would catch the next injected instruction."
-            " mcp-audit compares normalised settings only (hook commands as"
+            " Credenzo compares normalised settings only (hook commands as"
             " hashes) and cannot show the file's other changes."
             + (
                 " At least one change is equivalent to turning the guardrail off."
@@ -1804,7 +1804,7 @@ def _managed_finding(item: GuardrailFile, old: dict, new: dict) -> Finding:
         description=(
             f"{item.display} is a managed settings file: an administrator's"
             " policy for Claude Code on this machine. Its bytes changed since"
-            " the last scan. mcp-audit keeps only a hash, so it cannot show what"
+            " the last scan. Credenzo keeps only a hash, so it cannot show what"
             " changed or whether the policy got weaker."
         ),
         evidence=(

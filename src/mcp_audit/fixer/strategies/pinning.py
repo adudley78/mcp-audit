@@ -13,7 +13,7 @@ vulnerability scanner's unpinned-version finding):
   ``resolved_version`` for this server, that version is used with no network
   call — the same version already recorded (and reviewed) at lock time,
   which for LOCK-004 also means the fix formalises the exact version
-  mcp-audit approved rather than leaving the config floating and free to
+  Credenzo approved rather than leaving the config floating and free to
   drift again. Without a lock entry, the latest version is resolved live
   from npm/PyPI, exactly like the SC-001/002 path.
 
@@ -195,7 +195,7 @@ class PackagePinningStrategy(BaseFixStrategy):
         # (edge case: registry may have been updated since the finding was generated).
         if self._registry is not None and not self._registry.is_known(verified_pkg):
             self.warnings.append(
-                f"Warning: {verified_pkg!r} is not in the mcp-audit known-server "
+                f"Warning: {verified_pkg!r} is not in the Credenzo known-server "
                 "registry. Pinning to latest version anyway — verify this package "
                 "is legitimate before committing."
             )
@@ -333,7 +333,7 @@ class PackagePinningStrategy(BaseFixStrategy):
         source_note = (
             ""
             if from_lock
-            else "; pinned to current registry resolution — run `mcp-audit lock` "
+            else "; pinned to current registry resolution — run `credenzo lock` "
             "to record it"
         )
         return (

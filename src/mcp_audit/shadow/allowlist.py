@@ -1,4 +1,4 @@
-"""Allowlist model and loader for ``mcp-audit shadow``.
+"""Allowlist model and loader for ``credenzo shadow``.
 
 An allowlist declares which MCP servers are *sanctioned* — i.e. explicitly
 approved by the operator.  Servers **not** in the allowlist are treated as

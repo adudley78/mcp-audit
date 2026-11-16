@@ -863,7 +863,7 @@ def existing_home_stores(
 ) -> list[tuple[SecretStore, Path]]:
     """Well-known credential stores that exist under *home*, found with ``stat()``.
 
-    The inventory ``mcp-audit reach`` (STORY-0145) shows beside REACH-001, so a
+    The inventory ``credenzo reach`` (STORY-0145) shows beside REACH-001, so a
     store that a deny rule covers can be listed as covered rather than absent.
     Same fixed list and platform rules as REACH-001; a store is never opened.
     Never raises.
@@ -990,7 +990,7 @@ def _reach_001(
         f" entry covers {len(hits)} file(s) that hold or commonly hold"
         f" credentials ({certain} exist only to hold one), so a prompt-injected"
         " session can read them without a prompt. Found with stat() only;"
-        " mcp-audit never opens these files." + note,
+        " Credenzo never opens these files." + note,
         evidence,
         "Add Read deny rules for them to your user settings"
         f" ({_label(user_settings, home)}), e.g. permissions.deny: [{deny}], or"

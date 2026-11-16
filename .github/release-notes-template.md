@@ -93,11 +93,11 @@ changelog section above.
 ### Integrations
 
 - SARIF → GitHub Code Scanning (schema-validated, deduplication-safe)
-- Nucleus Security FlexConnect (`mcp-audit push-nucleus`)
-- Baseline diffing for CI regression gates (`mcp-audit baseline`)
+- Nucleus Security FlexConnect (`credenzo push-nucleus`)
+- Baseline diffing for CI regression gates (`credenzo baseline`)
 - HTML dashboard — self-contained, no CDN dependencies
 - VS Code / Cursor extension — inline squiggles and command palette
-- Signed OSV advisory feed (`mcp-audit advise`) — mcp-audit's own published feed is signed with a
+- Signed OSV advisory feed (`credenzo advise`) — Credenzo's own published feed is signed with a
   real minisign project key (record *format* is still experimental; don't build automation on
   today's exact field layout)
 

@@ -1,10 +1,10 @@
 # SAST Rules Reference
 
-mcp-audit ships a curated pack of [Semgrep](https://semgrep.dev) rules that
+Credenzo ships a curated pack of [Semgrep](https://semgrep.dev) rules that
 detect security vulnerabilities in MCP **server source code** — the Python and
 TypeScript implementations that handle tool calls from AI agents.
 
-This is complementary to mcp-audit's config scanning (which audits JSON
+This is complementary to Credenzo's config scanning (which audits JSON
 client configurations). These rules scan the server implementation itself.
 
 ---
@@ -21,7 +21,7 @@ Semgrep 1.0+ required.
 
 ## Usage Modes
 
-### Standalone (no mcp-audit required)
+### Standalone (no Credenzo required)
 
 Run the full rule pack against a directory or file:
 
@@ -42,17 +42,17 @@ semgrep --config semgrep-rules/typescript/ path/to/server/
 Merge SAST findings into the unified scan output:
 
 ```bash
-mcp-audit scan --sast path/to/mcp-server/
-mcp-audit scan --sast path/to/mcp-server/ --format json
-mcp-audit scan --sast path/to/mcp-server/ --format sarif --output results.sarif
+credenzo scan --sast path/to/mcp-server/
+credenzo scan --sast path/to/mcp-server/ --format json
+credenzo scan --sast path/to/mcp-server/ --format sarif --output results.sarif
 ```
 
 Standalone SAST scan (no config scanning):
 
 ```bash
-mcp-audit sast path/to/mcp-server/
-mcp-audit sast path/to/mcp-server/ --format json
-mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
+credenzo sast path/to/mcp-server/
+credenzo sast path/to/mcp-server/ --format json
+credenzo sast path/to/mcp-server/ --rules-dir /custom/rules/
 ```
 
 ---

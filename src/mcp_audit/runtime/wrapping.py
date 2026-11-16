@@ -1,6 +1,6 @@
-"""Wrap and unwrap MCP config entries for ``mcp-audit run`` (EPIC-0009 Story 1.2).
+"""Wrap and unwrap MCP config entries for ``credenzo run`` (EPIC-0009 Story 1.2).
 
-A wrapped stdio entry launches mcp-audit instead of the server::
+A wrapped stdio entry launches Credenzo instead of the server::
 
     before: {"command": "npx", "args": ["-y", "pkg"], "env": {...}}
     after:  {"command": "/abs/path/mcp-audit",
@@ -29,11 +29,15 @@ from mcp_audit._jcs import canonicalize
 
 #: The executable names a wrapper may have (pip/pipx/uv console script,
 #: Windows launcher, PyInstaller release binaries).
-_WRAPPER_NAME = re.compile(r"^mcp-audit(-(darwin|linux|windows)-[a-z0-9_]+)?(\.exe)?$")
+#: ``credenzo`` is the command from 0.33.0; ``mcp-audit`` is the name every
+#: config wrapped before that carries, so both are the wrapper.
+_WRAPPER_NAME = re.compile(
+    r"^(mcp-audit|credenzo)(-(darwin|linux|windows)-[a-z0-9_]+)?(\.exe)?$"
+)
 
 MODES = ("monitor", "enforce")
 
-#: Clients whose JSON configs ``mcp-audit wrap`` rewrites (Story 1.2's first
+#: Clients whose JSON configs ``credenzo wrap`` rewrites (Story 1.2's first
 #: batch plus the clients that share the format; ``custom`` is ``--path``).
 WRAPPABLE_CLIENTS = frozenset(
     {
@@ -52,10 +56,10 @@ ORIGINAL_DIGEST_FLAG = "--original-sha256"
 
 
 def is_wrapper_command(command: object) -> bool:
-    """Whether *command* names an mcp-audit executable.
+    """Whether *command* names a Credenzo executable.
 
-    A bare name (``mcp-audit``, resolved on PATH) or an absolute path whose
-    file name is an mcp-audit executable. A relative path (``./mcp-audit``)
+    A bare name (``credenzo``, resolved on PATH) or an absolute path whose
+    file name is a Credenzo executable. A relative path (``./mcp-audit``)
     is never trusted as the wrapper: a cloned repository could plant one, so
     it is analysed as the command it is.
     """
@@ -72,7 +76,7 @@ def is_wrapper_command(command: object) -> bool:
 def inner_launch(command: object, args: object) -> tuple[str, list[str]] | None:
     """Return the wrapped server's ``(command, args)``, or ``None`` if not wrapped.
 
-    Wrapped means: the command is an mcp-audit executable
+    Wrapped means: the command is a Credenzo executable
     (:func:`is_wrapper_command`), the first argument is ``run`` and a ``--``
     follows with at least the server's command after it.
     """
@@ -117,7 +121,7 @@ def wrap_entry(
     server: str,
     mode: str = "monitor",
 ) -> dict:
-    """Return *entry* rewritten to launch through ``mcp-audit run``.
+    """Return *entry* rewritten to launch through ``credenzo run``.
 
     Raises:
         ValueError: The entry isn't a local (stdio) server, is already

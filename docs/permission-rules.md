@@ -4,12 +4,12 @@ Claude Code's permission rules (`permissions.allow`, `permissions.ask`,
 `permissions.deny` in `settings.json`) have a grammar with sharp edges. Anthropic
 documents a set of rule forms that Claude Code ignores at load time, anchors
 somewhere other than where they appear to point, or that are "not a security
-boundary". mcp-audit reads every Claude Code settings file the scan already reads
+boundary". Credenzo reads every Claude Code settings file the scan already reads
 for HARNESS-001..006 and reports each such rule, with the documented reason, the
 form that gets past it, and what to write instead.
 
-No new flags: these checks run in `mcp-audit check`, `mcp-audit scan`,
-`mcp-audit scan --project <dir>` and the GitHub Action's default run. Nothing is
+No new flags: these checks run in `credenzo check`, `credenzo scan`,
+`credenzo scan --project <dir>` and the GitHub Action's default run. Nothing is
 executed; the settings files are read as JSON.
 
 Every rule below comes from Anthropic's documentation, quoted in the finding:
@@ -158,7 +158,7 @@ string as code, start any program, or reach the network (`Invoke-Expression`/
 Claude Code's Bash sandbox is configured by the `sandbox` block of any settings
 file, and Claude Code merges that block across user, project and local settings.
 Anthropic's sandboxing doc says a repository's settings can turn on keys that
-weaken it, and that some keys a repository can't set at all. mcp-audit reads the
+weaken it, and that some keys a repository can't set at all. Credenzo reads the
 same settings files as PERM-* and reports both, plus a local settings file that
 is headed for git. Read on 2026-10-26:
 [sandboxing](https://code.claude.com/docs/en/sandboxing),
@@ -299,7 +299,7 @@ file ... `core.excludesFile` when your global git config sets it to an absolute
 or `~`-prefixed path; otherwise it's `$XDG_CONFIG_HOME/git/ignore`, or
 `~/.config/git/ignore`". The permissions doc: "When the file is tracked in git, or
 `.claude` is a symlink, Claude Code treats it as repository-supplied instead and
-holds its rules until you trust the folder." mcp-audit never runs `git` (a
+holds its rules until you trust the folder." Credenzo never runs `git` (a
 checkout can carry `core.fsmonitor`, STORY-0089). It finds the nearest `.git`
 entry at or above the project, then reads, in git's order of precedence, the
 global excludes file (following a plain `[include] path = …` in the global git
@@ -362,7 +362,7 @@ flagged 215 of them.
 | CRED-004 | HIGH | A `permissions.allow`, `ask` or `deny` string holds a credential in a settings file that is committed or headed for git: a project `.claude/settings.json` in a work tree, or a `.claude/settings.local.json` that no ignore file covers or whose `.claude` is a symlink | Rotate the secret, delete the rule, and re-approve the command with the secret in an environment variable (`Bash(psql "$DATABASE_URL" *)`) |
 | CRED-004 | MEDIUM | The same in your own settings (`~/.claude/settings.json`), a local file git ignores or that sits outside a work tree, or a file whose git state can't be read | Same; the file is still a plaintext copy of the secret |
 
-A credential is what mcp-audit's command redactor removes (URL userinfo, every
+A credential is what Credenzo's command redactor removes (URL userinfo, every
 `SECRET_PATTERNS` match, `Bearer`/`Basic`/`Token` values, credential headers,
 `curl -u user:pass`, `password=`-style pairs, `--api-key`-style flags and secret
 query parameters), plus upper-case `*PASSWORD*`/`*PASSWD*` assignments
@@ -389,7 +389,7 @@ the same rule. One finding per file names one commit that holds a version
 (and how many others do) and lists each rule with the secret replaced by
 `[REDACTED]`.
 
-mcp-audit reads git's own files (loose objects, pack files and refs) and never
+Credenzo reads git's own files (loose objects, pack files and refs) and never
 runs git: the repository may be someone else's, and running git in it is the
 attack TRUST-006/007 describe. It runs in a default `scan`/`check` with no
 `--path` (the repository the working directory is in) and in `scan --project`
@@ -418,7 +418,7 @@ does not read `.gitignore` at all when a folder has a `.npmignore`.
 |---|---|---|---|
 | CRED-006 | HIGH / LOW | A Dockerfile's final image, or a non-private npm package, will include a `.claude/settings.json` or `.claude/settings.local.json`. HIGH when the file holds a credential in a permission rule (CRED-004's detector); LOW for a `settings.local.json` with no recognised secret. A shared `settings.json` with no secret is not reported: it is committed anyway | Add `**/.claude/` to `.dockerignore` (a pattern `.claude` matches only the folder at the context root), or `.claude/` to `.npmignore`, or list only your build output in `"files"`. Rotate any secret the file held, then rebuild and push every tag, or publish a new version and deprecate the old ones |
 
-What is read, all as files (mcp-audit never runs `docker`, `npm` or `git`):
+What is read, all as files (Credenzo never runs `docker`, `npm` or `git`):
 
 - **Dockerfiles**: `Dockerfile`, `Containerfile`, `*.Dockerfile`,
   `*.Containerfile`, `Dockerfile.*` and `Containerfile.*`, with the

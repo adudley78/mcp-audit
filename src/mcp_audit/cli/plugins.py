@@ -1,4 +1,4 @@
-"""``mcp-audit plugins`` — Claude Code plugin inventory and scan (STORY-0080)."""
+"""``credenzo plugins`` — Claude Code plugin inventory and scan (STORY-0080)."""
 
 from __future__ import annotations
 

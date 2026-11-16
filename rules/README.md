@@ -1,7 +1,7 @@
-# mcp-audit Community Rules
+# Credenzo Community Rules
 
-This directory contains YAML-based detection rules for the mcp-audit policy
-engine. Rules in `community/` ship with every mcp-audit installation and run
+This directory contains YAML-based detection rules for the credenzo policy
+engine. Rules in `community/` ship with every Credenzo installation and run
 for all users automatically — no configuration required.
 
 ## Rule format
@@ -38,8 +38,8 @@ Quick start:
 
 1. Copy `TEMPLATE.yml` to `COMM-NNN.yml` (use the next available number).
 2. Fill in all fields — every field has an inline comment explaining what to write.
-3. Validate: `mcp-audit rule validate rules/community/COMM-NNN.yml`
-4. Test: `mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/config.json`
+3. Validate: `credenzo rule validate rules/community/COMM-NNN.yml`
+4. Test: `credenzo rule test rules/community/COMM-NNN.yml --against path/to/config.json`
 5. Open a PR. The maintainers review for false-positive rate, accuracy, and research basis.
 
 The first 50 accepted contributors are listed in
@@ -67,5 +67,5 @@ in every build.
 
 ## Running rules
 
-All rules in this directory run automatically during `mcp-audit scan`.
+All rules in this directory run automatically during `credenzo scan`.
 No configuration needed.

@@ -7,7 +7,7 @@ Code, Copilot CLI, and Augment — from a single YAML file.
 > Governance decides what a configuration may contain. To see what the agents
 > on a machine can actually touch (sandbox, credentials, network, managed
 > policy, logging) and whether the machine meets the sanctioned path, run
-> [`mcp-audit reach`](reach.md).
+> [`credenzo reach`](reach.md).
 
 ## Governance vs the Rule Engine
 
@@ -25,7 +25,7 @@ configuration must achieve, and how many findings are tolerable.
 
 ## Policy resolution order
 
-When `--policy <path>` is not specified, mcp-audit searches for a policy
+When `--policy <path>` is not specified, Credenzo searches for a policy
 automatically in this order:
 
 1. **Current working directory** — checks each of these filenames in order:
@@ -43,19 +43,19 @@ Returns `None` (no governance check) if none of the above exist.
 
 ```bash
 # 1. Generate a commented template
-mcp-audit policy init
+credenzo policy init
 
 # 2. Edit it to define your requirements
 $EDITOR .mcp-audit-policy.yml
 
 # 3. Validate syntax
-mcp-audit policy validate .mcp-audit-policy.yml
+credenzo policy validate .mcp-audit-policy.yml
 
 # 4. Run a full scan — policy is auto-discovered
-mcp-audit scan
+credenzo scan
 
 # 5. Quick policy-only compliance check
-mcp-audit policy check
+credenzo policy check
 ```
 
 ## Full field reference
@@ -65,14 +65,14 @@ mcp-audit policy check
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `version` | int | `1` | Schema version (currently always `1`) |
-| `name` | str | `"mcp-audit governance policy"` | Human-readable policy name |
+| `name` | str | `"Credenzo governance policy"` | Human-readable policy name |
 | `approved_servers` | object | `null` | Approved/denied server list |
 | `score_threshold` | object | `null` | Minimum scan score requirement |
 | `transport_policy` | object | `null` | Transport type constraints |
 | `registry_policy` | object | `null` | Known-Server Registry requirements |
 | `finding_policy` | object | `null` | Finding count limits |
 | `client_overrides` | map | `{}` | Per-client policy overrides |
-| `runtime` | object | `null` | What `mcp-audit run` does at runtime (see below) |
+| `runtime` | object | `null` | What `credenzo run` does at runtime (see below) |
 
 ---
 
@@ -215,13 +215,13 @@ include base-policy servers plus additional ones, repeat them in the override's
 
 ### `runtime`
 
-Settings for `mcp-audit run`, the wrapper that launches MCP servers
+Settings for `credenzo run`, the wrapper that launches MCP servers
 ([run.md](run.md)). Read by `run` only; `scan` ignores them.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `poison_threshold` | str | `critical` | Lowest POISON-* severity on a live tool's text that `run` acts on: reported in monitor mode, tool withheld in enforce mode. One of `off`, `critical`, `high`, `medium`, `low`, `info` (case-insensitive; a bare YAML `off` works) |
-| `require_wrap` | bool | `false` | Report every local server in a client config `mcp-audit wrap` supports that doesn't launch through `mcp-audit run` (WRAP-001, HIGH, from `scan`) |
+| `require_wrap` | bool | `false` | Report every local server in a client config `credenzo wrap` supports that doesn't launch through `credenzo run` (WRAP-001, HIGH, from `scan`) |
 
 ```yaml
 runtime:
@@ -255,8 +255,8 @@ approved_servers:
       notes: "Our internal MCP server"
 ```
 
-2. Commit it. Every developer running `mcp-audit scan` will see violations for
-   unapproved servers because mcp-audit auto-discovers the policy from the repo root.
+2. Commit it. Every developer running `credenzo scan` will see violations for
+   unapproved servers because Credenzo auto-discovers the policy from the repo root.
 
 3. Violations appear in all output formats:
    - Terminal: a yellow "Policy Violations" panel
@@ -317,12 +317,12 @@ don't care about it can ignore it without schema changes.
 
 ```bash
 # Verify the weights_source in JSON output
-mcp-audit scan --policy .mcp-audit-policy.yml --format json | jq .score.weights_source
+credenzo scan --policy .mcp-audit-policy.yml --format json | jq .score.weights_source
 ```
 
 ### `policy validate` support
 
-`mcp-audit policy validate <file>` validates the `scoring:` block alongside all
+`credenzo policy validate <file>` validates the `scoring:` block alongside all
 other policy sections. A positive deduction value (e.g. `CRITICAL: 5`) exits 2
 with a human-readable error message.
 
@@ -363,7 +363,7 @@ The action fails the build when governance findings at or above the
 - **Approved server glob matching** uses Python's `fnmatch` module (shell-style
   wildcards), not full regex. `*` matches everything except `/`? No — fnmatch
   `*` matches any characters including `/`. Test your patterns with
-  `mcp-audit policy check`.
+  `credenzo policy check`.
 - **Source detection** is inferred from the server's launch command
   (`npx`/`node` → npm, `python`/`uvx` → pip). Servers launched with custom
   scripts or absolute paths return `None` source, which never matches a

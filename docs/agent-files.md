@@ -1,6 +1,6 @@
-# mcp-audit: agent-file security scanning
+# Credenzo: agent-file security scanning
 
-mcp-audit v0.14.0 extends scanning beyond MCP config files to cover the other
+Credenzo v0.14.0 extends scanning beyond MCP config files to cover the other
 instruction surfaces an AI agent reads: custom slash commands, workspace rules,
 Copilot instruction files, and project memory files.
 
@@ -177,7 +177,7 @@ A Claude Code `@path` import in a project instruction file (`CLAUDE.md`,
   this an external import and asks once per project to approve it; an
   `AGENTS.md` it reads directly loads it with no prompt once approved. The
   imported text is not in the repository, so a review never sees it, and it
-  differs on every machine. mcp-audit does not read the target. **LOW** when
+  differs on every machine. Credenzo does not read the target. **LOW** when
   the target is a Markdown file under `~/.claude/`: Claude Code's memory docs
   suggest `@~/.claude/my-project-instructions.md` for personal instructions
   shared across worktrees.
@@ -328,7 +328,7 @@ Implementation: `agent_files/discovery.py` (`_discover_dropped`).
 
 On macOS, the first `agent-files scan` (or `scan --include-agent-files`) may make
 the system ask whether your terminal can access the Downloads and Desktop folders.
-Allow it for the check to run; if you deny it, mcp-audit cannot read those two folders. A
+Allow it for the check to run; if you deny it, Credenzo cannot read those two folders. A
 default `scan` without `--include-agent-files` does not read either folder.
 
 ### MEM-008 (HIGH outside a git repository, MEDIUM inside one): instruction file changes machine-wide settings or approvals
@@ -401,7 +401,7 @@ the previous scan:
   your own memory files (`~/.claude/CLAUDE.md`, `~/.claude/rules`,
   `~/.codex/AGENTS.md`, the OpenClaw files) this step runs the MEM-004/MEM-005
   checks itself, on the bytes it already read; their IDs only feed INSTR-002
-  and are not added to the scan (`mcp-audit agent-files scan` shows them).
+  and are not added to the scan (`credenzo agent-files scan` shows them).
   Your own skills get SKILL-005..008 from the default scan. Your own commands,
   subagents and Cursor rules get no content check here: a change there is
   INFO only. TRUST-* and other findings about a file's surroundings never
@@ -518,7 +518,7 @@ On Windows Claude Code runs a hook `command` through Git Bash. When bash cannot 
 
 ### HOOK-005 (MEDIUM): Cursor hooks file that can't be read
 
-mcp-audit reads `~/.cursor/hooks.json` and the working directory's `.cursor/hooks.json` (also `scan --project <dir>`), the format at [cursor.com/docs/hooks](https://cursor.com/docs/hooks): `{"version": 1, "hooks": {"<event>": [{"command": ..., "matcher": ..., "failClosed": ...}]}}`. Each `command` goes through HOOK-001/002 and HOOK-004. A file that is unreadable, over 1 MiB, not valid JSON or not a JSON object is HOOK-005: Cursor skips it without a message ([forum.cursor.com/t/177989](https://forum.cursor.com/t/177989), confirmed by Cursor staff), so every guard in it is off. Reads are capped, regular files only, and a symlink that leaves the home directory or project root is not followed. Enterprise (MDM) hooks files are not read.
+Credenzo reads `~/.cursor/hooks.json` and the working directory's `.cursor/hooks.json` (also `scan --project <dir>`), the format at [cursor.com/docs/hooks](https://cursor.com/docs/hooks): `{"version": 1, "hooks": {"<event>": [{"command": ..., "matcher": ..., "failClosed": ...}]}}`. Each `command` goes through HOOK-001/002 and HOOK-004. A file that is unreadable, over 1 MiB, not valid JSON or not a JSON object is HOOK-005: Cursor skips it without a message ([forum.cursor.com/t/177989](https://forum.cursor.com/t/177989), confirmed by Cursor staff), so every guard in it is off. Reads are capped, regular files only, and a symlink that leaves the home directory or project root is not followed. Enterprise (MDM) hooks files are not read.
 
 ### HARNESS-001..006: settings that switch human approval off, and what replaced it
 
@@ -531,7 +531,7 @@ Keys and semantics follow code.claude.com/docs/en/permissions.
 
 | ID | Severity | Fires when |
 |---|---|---|
-| HARNESS-001 | HIGH, or MEDIUM | `permissions.defaultMode` is `bypassPermissions`. MEDIUM in project and local settings: Claude Code 2.1.257 and later ignore the value there (settings reference: "`auto` and `bypassPermissions` don't take effect from project or local settings … Before v2.1.257, `bypassPermissions` took effect from any file"); older versions honour it, and mcp-audit does not read the installed version (STORY-0108) |
+| HARNESS-001 | HIGH, or MEDIUM | `permissions.defaultMode` is `bypassPermissions`. MEDIUM in project and local settings: Claude Code 2.1.257 and later ignore the value there (settings reference: "`auto` and `bypassPermissions` don't take effect from project or local settings … Before v2.1.257, `bypassPermissions` took effect from any file"); older versions honour it, and Credenzo does not read the installed version (STORY-0108) |
 | HARNESS-002 | HIGH | `enableAllProjectMcpServers` is `true` (every server in a repo's `.mcp.json` approved without a prompt) |
 | HARNESS-003 | MEDIUM | `skipDangerousModePermissionPrompt` is `true` |
 | HARNESS-004 | HIGH | `permissions.allow` contains bare `Bash`, `Bash(*)`, `PowerShell` or `PowerShell(*)` |
@@ -578,7 +578,7 @@ severity the key would get in that scope (`permissionMode` → AGENT-001,
 `tools`/`disallowedTools` → AGENT-002, `hooks` → AGENT-003, `mcpServers` →
 AGENT-004): a security key that appears more than once ("Subagent frontmatter
 repeats '…'"; every value is checked), and a security key that is present but
-unreadable by mcp-audit ("Claude Code may load it").
+unreadable by Credenzo ("Claude Code may load it").
 
 **Not flagged:** `permissionMode: dontAsk` auto-denies anything that would
 prompt, so it is stricter than `default` despite its name; `plan`, `default`
@@ -586,7 +586,7 @@ and `manual` loosen nothing; `acceptEdits`/`auto` in your own
 `~/.claude/agents/` file is the documented feature working as you set it.
 
 **Where these run.** Subagent definitions are part of default discovery, like
-Claude Code plugins: a plain `mcp-audit scan` or `mcp-audit check` reads
+Claude Code plugins: a plain `credenzo scan` or `credenzo check` reads
 `~/.claude/agents/` and the current directory's `.claude/agents/`, and
 `scan --project <dir>` walks every `.claude/agents/` under `<dir>`.
 AGENT-001..004 and HOOK-001/002 come from that discovery, so the GitHub
@@ -594,11 +594,11 @@ Action's default run sees them with no new input. An explicit `--path` scans
 only what it names. The **body** of each definition (the subagent's system
 prompt) gets the same rules as commands and skills (SKILL-001/002/003,
 POISON-041/042), without the SKILL-002 length check, wherever skills are
-scanned: `scan --include-agent-files` and `mcp-audit agent-files scan`.
+scanned: `scan --include-agent-files` and `credenzo agent-files scan`.
 
 **Inline servers are servers.** Each inline `mcpServers` entry joins
 discovery as client `claude-code-agent`, so it gets every per-server check,
-appears in `mcp-audit shadow`, `discover`, the attack graph and `killchain`,
+appears in `credenzo shadow`, `discover`, the attack graph and `killchain`,
 and gets TRUST-001 under `scan --project`. Like plugin servers they are never
 written to `mcp-lock.json` and never verified against it, and agent files do
 not change the rug-pull state key, so an existing lock keeps verifying. A
@@ -607,7 +607,7 @@ project subagent server under a lock root is listed in `lock_status.not_covered`
 String entries (`- github`) name a server configured elsewhere and add nothing;
 a mapping item with more than one key is ignored, as Claude Code ignores it.
 
-**Version notes.** mcp-audit never runs Claude Code, so it cannot see which
+**Version notes.** Credenzo never runs Claude Code, so it cannot see which
 version you have. Each version-dependent finding uses the severity that holds
 on current Claude Code and says what changes on older versions. The boundaries
 quoted: 2.1.267 (subagent `bypassPermissions` no longer escalates), 2.1.218
@@ -622,9 +622,9 @@ to the **first** `---` anywhere after it, even mid-line, so `# ---` or `----`
 ends it. If the YAML does not parse, one-line `key: value` entries whose value
 holds YAML syntax characters or `: ` are quoted, leading tabs become two
 spaces, and the whole block is parsed again. Claude Code's retry pattern does not
-match a line that ends in `\r`, so mcp-audit also retries a file with Windows
+match a line that ends in `\r`, so Credenzo also retries a file with Windows
 (CRLF) line endings using LF endings, as a Mac or Linux checkout of the same
-file would be read. mcp-audit also reads the block up
+file would be read. Credenzo also reads the block up
 to the first line that is exactly `---` and keeps the findings of both
 readings, so a value placed after a mid-line `---` is still checked. YAML 1.2
 scalars stay strings (`=`, dates). Aliases are resolved under a 100,000-value
@@ -699,29 +699,29 @@ exfiltration shape is not detected: see GAPS.md.
 
 ```bash
 # Scan user-global agent files
-mcp-audit agent-files scan
+credenzo agent-files scan
 
 # Scan user-global + project-level files
-mcp-audit agent-files scan --project /path/to/repo
+credenzo agent-files scan --project /path/to/repo
 
 # JSON output
-mcp-audit agent-files scan --project . --format json
+credenzo agent-files scan --project . --format json
 ```
 
 ### Discovery only
 
 ```bash
-mcp-audit agent-files discover --project /path/to/repo
+credenzo agent-files discover --project /path/to/repo
 ```
 
 ### Integrated with full scan
 
 ```bash
 # Adds the content rules; MEM-003 to MEM-008 already run in a default scan
-mcp-audit scan --include-agent-files
+credenzo scan --include-agent-files
 
 # Combined with project-level scan
-mcp-audit scan --project /path/to/repo --include-agent-files
+credenzo scan --project /path/to/repo --include-agent-files
 ```
 
 ---
@@ -753,7 +753,7 @@ follows them:
 A reached file is scanned with the importing file's rules (MEM-001/002,
 POISON-041/042) and its findings say which file it was reached from; text
 matching a known secret pattern is redacted from them. Where Markdown and
-plain text read an `@` differently, mcp-audit takes the reading that follows
+plain text read an `@` differently, Credenzo takes the reading that follows
 more (`**@x.md**`, `(@x.md)`, `@x.md.`, an indented code block); every
 candidate must exist as a file before it counts.
 
@@ -771,7 +771,7 @@ the top of the working directory that Claude Code expands imports in, plus
 `HEARTBEAT.md` there and in `~/.openclaw/workspace` (MEM-003/MEM-004/MEM-005 only; the
 working directory is skipped when it is `$HOME`). `scan --project` does the
 same for every directory of the walk. `scan --include-agent-files` and
-`mcp-audit agent-files scan` also run the content rules on every reached
+`credenzo agent-files scan` also run the content rules on every reached
 file. On the first two paths only a symlink that leaves the folder is
 reported, so the documented `ln -s AGENTS.md CLAUDE.md` raises nothing.
 

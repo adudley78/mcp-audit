@@ -3,7 +3,7 @@
 > Snyk CLI commands verified against Snyk docs, 2026-05-17; check
 > <https://docs.snyk.io> for updates.
 
-mcp-audit and Snyk Code scan different layers of the same threat surface and
+Credenzo and Snyk Code scan different layers of the same threat surface and
 are designed to be run together, not as alternatives.
 
 ## 1. Why mcp-audit + Snyk Code are complementary
@@ -26,11 +26,11 @@ Running both gives you defence-in-depth:
   network binding, or that its tool description has been poisoned to override
   AI agent behaviour.
 
-**A clean Snyk scan does not mean a clean mcp-audit scan — and vice versa.**
+**A clean Snyk scan does not mean a clean credenzo scan — and vice versa.**
 
 ## 2. Generating SARIF output from mcp-audit
 
-mcp-audit writes a [SARIF 2.1.0](https://sarifweb.azurewebsites.net/) file
+Credenzo writes a [SARIF 2.1.0](https://sarifweb.azurewebsites.net/) file
 with one result per finding. Every result includes:
 
 - **Rule ID** (e.g. `POISON-001`, `CRED-003`, `SC-002`)
@@ -45,7 +45,7 @@ with one result per finding. Every result includes:
 
 ```bash
 # Write SARIF to a file (--output-file / -o)
-mcp-audit scan --format sarif -o mcp-audit.sarif
+credenzo scan --format sarif -o mcp-audit.sarif
 
 # Or use the GitHub Action (uploads automatically)
 uses: adudley78/mcp-audit@v0.32.0
@@ -75,7 +75,7 @@ connected their GitHub organisation to Snyk see these alerts automatically
 via Snyk's GitHub SCM integration — no additional step needed.
 
 ```yaml
-# Upload mcp-audit SARIF
+# Upload Credenzo SARIF
 - uses: github/codeql-action/upload-sarif@v4
   with:
     sarif_file: mcp-audit.sarif
@@ -102,7 +102,7 @@ snyk code test --report --project-name=my-repo
 ```
 
 There is no equivalent "push external SARIF to Snyk" command in the public
-Snyk CLI. mcp-audit findings reach Snyk Enterprise via the GitHub Code
+Snyk CLI. Credenzo findings reach Snyk Enterprise via the GitHub Code
 Scanning path described above.
 
 ## 4. Interpreting findings in the GitHub Security tab
@@ -115,7 +115,7 @@ your repository. You will see findings from two tools:
 | Rule IDs starting with `POISON-`, `CRED-`, `SC-`, `TRANSPORT-`, `TOXIC-` | mcp-audit | `CRED-001: AWS access key in env value` |
 | Rule IDs starting with `javascript/` or `python/` | Snyk Code | `javascript/SqlInjection` |
 
-**Triage order:** prioritise CRITICAL and HIGH mcp-audit findings first —
+**Triage order:** prioritise CRITICAL and HIGH Credenzo findings first —
 credential exposure in a live MCP config is typically a more immediate risk
 than a source-code smell. Then address HIGH/MEDIUM Snyk Code findings for
 injection sinks in the server's tool handlers.
@@ -124,7 +124,7 @@ injection sinks in the server's tool handlers.
 annotations point to lines in JSON config files; Snyk annotations point to
 lines in source files. Reviewers see both sets without leaving the PR.
 
-**OWASP MCP Top 10 column:** mcp-audit findings carry
+**OWASP MCP Top 10 column:** Credenzo findings carry
 [OWASP MCP Top 10](https://owasp.org/www-project-mcp-top-10/) codes
 (`MCP01`–`MCP10`) in the SARIF `taxonomies` block. GitHub Code Scanning does
 not currently surface taxonomy tags in the UI, but they are queryable via the
@@ -140,7 +140,7 @@ It runs:
 
 1. `snyk/actions/node@master` — Snyk Code SAST on the repository source,
    saves SARIF to `snyk.sarif`.
-2. `adudley78/mcp-audit` — mcp-audit config scan, saves SARIF to
+2. `adudley78/mcp-audit` — Credenzo config scan, saves SARIF to
    `mcp-audit.sarif`.
 3. Two `upload-sarif` steps — uploads both SARIF files to GitHub Code Scanning
    with separate `category` labels.
@@ -150,7 +150,7 @@ The two scan steps run in parallel (separate `needs:` paths or same job with
 
 ### Choosing a severity threshold
 
-| Team posture | mcp-audit threshold | Snyk threshold |
+| Team posture | Credenzo threshold | Snyk threshold |
 |---|---|---|
 | Visibility only (new adoption) | `info`, `fail-on-findings: false` | `--severity-threshold=low` |
 | Standard gate | `high` (default) | `--severity-threshold=high` |
@@ -164,8 +164,8 @@ low) and both exit 1 when findings at or above the threshold are present.
 ## Quick reference
 
 ```bash
-# mcp-audit: scan and write SARIF
-mcp-audit scan --format sarif -o mcp-audit.sarif
+# Credenzo: scan and write SARIF
+credenzo scan --format sarif -o mcp-audit.sarif
 
 # Snyk Code: scan source and write SARIF
 snyk code test --sarif-file-output=snyk.sarif

@@ -147,7 +147,7 @@ def print_results(
     # Header
     console.print()
     console.print(
-        f"[bold]mcp-audit[/bold] v{__version__} — MCP Security Scanner",
+        f"[bold]Credenzo[/bold] v{__version__} — MCP Security Scanner",
         style="cyan",
     )
     console.print(

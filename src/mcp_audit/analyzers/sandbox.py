@@ -259,7 +259,7 @@ _ORIGIN_TEXT: dict[str, tuple[str, str]] = {
     ),
     ORIGIN_LOCAL_UNKNOWN: (
         "local project settings (.claude/settings.local.json) whose git state"
-        " mcp-audit could not read (see the scan's errors)",
+        " Credenzo could not read (see the scan's errors)",
         "If git tracks it, it is the repository's ("
         + _REPO_SUPPLIED_QUOTE
         + "); reported at MEDIUM at most because that is unknown.",

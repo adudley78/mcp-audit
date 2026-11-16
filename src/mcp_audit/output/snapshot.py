@@ -1,6 +1,6 @@
 """Snapshot output formatters: CycloneDX AI/ML-BOM and native JSON.
 
-Produces the two output shapes for ``mcp-audit snapshot``:
+Produces the two output shapes for ``credenzo snapshot``:
 
 - :func:`format_cyclonedx_aibom` — CycloneDX 1.5 JSON with mcp-audit-specific
   ``properties`` blocks, ``components`` per server, and ``vulnerabilities``
@@ -43,7 +43,7 @@ def _cyclonedx_timestamp(dt: datetime) -> str:
 
 
 def _severity_to_cyclonedx(severity: str) -> str:
-    """Map mcp-audit Severity strings to CycloneDX vulnerability severity labels.
+    """Map Credenzo Severity strings to CycloneDX vulnerability severity labels.
 
     Args:
         severity: One of ``CRITICAL``, ``HIGH``, ``MEDIUM``, ``LOW``, ``INFO``.

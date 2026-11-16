@@ -170,7 +170,7 @@ def _drift_to_findings(
                 evidence=evidence,
                 remediation=(
                     "Review this change. If intentional, run "
-                    "'mcp-audit baseline save' to update your baseline."
+                    "'credenzo baseline save' to update your baseline."
                 ),
             )
         )
@@ -573,7 +573,7 @@ def _apply_baseline_drift(
             if bl is None:
                 con.print(
                     "[red]No baselines found.[/red]  "
-                    "Run [bold]mcp-audit baseline save[/bold] first."
+                    "Run [bold]credenzo baseline save[/bold] first."
                 )
                 raise typer.Exit(2)
         else:
@@ -603,8 +603,8 @@ def _apply_baseline_drift(
                 evidence=str(exc),
                 remediation=(
                     "Delete the corrupted baseline with "
-                    "'mcp-audit baseline delete' and re-save with "
-                    "'mcp-audit baseline save'."
+                    "'credenzo baseline delete' and re-save with "
+                    "'credenzo baseline save'."
                 ),
             )
         )
@@ -1402,7 +1402,7 @@ def _apply_project_scan(
             result.findings.append(finding)
 
     # MCP gateway project configs (.mcptoon.json/.toml, .mcphub/servers.json;
-    # STORY-0111) join this walk; `mcp-audit lock` walks without them.
+    # STORY-0111) join this walk; `credenzo lock` walks without them.
     project_configs = discover_project_configs(
         project_dir, skip_findings=skip_findings, include_gateways=True
     )
@@ -1411,7 +1411,7 @@ def _apply_project_scan(
     # Every file in each .claude/skills/<skill>/ is read.  A skills-directory
     # plugin's MCP servers (.claude/skills/<name>/.mcp.json, and inline
     # plugin.json servers) are listed once, under client claude-code-plugin,
-    # and get TRUST-001 below.  `mcp-audit lock` records the .mcp.json ones
+    # and get TRUST-001 below.  `credenzo lock` records the .mcp.json ones
     # (its project walk reads every .mcp.json); lock auto-verification checks
     # them against that entry (lock/auto_verify.py).
     project_configs = _apply_project_skills(
@@ -1449,7 +1449,7 @@ def _apply_project_scan(
     # Subagent definitions (STORY-0094): their frontmatter is checked at step 0
     # of the pipeline below (AGENT-001..004, HOOK-001/002) and their inline
     # servers get TRUST-001 like any project-scoped server. Kept out of
-    # discover_project_configs() so `mcp-audit lock` never records them.
+    # discover_project_configs() so `credenzo lock` never records them.
     # A symlinked agent file reports TRUST-002 through skip_findings, and the
     # definitions past the per-scan budget their pre-screen AGENT findings.
     # The default scan may already have read the cwd's agents directory, so
@@ -1682,7 +1682,7 @@ def _apply_lock_verification(
 
     Called unconditionally (unless *no_lock* is set) — STORY-0070. Always
     offline: this never resolves a floating version over the network; that
-    stays an explicit opt-in on ``mcp-audit lock --verify --resolve``.
+    stays an explicit opt-in on ``credenzo lock --verify --resolve``.
 
     Contract: when no ``mcp-lock.json`` is discoverable for any scanned
     server, ``result`` is returned unchanged (``lock_status.present`` stays
@@ -1798,7 +1798,7 @@ def scan(
         default=None,
         help=(
             "Config file to scan (single path only; "
-            "for multiple configs use --path or 'mcp-audit discover')"
+            "for multiple configs use --path or 'credenzo discover')"
         ),
     ),
     path: Path | None = typer.Option(  # noqa: B008
@@ -1810,7 +1810,7 @@ def scan(
         "-f",
         help=(
             "Output format: terminal, json, sarif, nucleus. "
-            "HTML output is available via 'mcp-audit dashboard'."
+            "HTML output is available via 'credenzo dashboard'."
         ),
     ),
     output: Path | None = typer.Option(  # noqa: B008
@@ -1981,7 +1981,7 @@ def scan(
         None,
         "--bundle-key",
         help=(
-            "Minisign public key for --bundle (default: mcp-audit's project key, "
+            "Minisign public key for --bundle (default: Credenzo's project key, "
             "or $MCP_AUDIT_SIGNING_PUBKEY)."
         ),
     ),
@@ -2092,7 +2092,7 @@ def scan(
     if configs and len(configs) > 1:
         con.print(
             "[red]Error:[/red] scan accepts a single config path. "
-            "For multiple configs use 'mcp-audit discover' or run scan once per config."
+            "For multiple configs use 'credenzo discover' or run scan once per config."
         )
         raise typer.Exit(2)
     config = configs[0] if configs else None

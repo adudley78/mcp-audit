@@ -1,4 +1,4 @@
-"""One-page-per-machine PDF for ``mcp-audit reach --report pdf`` (STORY-0145).
+"""One-page-per-machine PDF for ``credenzo reach --report pdf`` (STORY-0145).
 
 Reuses the page furniture of :mod:`mcp_audit.output.pdf` (brand header band,
 footer, content-hash line, palette) and adds the reach body: the machine, one
@@ -111,7 +111,7 @@ class ReachPdfFormatter:
             topMargin=top,
             bottomMargin=0.85 * inch,
             title=f"Agent reach report — {_text(self._doc['machine']['hostname'])}",
-            author=f"mcp-audit v{__version__}",
+            author=f"Credenzo v{__version__}",
             compress=compress,
         )
         hdr = data_dir() / "header_dark.png"
@@ -133,7 +133,7 @@ class ReachPdfFormatter:
                 f"Organisation: {_text(self._org)} &nbsp;|&nbsp; Host:"
                 f" {_text(machine['hostname'])} ({_text(machine['os'])})"
                 f" &nbsp;|&nbsp; {_text(d['generated_at'])}"
-                f" &nbsp;|&nbsp; mcp-audit v{_text(d['tool']['version'])}",
+                f" &nbsp;|&nbsp; Credenzo v{_text(d['tool']['version'])}",
                 self._small,
             ),
             Spacer(1, 4),

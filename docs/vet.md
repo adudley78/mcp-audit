@@ -1,6 +1,6 @@
-# mcp-audit vet — Pre-install verdict
+# credenzo vet — Pre-install verdict
 
-`mcp-audit vet <package>` checks a public MCP server package against the
+`credenzo vet <package>` checks a public MCP server package against the
 known-server registry and tells you the facts before you install it:
 verification status, known CVEs, declared capabilities, and hash pins.
 
@@ -15,26 +15,26 @@ you the data; you make the call.
 
 ```bash
 # Check an npm package (scoped)
-mcp-audit vet @modelcontextprotocol/server-filesystem
+credenzo vet @modelcontextprotocol/server-filesystem
 
 # Check a PyPI package
-mcp-audit vet mcp-atlassian --ecosystem pypi
+credenzo vet mcp-atlassian --ecosystem pypi
 
 # Machine-readable JSON
-mcp-audit vet @azure/mcp --format json
+credenzo vet @azure/mcp --format json
 
 # Shields.io badge for your README
-mcp-audit vet @modelcontextprotocol/server-filesystem --badge
+credenzo vet @modelcontextprotocol/server-filesystem --badge
 
 # A specific version (STORY-0117): judged against each recorded CVE's fix
-mcp-audit vet @modelcontextprotocol/server-filesystem@2025.1.14
-mcp-audit vet mcp-remote==0.1.30
+credenzo vet @modelcontextprotocol/server-filesystem@2025.1.14
+credenzo vet mcp-remote==0.1.30
 
 # Live verdict from mcp-audit.dev (requires network)
-mcp-audit vet @scope/name --online
+credenzo vet @scope/name --online
 
 # CI mode: exit 1 if package is unknown (not just CVE/typosquat)
-mcp-audit vet @scope/name --strict
+credenzo vet @scope/name --strict
 ```
 
 ---
@@ -73,7 +73,7 @@ is shown and exits 0.
 ## Output: known package
 
 ```
-╭─ mcp-audit verdict ──────────────────────────────────────────╮
+╭─ Credenzo verdict ──────────────────────────────────────────╮
 │ @modelcontextprotocol/server-filesystem  (npm)               │
 │                                                              │
 │   Registry:      Listed · Verified · Anthropic               │
@@ -93,7 +93,7 @@ is shown and exits 0.
 ## Output: CVEs present
 
 ```
-╭─ mcp-audit verdict ──────────────────────────────────────────╮
+╭─ Credenzo verdict ──────────────────────────────────────────╮
 │ mcp-atlassian  (pypi)                                        │
 │                                                              │
 │   Registry:      Listed · Verified · sooperset               │
@@ -165,7 +165,7 @@ server (exit 0) and warns that the npm package `mcp-server-git` is
 ## Output: unknown package
 
 ```
-╭─ mcp-audit verdict — unknown package ────────────────────────╮
+╭─ Credenzo verdict — unknown package ────────────────────────╮
 │ some-new-package  (npm)                                      │
 │                                                              │
 │ No verdict available. The registry covers 83 known servers;  │
@@ -175,7 +175,7 @@ server (exit 0) and warns that the npm package `mcp-server-git` is
 │ The registry covers a curated corpus, not every MCP package. │
 │                                                              │
 │ After installing and configuring, run:                       │
-│   mcp-audit scan                                             │
+│   credenzo scan                                             │
 │                                                              │
 │ Help grow the registry: https://mcp-audit.dev/contribute     │
 ╰──────────────────────────────────────────────────────────────╯
@@ -249,7 +249,7 @@ With a version, the exit code is 1 when any CVE is `affected` or `undecidable` (
 `--badge` prints a Shields.io Markdown badge you can paste into your project README:
 
 ```
-[![mcp-audit verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-modelcontextprotocol-server-filesystem.json)](https://mcp-audit.dev/v1/verdicts/npm/at-modelcontextprotocol-server-filesystem.json)
+[![Credenzo verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-modelcontextprotocol-server-filesystem.json)](https://mcp-audit.dev/v1/verdicts/npm/at-modelcontextprotocol-server-filesystem.json)
 ```
 
 **Slug convention:** `@scope/name` → `at-scope-name`, lowercased, `_` → `-`.
@@ -275,7 +275,7 @@ Network failure is non-fatal — it logs a dim note and falls back to the bundle
 
 Plain `vet` (without `--online`) makes **zero** network calls.
 
-**Not yet surfaced here:** `mcp-audit lock`'s deprecated-package check
+**Not yet surfaced here:** `credenzo lock`'s deprecated-package check
 (`SC-005` — a registry-marked-deprecated version, npm's own `deprecated`
 field) is not wired into `vet --online` or `scan --check-vulns`. It fires
 only at `lock` resolution and `lock --verify --resolve` for now — see
@@ -286,7 +286,7 @@ STORY-0074.
 
 ## Typosquat detection
 
-`vet` reuses the same Levenshtein threshold as `mcp-audit scan`'s supply-chain analyzer:
+`vet` reuses the same Levenshtein threshold as `credenzo scan`'s supply-chain analyzer:
 
 | Name length | Edit-distance threshold |
 |-------------|------------------------|
@@ -311,15 +311,15 @@ For PyPI lookups, package names are normalised per
 The three primary practitioner verbs are:
 
 ```
-mcp-audit vet <package>    # Before installing
-mcp-audit check            # After installing and configuring
-mcp-audit fix --apply      # Fix detected issues automatically
+credenzo vet <package>    # Before installing
+credenzo check            # After installing and configuring
+credenzo fix --apply      # Fix detected issues automatically
 ```
 
 See also:
-- [`mcp-audit check`](check.md) — one-command verdict on your installed configuration
-- [`mcp-audit fix`](fix.md) — apply safe remediations to MCP config files
-- [`mcp-audit scan`](docs-usage.md) — full scan with all analyzers
+- [`credenzo check`](check.md) — one-command verdict on your installed configuration
+- [`credenzo fix`](fix.md) — apply safe remediations to MCP config files
+- [`credenzo scan`](docs-usage.md) — full scan with all analyzers
 
 ## Archived packages (STORY-0140)
 

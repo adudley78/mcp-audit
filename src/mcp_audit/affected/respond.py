@@ -8,7 +8,7 @@ managed-policy entries that would stop it loading.
 Everything is names and paths.  No environment, header or argument *value* is
 read into the output, no credential file is opened (it is only ``stat()``-ed,
 the way REACH-001..003 do), and saved tool text is counted, never shown.
-mcp-audit writes only the one file ``--policy-out`` names, and refuses a path
+Credenzo writes only the one file ``--policy-out`` names, and refuses a path
 inside Claude Code's managed-settings directory: deploying is the admin's job.
 """
 

@@ -1,13 +1,13 @@
 """``affected --fleet``: answer from saved scan files, not this machine (STORY-0131).
 
-Each file is the JSON of ``mcp-audit scan --format json`` from one machine; its
+Each file is the JSON of ``credenzo scan --format json`` from one machine; its
 ``servers`` list carries every server's launch command and arguments (already
 redacted by ``ServerConfig``'s serialisers, which leave version pins intact).
 The result is one row per machine x server.
 
 The files are untrusted input: they are opened without blocking, must be
 regular files, are read up to a size cap, and every failure becomes a
-COULDN'T CHECK row and a warning.  ``mcp-audit merge`` output carries no
+COULDN'T CHECK row and a warning.  ``credenzo merge`` output carries no
 per-server data, so it is recognised and reported instead of guessed at.
 """
 
@@ -52,7 +52,7 @@ def display_name(path: Path) -> str:
 
 def _read(path: Path) -> tuple[dict | None, str | None]:
     """The file as a JSON object, or ``(None, why)``; never raises."""
-    return read_untrusted_json(path, max_bytes=MAX_SCAN_BYTES, what="an mcp-audit scan")
+    return read_untrusted_json(path, max_bytes=MAX_SCAN_BYTES, what="a Credenzo scan")
 
 
 def _machine_name(doc: dict, path: Path) -> str:
@@ -104,7 +104,7 @@ def load_machines(
                 Row(
                     f"scan file {name}",
                     Status.COULDNT_CHECK,
-                    "this is `mcp-audit merge` output, which keeps findings but "
+                    "this is `credenzo merge` output, which keeps findings but "
                     "no per-server launch data; pass each machine's `scan "
                     "--format json` file instead",
                     reason=NO_SERVER_DATA,
@@ -117,7 +117,7 @@ def load_machines(
                 Row(
                     f"scan file {name}",
                     Status.COULDNT_CHECK,
-                    "the scan file has no `servers` list (an older mcp-audit, or "
+                    "the scan file has no `servers` list (an older Credenzo, or "
                     "not a scan file), so none of its servers were checked",
                     reason=NO_SERVER_DATA,
                     machine=machine_id,

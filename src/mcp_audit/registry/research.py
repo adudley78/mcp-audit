@@ -4,15 +4,15 @@ Much of what hits coding agents and MCP clients is published as a research
 write-up (a named attack, a bypass, a campaign) long before, or instead of, a
 CVE.  ``src/mcp_audit/data/research-records.json`` holds those findings as
 OSV-shaped records, credited to the people who found them, so a later command
-(``mcp-audit affected``, EPIC-0008) can answer for them like any other
+(``credenzo affected``, EPIC-0008) can answer for them like any other
 advisory.  ``affected`` reads it (STORY-0121).
 
 A record is **not** a finding.  It says what was reported, by whom, which
-products were affected and where they were fixed, and which mcp-audit checks
+products were affected and where they were fixed, and which Credenzo checks
 test the underlying condition (``checks``).  Nothing here is inferred: a field
 the write-up does not state is ``None`` here, never guessed.  In particular a
 record carries *product names* as the write-up gives them, not package names
-mcp-audit would have to invent; ``affected`` will therefore report a harness
+Credenzo would have to invent; ``affected`` will therefore report a harness
 version it cannot read as "could not check" (planned behaviour).
 
 IDs are ``x_MCPRS-<12 hex>``: the first 12 hex digits of
@@ -140,14 +140,14 @@ class ResearchRecord:
     Attributes:
         id: ``x_MCPRS-<12 hex>``.
         summary: One line.
-        details: What was reported and what mcp-audit can and cannot tell.
+        details: What was reported and what Credenzo can and cannot tell.
         published: When the research was published (ISO 8601).
-        modified: When mcp-audit last changed the record.
+        modified: When Credenzo last changed the record.
         aliases: Other IDs (CVE, GHSA) once one exists.
         credits: Who found it.
         references: ``(type, url)`` pairs; the first is the primary write-up.
         products: Affected products with their fixed versions.
-        checks: mcp-audit finding IDs that test the underlying condition.
+        checks: Credenzo finding IDs that test the underlying condition.
     """
 
     id: str

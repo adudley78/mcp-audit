@@ -24,7 +24,7 @@ The cost is per invocation, not one-time, and every subcommand pays it
 (`scan`, `version`, `watch`, …). A source install (`pip` / `uv run`)
 does not.
 
-Measured 2026-08-22 on macOS darwin-x86_64: `uv run mcp-audit version`
+Measured 2026-08-22 on macOS darwin-x86_64: `uv run credenzo version`
 returned in ~0.5 s; `dist/mcp-audit-darwin-x86_64 version` sat silent
 for ~11 s, then printed.
 
@@ -81,7 +81,7 @@ Each GitHub Release attaches CycloneDX 1.5 JSON next to the artifacts:
 | `mcp-audit-<platform>.cdx.json` | Python packages frozen into that PyInstaller binary (PYZ ∩ build-venv versions). Not the full `--all-extras` venv. |
 | `mcp-audit-scanner-wheel.cdx.json` | A default `pip install mcp-audit-scanner` (no extras). Not a binary. |
 
-`mcp-audit sbom` is unrelated — it inventories **scanned MCP servers**, not mcp-audit itself.
+`credenzo sbom` is unrelated — it inventories **scanned MCP servers**, not Credenzo itself.
 
 To check a downloaded binary against its SBOM, confirm the package and version you care about are in `components[]`. Example: `pillow` and `reportlab` must be present; `mcp` and `sigstore` must not (those extras are excluded from the binary).
 

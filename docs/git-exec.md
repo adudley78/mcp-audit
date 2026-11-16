@@ -16,19 +16,19 @@ Cursor's CVE-2026-26268 is the same idea through `.git/hooks`, and git's own
 documentation describes a third shape, a bare repository hidden inside a
 project, under `safe.bareRepository`.
 
-mcp-audit checks for all three. **It never runs git** (running git in such a
+Credenzo checks for all three. **It never runs git** (running git in such a
 repository is the attack); it reads a few small files as text.
 
 ## Where it runs
 
 | Command | What is checked |
 |---|---|
-| `mcp-audit scan`, `mcp-audit check` (no path given) | The repository git would use from the current directory, found the way git finds it: walking up to the nearest valid `.git` (a `.git` folder that is not a real git directory is skipped, as git skips it), or a bare repository. This is the GitHub Action's default. |
-| `mcp-audit scan --project <dir>` | Every `.git` folder or `.git` file the project walk passes, and every nested bare repository under `<dir>`. |
-| `mcp-audit scan --path <file>` | Nothing: an explicit path means "scan exactly this". |
-| `mcp-audit scan`, `check`, `plugins scan` (installed Claude Code plugins) | Each installed plugin's install directory that is a git checkout, and each marketplace clone under `~/.claude/plugins/marketplaces/`: Claude Code runs git there when it refreshes a marketplace (STORY-0096; see `docs/plugins.md`). |
+| `credenzo scan`, `credenzo check` (no path given) | The repository git would use from the current directory, found the way git finds it: walking up to the nearest valid `.git` (a `.git` folder that is not a real git directory is skipped, as git skips it), or a bare repository. This is the GitHub Action's default. |
+| `credenzo scan --project <dir>` | Every `.git` folder or `.git` file the project walk passes, and every nested bare repository under `<dir>`. |
+| `credenzo scan --path <file>` | Nothing: an explicit path means "scan exactly this". |
+| `credenzo scan`, `check`, `plugins scan` (installed Claude Code plugins) | Each installed plugin's install directory that is a git checkout, and each marketplace clone under `~/.claude/plugins/marketplaces/`: Claude Code runs git there when it refreshes a marketplace (STORY-0096; see `docs/plugins.md`). |
 
-No new flags. The walk keeps skipping the inside of `.git`; mcp-audit reads only:
+No new flags. The walk keeps skipping the inside of `.git`; Credenzo reads only:
 
 - `.git/config`, and any file it includes (`include.path`, `includeIf.*.path`)
   that lies inside the scanned folder;
@@ -50,7 +50,7 @@ a credential helper, say) is redacted from every finding.
 ## TRUST-006: git config runs a command
 
 Git uses the last value of a setting, so a later `core.fsmonitor = false`
-switches an earlier command off, and mcp-audit does the same.
+switches an earlier command off, and Credenzo does the same.
 
 | Severity | Setting | When git runs it |
 |---|---|---|
@@ -71,7 +71,7 @@ switches an earlier command off, and mcp-audit does the same.
 
 **Tools that write these settings for you are not alarms.** When the command is
 one of these tools' own forms, every argument is on that tool's allowlist, and
-the program lives outside the repository, mcp-audit lists it once per file as
+the program lives outside the repository, Credenzo lists it once per file as
 INFO inventory:
 
 - Git LFS (`git-lfs clean -- %f`, `git-lfs filter-process`; what

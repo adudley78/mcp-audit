@@ -1,4 +1,4 @@
-"""One-page security verdict formatter for `mcp-audit check`."""
+"""One-page security verdict formatter for `credenzo check`."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ _SEVERITY_COLORS: dict[Severity, str] = {
 }
 
 # ── Auto-fixable finding IDs ───────────────────────────────────────────────────
-# These IDs map to remediations that `mcp-audit fix --apply` can handle.
+# These IDs map to remediations that `credenzo fix --apply` can handle.
 
 _AUTO_FIXABLE: frozenset[str] = frozenset(
     {
@@ -43,9 +43,9 @@ _AUTO_FIXABLE: frozenset[str] = frozenset(
 
 _HINTS: dict[str, str] = {
     # Credentials
-    "CRED-001": "Run `mcp-audit fix --apply` to redact automatically.",
-    "CRED-002": "Run `mcp-audit fix --apply` to redact automatically.",
-    "CRED-003": "Run `mcp-audit fix --apply` to redact automatically.",
+    "CRED-001": "Run `credenzo fix --apply` to redact automatically.",
+    "CRED-002": "Run `credenzo fix --apply` to redact automatically.",
+    "CRED-003": "Run `credenzo fix --apply` to redact automatically.",
     "CRED-004": (
         "Rotate the secret, then delete the permission rule that holds it and"
         " re-approve the command with the secret in an environment variable."
@@ -59,15 +59,15 @@ _HINTS: dict[str, str] = {
         " secret the file held, and rebuild or republish."
     ),
     # Transport
-    "TRANSPORT-001": "Run `mcp-audit fix --apply` to upgrade to HTTPS automatically.",
+    "TRANSPORT-001": "Run `credenzo fix --apply` to upgrade to HTTPS automatically.",
     "TRANSPORT-002": "Bind this server to 127.0.0.1 (localhost) instead of 0.0.0.0.",
     "TRANSPORT-003": "Host this server over HTTPS to encrypt traffic in transit.",
     "TRANSPORT-004": (
         "Enable TLS certificate validation — do not set rejectUnauthorized: false."
     ),
     # Supply chain / typosquatting
-    "SC-001": "Run `mcp-audit fix --apply` to replace with the verified package name.",
-    "SC-002": "Run `mcp-audit fix --apply` to replace with the verified package name.",
+    "SC-001": "Run `credenzo fix --apply` to replace with the verified package name.",
+    "SC-002": "Run `credenzo fix --apply` to replace with the verified package name.",
     "SC-003": "Verify this package name against the official MCP registry before use.",
     "SC-007": (
         "This name copies a known package without its scope. Switch the launch "
@@ -391,7 +391,7 @@ _HINTS: dict[str, str] = {
     # Baseline drift
     "DRIFT": (
         "Review this change. If intentional,"
-        " run `mcp-audit baseline save` to update your baseline."
+        " run `credenzo baseline save` to update your baseline."
     ),
     # Attestation
     "ATTEST": (
@@ -401,17 +401,17 @@ _HINTS: dict[str, str] = {
     # Lock (mcp-lock.json drift — STORY-0070)
     "LOCK-001": (
         "This server's config no longer matches the lock."
-        " Review the change, then run `mcp-audit lock --accept`."
+        " Review the change, then run `credenzo lock --accept`."
     ),
     "LOCK-002": (
         "This server is not in the lock."
-        " Run `mcp-audit lock` to approve it (or `lock --accept` after review)."
+        " Run `credenzo lock` to approve it (or `lock --accept` after review)."
     ),
     "LOCK-003": (
         "This server is in the lock but no longer in your config."
-        " If the removal was intended, run `mcp-audit lock --accept`."
+        " If the removal was intended, run `credenzo lock --accept`."
     ),
-    "LOCK-004": "Run `mcp-audit fix --apply` to re-pin to the locked version.",
+    "LOCK-004": "Run `credenzo fix --apply` to re-pin to the locked version.",
     "LOCK-005": (
         "The lock file itself looks tampered or corrupted."
         " Inspect `git diff mcp-lock.json` before trusting it."
@@ -419,30 +419,30 @@ _HINTS: dict[str, str] = {
     # Tool definitions (`lock --verify --connect` — STORY-0086)
     "LOCK-006": (
         "This server now offers tools the lock never approved."
-        " Review them, then run `mcp-audit lock --accept --connect`."
+        " Review them, then run `credenzo lock --accept --connect`."
     ),
     "LOCK-007": (
         "A tool's schema or annotations changed since the lock."
-        " Review the change, then run `mcp-audit lock --accept --connect`."
+        " Review the change, then run `credenzo lock --accept --connect`."
     ),
     "LOCK-008": (
         "A tool's description changed since the lock; read the new text"
-        " (`mcp-audit scan --connect` checks it), then re-lock with --connect."
+        " (`credenzo scan --connect` checks it), then re-lock with --connect."
     ),
     "LOCK-009": (
-        "A locked tool is gone. If expected, run `mcp-audit lock --accept --connect`."
+        "A locked tool is gone. If expected, run `credenzo lock --accept --connect`."
     ),
     # lock_version 2 (STORY-0116)
     "LOCK-010": (
         "The registry's `latest` or deprecation notice changed since the lock;"
-        " informational. Re-lock with `mcp-audit lock --accept` to record it."
+        " informational. Re-lock with `credenzo lock --accept` to record it."
     ),
     "LOCK-011": (
         "A section of mcp-lock.json changed without its digest. Inspect"
         " `git diff mcp-lock.json`; re-run whichever tool wrote that section."
     ),
     "LOCK-012": (
-        "Something reformatted mcp-lock.json. Run `mcp-audit lock --accept` to"
+        "Something reformatted mcp-lock.json. Run `credenzo lock --accept` to"
         " rewrite it canonically."
     ),
     "LOCK-013": (
@@ -452,7 +452,7 @@ _HINTS: dict[str, str] = {
     ),
     "LOCK-014": (
         "A guardrail file in this repository allows more than mcp-lock.json"
-        " records. Revert it (`git diff`), or run `mcp-audit lock --accept` if the"
+        " records. Revert it (`git diff`), or run `credenzo lock --accept` if the"
         " change was intended and reviewed."
     ),
     # Guardrail drift (STORY-0143)
@@ -531,7 +531,7 @@ _NOT_FIXED_CLIENTS = (
 
 
 def _is_auto_fixable(finding: Finding) -> bool:
-    """True when ``mcp-audit fix`` can remediate *finding* in place.
+    """True when ``credenzo fix`` can remediate *finding* in place.
 
     ``fix`` edits MCP JSON config files only, so an auto-fixable ID found in
     another file (a CRED-001 in ``.gemini/.env``, STORY-0090) is not, nor one
@@ -561,7 +561,7 @@ def _remediation_hint(finding: Finding) -> str:
         if finding.id.startswith("CRED-"):
             return (
                 "Move the secret out of this file into your shell or a credential"
-                " manager, then rotate it (`mcp-audit fix` edits MCP JSON configs"
+                " manager, then rotate it (`credenzo fix` edits MCP JSON configs"
                 " only)."
             )
         sentences = finding.remediation.split(". ")
@@ -613,7 +613,7 @@ def print_check_results(
     - Optional registration line (when *registration* is provided)
     - Up to :data:`MAX_FINDINGS_SHOWN` findings (highest severity first)
     - Per-finding remediation hints
-    - Footer with ``mcp-audit fix`` and ``mcp-audit scan`` guidance
+    - Footer with ``credenzo fix`` and ``credenzo scan`` guidance
 
     Args:
         result: Completed scan result from :func:`~mcp_audit.scanner.run_scan`.
@@ -630,7 +630,7 @@ def print_check_results(
     grade_style = _grade_color(grade)
 
     console.print()
-    console.print(Rule("[bold]mcp-audit — Security Check[/bold]"))
+    console.print(Rule("[bold]Credenzo — Security Check[/bold]"))
 
     # Inventory-only findings (scoring.INVENTORY_ONLY_IDS) describe a state that
     # is fine; they are not issues and stay out of the verdict.
@@ -669,7 +669,7 @@ def print_check_results(
     if grade == "F" and has_attack_paths:
         console.print(
             "  [bold red]⛔ Active attack path detected.[/bold red]"
-            "  Run [bold]mcp-audit scan[/bold] for full details."
+            "  Run [bold]credenzo scan[/bold] for full details."
         )
         console.print()
 
@@ -703,7 +703,7 @@ def print_check_results(
 
     if remainder > 0:
         console.print(
-            f"  [dim]… and {remainder} more — run [bold]mcp-audit scan[/bold]"
+            f"  [dim]… and {remainder} more — run [bold]credenzo scan[/bold]"
             " to see all.[/dim]"
         )
         console.print()
@@ -726,16 +726,16 @@ def print_check_results(
         ids_str = ", ".join(fixable_ids)
         n_word = "finding" if fixable_shown == 1 else "findings"
         console.print(
-            f"  → Run [bold]mcp-audit fix --apply[/bold] to auto-remediate "
+            f"  → Run [bold]credenzo fix --apply[/bold] to auto-remediate "
             f"[{ids_str}] ({fixable_shown} {n_word})"
         )
         console.print()
 
     # ── Footer ────────────────────────────────────────────────────────────────
     console.print(Rule())
-    console.print("[dim]To see all findings:  mcp-audit scan[/dim]")
+    console.print("[dim]To see all findings:  credenzo scan[/dim]")
     if fixable_shown > 0:
-        console.print("[dim]To apply auto-fixes:  mcp-audit fix --apply[/dim]")
+        console.print("[dim]To apply auto-fixes:  credenzo fix --apply[/dim]")
 
 
 def _print_lock_line(console: Console, result: ScanResult) -> None:
@@ -765,7 +765,7 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
     else:
         console.print(
             f"  [yellow]Lock:[/yellow] {status.findings} finding(s) across "
-            f"{n} locked {server_word}{not_verified} — see `mcp-audit lock --verify`."
+            f"{n} locked {server_word}{not_verified} — see `credenzo lock --verify`."
         )
     for key in status.unresolved_entries:
         console.print(
@@ -786,10 +786,10 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
 
 
 def _print_wrap_line(console: Console, result: ScanResult) -> None:
-    """Print how many local servers launch through ``mcp-audit run``.
+    """Print how many local servers launch through ``credenzo run``.
 
     Silent until at least one server is wrapped (EPIC-0009 Story 1.2), so
-    nobody who hasn't used ``mcp-audit wrap`` sees a new line.
+    nobody who hasn't used ``credenzo wrap`` sees a new line.
     """
     from mcp_audit.runtime.wrapping import wrap_status  # noqa: PLC0415
 
@@ -799,7 +799,7 @@ def _print_wrap_line(console: Console, result: ScanResult) -> None:
     by_mode = ", ".join(f"{count} {mode}" for mode, count in sorted(modes.items()))
     line = f"  [dim]Launch gate: {wrapped} of {local} local servers wrapped ({by_mode})"
     if wrapped < local:
-        line += f"; {local - wrapped} not wrapped — `mcp-audit wrap`"
+        line += f"; {local - wrapped} not wrapped — `credenzo wrap`"
     console.print(line + "[/dim]")
 
 

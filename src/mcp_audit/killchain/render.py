@@ -75,7 +75,7 @@ def render_markdown(
     """
     ts = (timestamp or datetime.now(UTC)).strftime("%Y-%m-%d %H:%M UTC")
     lines: list[str] = [
-        "# mcp-audit killchain report",
+        "# credenzo killchain report",
         "",
         f"_Generated: {ts}_",
         "",
