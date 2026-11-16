@@ -333,7 +333,7 @@ then post the diff as a PR comment via `github-script`:
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
 
-- uses: adudley78/setup-mcp-audit@v1
+- uses: adudley78/mcp-audit/setup-action@v0.33.0
 
 - run: git checkout ${{ github.event.pull_request.base.sha }}
         && credenzo scan --format json -o base.json || true

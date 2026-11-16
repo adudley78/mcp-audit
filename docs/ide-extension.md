@@ -4,7 +4,7 @@ Credenzo ships a companion VS Code extension (`mcp-audit-vscode`) that surfaces
 scan results as inline diagnostics — the same red/yellow squiggles developers
 already know from ESLint and Pyright.
 
-**Extension repo:** [mcp-audit/mcp-audit-vscode](https://github.com/mcp-audit/mcp-audit-vscode)
+**Extension repo:** [adudley78/mcp-audit-vscode](https://github.com/adudley78/mcp-audit-vscode)
 
 ---
 
@@ -119,7 +119,7 @@ architectural decision record on the separate-repo approach.
 ## Development
 
 ```bash
-git clone https://github.com/mcp-audit/mcp-audit-vscode
+git clone https://github.com/adudley78/mcp-audit-vscode
 cd mcp-audit-vscode
 npm install
 npm run build          # esbuild bundle → dist/extension.js

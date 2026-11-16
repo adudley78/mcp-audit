@@ -50,8 +50,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install mcp-audit
-        uses: adudley78/setup-mcp-audit@v1
+      - name: Install Credenzo
+        uses: adudley78/mcp-audit/setup-action@v0.33.0
 
       - name: Scan base commit
         run: |

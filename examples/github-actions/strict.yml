@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@32b648a33a7549e459c1a8bc42ba121079b11eca # v0.10.0
+        uses: adudley78/mcp-audit@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
         with:
           severity-threshold: medium   # fail on MEDIUM, HIGH, or CRITICAL
           upload-sarif: 'true'
