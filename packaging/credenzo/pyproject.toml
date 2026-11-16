@@ -1,0 +1,25 @@
+# The `credenzo` name on PyPI. mcp-audit is becoming Credenzo; until the
+# main package moves, `pip install credenzo` installs mcp-audit-scanner.
+# Published by .github/workflows/publish-credenzo-name.yml (manual run).
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "credenzo"
+version = "0.0.1"
+description = "Credenzo (formerly mcp-audit): the taste test for agent tools. Installs mcp-audit-scanner."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [{ name = "Adam Dudley" }]
+dependencies = ["mcp-audit-scanner>=0.32.0"]
+
+[project.urls]
+Homepage = "https://github.com/adudley78/mcp-audit"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.build.targets.sdist]
+include = ["README.md", "pyproject.toml"]
