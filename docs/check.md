@@ -164,6 +164,7 @@ automatically."
 | `CRED-003` | Literal secret in an authentication header |
 | `CRED-004` | Secret saved in a Claude Code permission rule |
 | `CRED-005` | Secret in a permission rule that git history still holds |
+| `CRED-006` | Claude Code settings file copied into a container image or npm package |
 | `TRANSPORT-001` | HTTP instead of HTTPS |
 | `SC-001` | Likely-typosquatted package (edit distance 1) |
 | `SC-002` | Possible-typosquatted package (edit distance 2) |

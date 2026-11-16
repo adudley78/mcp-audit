@@ -1360,6 +1360,22 @@ def _apply_project_scan(
             seen_history.add(history_key)
             result.findings.append(finding)
 
+    # ── CRED-006: settings files a Dockerfile or npm package ships ──────────
+    # STORY-0157. The default scan already walked the cwd's work tree; keep
+    # one copy when the project is the same tree. Never raises.
+    from mcp_audit.analyzers import shipped_settings as _shipped  # noqa: PLC0415
+
+    seen_shipped = {
+        (f.id, f.finding_path, f.evidence)
+        for f in result.findings
+        if f.id == _shipped.FINDING_ID
+    }
+    for finding in _shipped.scan_tree(project_dir, result.errors):
+        shipped_key = (finding.id, finding.finding_path, finding.evidence)
+        if shipped_key not in seen_shipped:
+            seen_shipped.add(shipped_key)
+            result.findings.append(finding)
+
     # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
     # The default scan already read <cwd>/.github/workflows; when cwd is the
     # project root the same findings would arrive twice, so keep one copy.

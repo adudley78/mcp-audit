@@ -13,6 +13,7 @@ from mcp_audit.agent_files import drift as _drift
 from mcp_audit.agent_files import skill_package as _skill_package
 from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers import rule_secret_history as _rule_secret_history
+from mcp_audit.analyzers import shipped_settings as _shipped_settings
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -638,6 +639,11 @@ def _discover_and_parse(
         if cwd is not None:
             result.findings.extend(
                 _rule_secret_history.scan_repository_history(cwd, result.errors)
+            )
+            # Settings files a Dockerfile or npm package ships (CRED-006,
+            # STORY-0157): reads files only; never raises.
+            result.findings.extend(
+                _shipped_settings.scan_cwd_repository(cwd, result.errors)
             )
 
     if include_plugins and not extra_paths:
