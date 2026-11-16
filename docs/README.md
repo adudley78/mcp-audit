@@ -96,6 +96,8 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | Folder | What it covers |
 |---|---|
 | [research/2026-10-top100-npm/](research/2026-10-top100-npm/README.md) · [research/2026-10-29-top100-npm/](research/2026-10-29-top100-npm/README.md) | The 100 most-downloaded MCP servers on npm, two measurements |
+| [drift-index.md](drift-index.md) | The weekly record of which popular MCP servers changed their tools |
+| [research/2026-12-launch-drift/](research/2026-12-launch-drift/README.md) | The launch drift study: corpus, method and results |
 | [research/poisoning-benchmark/](research/poisoning-benchmark/) | POISON-* labels and results |
 | [research/head-to-head/](research/head-to-head/README.md) | Benchmark beside other scanners |
 | [research/mem006/](research/mem006/) · [research/mem008/](research/mem008/) | MEM-006 and MEM-008 measurements |
