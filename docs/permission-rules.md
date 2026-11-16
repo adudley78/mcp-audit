@@ -404,6 +404,52 @@ TruffleHog, GitGuardian's ggshield). A shallow clone (a CI checkout with
 `fetch-depth: 1`, the `actions/checkout` default) reads only the history it
 has and says so in the scan's errors; set `fetch-depth: 0` to check it all.
 
+## Settings files a container image or npm package ships (CRED-006)
+
+`.gitignore` keeps a settings file out of git. It does not keep the file out
+of a container image or an npm package. Docker does not read `.gitignore`:
+`COPY . .` copies the working tree, so a git-ignored
+`.claude/settings.local.json` goes into the image unless `.dockerignore`
+excludes it. npm does not read git's global excludes file or
+`.git/info/exclude`, where Claude Code records `settings.local.json`, and it
+does not read `.gitignore` at all when a folder has a `.npmignore`.
+
+| ID | Severity | Fires when | Write instead |
+|---|---|---|---|
+| CRED-006 | HIGH / LOW | A Dockerfile's final image, or a non-private npm package, will include a `.claude/settings.json` or `.claude/settings.local.json`. HIGH when the file holds a credential in a permission rule (CRED-004's detector); LOW for a `settings.local.json` with no recognised secret. A shared `settings.json` with no secret is not reported: it is committed anyway | Add `**/.claude/` to `.dockerignore` (a pattern `.claude` matches only the folder at the context root), or `.claude/` to `.npmignore`, or list only your build output in `"files"`. Rotate any secret the file held, then rebuild and push every tag, or publish a new version and deprecate the old ones |
+
+What is read, all as files (mcp-audit never runs `docker`, `npm` or `git`):
+
+- **Dockerfiles**: `Dockerfile`, `Containerfile`, `*.Dockerfile`,
+  `*.Containerfile`, `Dockerfile.*` and `Containerfile.*`, with the
+  Dockerfile's own folder as the build context, unless a `compose.yaml`,
+  `compose.yml`, `docker-compose.yaml` or `docker-compose.yml` `build` entry
+  names the Dockerfile, in which case its `context` and `target` are used.
+- **Ignore file**: `<Dockerfile name>.dockerignore` next to the Dockerfile when
+  it exists, else `.dockerignore` at the context root. Patterns follow
+  BuildKit's rules: anchored at the context root, a pattern that matches a
+  parent folder matches the file, `!` re-includes, the last match wins. The
+  matcher is tested for parity with `moby/patternmatcher`. `COPY --exclude`
+  patterns are applied too.
+- **Stages**: only what ends up in the image counts: the final stage (or the
+  Compose `target`), the stages it is built `FROM`, and files a
+  `COPY --from=<stage>` takes from a stage that copied the context, traced by
+  image path through `WORKDIR`. A builder stage whose output is copied by path
+  (`COPY --from=build /app/dist ...`) does not report.
+- **npm packages**: every `package.json` with a `name` that is not
+  `"private": true`. With a `"files"` list, the file ships when an entry
+  includes it (`"*"` includes dot folders) and no `.npmignore` or `.gitignore`
+  in a subfolder excludes it. Without one, npm reads `.npmignore` in each
+  folder, or `.gitignore` where a folder has no `.npmignore`.
+
+CRED-006 runs in a default `scan`/`check` with no `--path` (the work tree the
+working directory is in, unless that work tree is your home folder or contains
+it) and in `scan --project` (the project folder). The walk follows the
+`scan --project` rules: depth 8, no symlinked folders, and `node_modules`,
+`.git`, `dist`, `build` and the other cache folders skipped. A settings file
+in the working copy is checked even when git ignores it, because that is the
+copy `docker build` and `npm publish` read.
+
 ## Limits
 
 See `GAPS.md`, "PERM-001..007 read rules, not the effective policy" and

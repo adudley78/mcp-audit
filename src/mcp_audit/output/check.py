@@ -54,6 +54,10 @@ _HINTS: dict[str, str] = {
         "Rotate the secret: deleting the rule does not remove it from git"
         " history, and every clone already has it."
     ),
+    "CRED-006": (
+        "Add **/.claude/ to .dockerignore (or .claude/ to .npmignore), rotate any"
+        " secret the file held, and rebuild or republish."
+    ),
     # Transport
     "TRANSPORT-001": "Run `mcp-audit fix --apply` to upgrade to HTTPS automatically.",
     "TRANSPORT-002": "Bind this server to 127.0.0.1 (localhost) instead of 0.0.0.0.",
