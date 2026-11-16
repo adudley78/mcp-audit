@@ -24,6 +24,7 @@ BUILD_BINARY = ROOT / ".github" / "actions" / "build-binary" / "action.yml"
 # the job pushes with git.
 PUSHING_JOBS = {
     ("advisory-feed-publish.yml", "publish"),
+    ("drift-index.yml", "publish"),
     ("release.yml", "tag-major"),
 }
 

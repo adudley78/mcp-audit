@@ -1,0 +1,193 @@
+name: Weekly drift index
+
+# Each week: install the frozen corpus of popular MCP servers at the version
+# that is current that day, start each one with no network and no credentials,
+# and record the digests of its tools. Compare with last week's snapshot and
+# publish both files to the `drift-history` branch.
+#
+# Why a workflow and not a person: the value is the unbroken history. A week
+# that is not recorded cannot be recorded later.
+#
+# Two jobs, split for the same reason as advisory-feed-publish.yml:
+#
+#   scan:    contents: read. Runs third-party server code, so it has no
+#            write token and no secret. The servers run as the unprivileged
+#            `probe` user under `unshare --net` with an empty environment
+#            (scripts/drift_snapshot.py). Installs run no package code
+#            (npm --ignore-scripts, PyPI wheels only).
+#   publish: contents: write. Runs no third-party code and no repository
+#            code. It checks the two JSON files and commits them.
+#
+# Method and limits: docs/research/2026-12-launch-drift/README.md.
+# The pull_request trigger is a short test run (12 packages, nothing
+# published) for changes to this file or the two scripts.
+
+on:
+  schedule:
+    - cron: "23 9 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/drift-index.yml"
+      - "scripts/drift_snapshot.py"
+      - "scripts/drift_compare.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drift-index-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Snapshot the corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    outputs:
+      label: ${{ steps.label.outputs.label }}
+      summary: ${{ steps.compare.outputs.summary }}
+    env:
+      STUDY: docs/research/2026-12-launch-drift
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.13 (for the servers' venvs)
+        id: py313
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+
+      - name: Set up Python 3.12 (for mcp-audit)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install uv and mcp-audit
+        run: |
+          pip install uv
+          uv pip install -e ".[mcp]" --system
+
+      - name: Create the unprivileged probe user
+        run: |
+          sudo useradd --system --create-home --home-dir /srv/probe --shell /usr/sbin/nologin probe
+          node --version
+          npm --version
+
+      - name: Snapshot date
+        id: label
+        run: echo "label=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Get the previous snapshot
+        # The newest snapshot on drift-history; before the first publish, the
+        # 2026-11-16 snapshot of the launch study.
+        run: |
+          mkdir -p work
+          if git fetch --depth 1 origin drift-history 2>/dev/null \
+              && git show FETCH_HEAD:latest-snapshot.json > work/previous.json 2>/dev/null; then
+            echo "Previous snapshot: drift-history"
+          else
+            cp "$STUDY/snapshot-summary-2026-11-16.json" work/previous.json
+            echo "Previous snapshot: launch study, 2026-11-16"
+          fi
+
+      - name: Resolve today's versions
+        env:
+          LABEL: ${{ steps.label.outputs.label }}
+        run: python "$STUDY/scripts/current_versions.py" "$STUDY/snapshot-versions.json" "$LABEL" work/plan.json
+
+      - name: Install, run and digest each server
+        env:
+          LABEL: ${{ steps.label.outputs.label }}
+          DRIFT_PYTHON: ${{ steps.py313.outputs.python-path }}
+          DRIFT_LIMIT: ${{ github.event_name == 'pull_request' && '12' || '0' }}
+          MCP_CONC: "4"
+          MCP_TIMEOUT: "60"
+        run: |
+          python scripts/drift_snapshot.py work/plan.json "$RUNNER_TEMP/pairs" \
+            --label "$LABEL" --summary "out/snapshots/$LABEL.json" \
+            --overrides docs/research/2026-10-top100-npm/overrides.json \
+              docs/research/2026-10-top100-npm/overrides3.json \
+              docs/research/2026-10-29-top100-npm/overrides-add.json
+
+      - name: Compare with the previous snapshot
+        id: compare
+        env:
+          LABEL: ${{ steps.label.outputs.label }}
+          # A run that compared few servers is broken, not a quiet week.
+          MIN_COMPARED: ${{ github.event_name == 'pull_request' && '1' || '100' }}
+        run: |
+          python scripts/drift_compare.py work/previous.json "out/snapshots/$LABEL.json" \
+            --from-label 2026-11-16 --out "out/index/$LABEL.json" --min-compared "$MIN_COMPARED"
+          python - "out/index/$LABEL.json" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          print(f"summary={r['changed']} of {r['compared']} servers changed, {r['from']} to {r['to']}")
+          PY
+
+      - name: Upload the snapshot and the index record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: drift-index
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to the drift-history branch
+    needs: scan
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: drift-history
+
+      - name: Download the snapshot and the index record
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: drift-index
+          path: incoming
+
+      - name: Check and place the two files
+        env:
+          LABEL: ${{ needs.scan.outputs.label }}
+        run: |
+          python3 -I - <<'PY'
+          import json, os, re, shutil, sys
+          label = os.environ["LABEL"]
+          if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", label):
+              sys.exit("bad label")
+          for kind, need in (("snapshots", "rows"), ("index", "compared")):
+              src = f"incoming/{kind}/{label}.json"
+              if os.path.islink(src) or os.path.getsize(src) > 64 * 1024 * 1024:
+                  sys.exit(f"{src}: not a plain file under 64 MiB")
+              data = json.load(open(src, encoding="utf-8"))
+              if not isinstance(data, dict) or need not in data or data.get("schema_version") != 1:
+                  sys.exit(f"{src}: not the expected record")
+              os.makedirs(kind, exist_ok=True)
+              shutil.copyfile(src, f"{kind}/{label}.json")
+          shutil.copyfile(f"snapshots/{label}.json", "latest-snapshot.json")
+          shutil.copyfile(f"index/{label}.json", "latest.json")
+          PY
+          rm -rf incoming
+
+      - name: Commit and push
+        env:
+          COMMIT_MESSAGE: "drift: ${{ needs.scan.outputs.summary }}"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No change to publish."
+            exit 0
+          fi
+          git commit -m "${COMMIT_MESSAGE}"
+          git push origin drift-history
