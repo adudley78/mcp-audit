@@ -29,8 +29,8 @@ _SCHEMA = (
 _VERSION = "2.1.0"
 _TOOL_NAME = "mcp-audit"
 _TOOL_VERSION = __version__
-_TOOL_URI = "https://github.com/adudley78/mcp-audit"
-_HELP_URI = "https://github.com/adudley78/mcp-audit#what-it-detects"
+_TOOL_URI = "https://github.com/adudley78/credenzo"
+_HELP_URI = "https://github.com/adudley78/credenzo#what-it-detects"
 
 # Maps our severity enum to SARIF result levels.
 # SARIF levels: "error" | "warning" | "note" | "none"

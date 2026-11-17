@@ -66,7 +66,7 @@ def test_compose_substitutes_and_leaves_no_tokens() -> None:
     assert "{{CHANGELOG_SECTION}}" not in notes
     assert notes.startswith("<!--")
     assert "## mcp-audit v0.15.0" in notes
-    assert "adudley78/mcp-audit@v0.15.0" in notes
+    assert "adudley78/credenzo@v0.15.0" in notes
     assert "### Security" in notes
     assert "### Install" in notes
     # Next tag must not be able to inherit this from the template.

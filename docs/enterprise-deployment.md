@@ -52,7 +52,7 @@ Choose one installation method per your environment.
 ### Option A — Binary download (when available)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/adudley78/mcp-audit/main/scripts/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/adudley78/credenzo/main/scripts/install.sh | sh
 ```
 
 ### Option D — Standalone binary (no Python required)
@@ -61,15 +61,15 @@ Download the pre-built binary for your platform from the GitHub Releases page:
 
 ```bash
 # macOS (Apple Silicon)
-curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-darwin-arm64 \
+curl -sSL https://github.com/adudley78/credenzo/releases/latest/download/mcp-audit-darwin-arm64 \
   -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
 
 # macOS (Intel)
-curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-darwin-x86_64 \
+curl -sSL https://github.com/adudley78/credenzo/releases/latest/download/mcp-audit-darwin-x86_64 \
   -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
 
 # Linux (x86_64)
-curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-linux-x86_64 \
+curl -sSL https://github.com/adudley78/credenzo/releases/latest/download/mcp-audit-linux-x86_64 \
   -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
 ```
 
@@ -92,7 +92,7 @@ pip install credenzo==0.33.0
 ### Option C — Source install
 
 ```bash
-git clone https://github.com/adudley78/mcp-audit.git /opt/mcp-audit
+git clone https://github.com/adudley78/credenzo.git /opt/mcp-audit
 cd /opt/mcp-audit
 uv tool install -e ".[mcp]"
 ```

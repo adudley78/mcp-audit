@@ -6,7 +6,7 @@ If you discover a security vulnerability in Credenzo, please report it
 responsibly. **Do not open a public GitHub issue for security vulnerabilities.**
 
 **Preferred channel:** GitHub's private vulnerability reporting — use the
-"Report a vulnerability" button in the [Security tab](https://github.com/adudley78/mcp-audit/security)
+"Report a vulnerability" button in the [Security tab](https://github.com/adudley78/credenzo/security)
 of the repository. This keeps disclosure private until a fix ships.
 
 **Response time:** We aim to acknowledge reports within 48 hours.  

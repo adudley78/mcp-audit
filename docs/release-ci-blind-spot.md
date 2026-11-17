@@ -26,7 +26,7 @@ For each action `release.yml` pins, whether it is actually **executed**
 and — for most PRs — `upload-artifact`) have zero PR-time exercise of any
 kind**, and a fourth (`gh-action-pypi-publish`) has a narrow, one-dimensional
 bridge rather than a real invocation. A version bump to any of these (e.g.
-[#94](https://github.com/adudley78/mcp-audit/pull/94), a routine Dependabot
+[#94](https://github.com/adudley78/credenzo/pull/94), a routine Dependabot
 bump of `softprops/action-gh-release`) is validated by nothing before the
 next tag push actually runs `release.yml` for real.
 

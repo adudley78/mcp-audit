@@ -38,8 +38,8 @@
 > + `check` sequence against a clean-venv `mcp-audit-scanner==0.18.2`:
 > `lock --verify` exit 0, `check` Grade B, **no** `LOCK-*`, same grade as
 > `--no-lock`. arm64 evidence is the v0.18.2 release build
-> ([`release.yml` run](https://github.com/adudley78/mcp-audit/actions/runs/34771200271),
-> [Build darwin-arm64](https://github.com/adudley78/mcp-audit/actions/runs/34771200271/job/103760999465)
+> ([`release.yml` run](https://github.com/adudley78/credenzo/actions/runs/34771200271),
+> [Build darwin-arm64](https://github.com/adudley78/credenzo/actions/runs/34771200271/job/103760999465)
 > — `scripts/smoke_test.py` Check 17 lock round-trip). R60-03 (CRED-003
 > placeholder + `Bearer ` prefix still HIGH) remains labelled in Section 54
 > (icebox STORY-0076); it is not launch-blocking.
@@ -1020,13 +1020,13 @@ imperative override instruction, in `CLAUDE.md`); exit 1.
 
 ```bash
 mkdir "$SCRATCH/feed" && cd "$SCRATCH/feed"
-curl -fsSLO https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+curl -fsSLO https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json
 for p in $(python3 -c "import json; print('\n'.join(a['path'] for a in json.load(open('index.json'))['advisories']))"); do
   mkdir -p "$(dirname "$p")"
-  curl -fsSLo "$p" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p"
-  curl -fsSLo "$p.sig" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p.sig"
+  curl -fsSLo "$p" "https://raw.githubusercontent.com/adudley78/credenzo/feed/$p"
+  curl -fsSLo "$p.sig" "https://raw.githubusercontent.com/adudley78/credenzo/feed/$p.sig"
 done
-curl -fsSLo index.json.sig https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json.sig
+curl -fsSLo index.json.sig https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json.sig
 cd - >/dev/null
 
 credenzo feed verify "$SCRATCH/feed" --key-alt minisign

@@ -294,7 +294,7 @@ def render_sarif(report: Report) -> str:
                     "driver": {
                         "name": "mcp-audit",
                         "version": __version__,
-                        "informationUri": "https://github.com/adudley78/mcp-audit",
+                        "informationUri": "https://github.com/adudley78/credenzo",
                         "rules": [rule],
                     }
                 },

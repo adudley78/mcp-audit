@@ -7,7 +7,7 @@ instructs the model to exfiltrate tokens. Maybe a server command pointing at
 This guide shows you how to turn that observation into a community rule that
 protects everyone — in about 30 minutes.
 
-No time to write YAML? Open a [rule submission](https://github.com/adudley78/mcp-audit/issues/new?template=rule-submission.yml)
+No time to write YAML? Open a [rule submission](https://github.com/adudley78/credenzo/issues/new?template=rule-submission.yml)
 issue with the pattern, a source and two example configs, and the maintainer
 will write the rule and credit you.
 
@@ -260,8 +260,8 @@ For the first 50 accepted contributors, see the full commitment in
 
 ## Questions?
 
-Open a [rule submission](https://github.com/adudley78/mcp-audit/issues/new?template=rule-submission.yml)
+Open a [rule submission](https://github.com/adudley78/credenzo/issues/new?template=rule-submission.yml)
 issue. You can describe the pattern without writing any YAML; the maintainer
 (Adam) reviews rule submissions and rule PRs within 7 days. Issues labelled
-[`good first issue`](https://github.com/adudley78/mcp-audit/labels/good%20first%20issue)
+[`good first issue`](https://github.com/adudley78/credenzo/labels/good%20first%20issue)
 are rule ideas with a source and example configs already written down.

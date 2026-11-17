@@ -8,16 +8,16 @@ A practical guide to getting started with Credenzo and using it in common workfl
 
 **Standalone binary (no Python required):**
 
-Download the binary for your platform from the [GitHub Releases](https://github.com/adudley78/mcp-audit/releases) page and place it on your PATH.
+Download the binary for your platform from the [GitHub Releases](https://github.com/adudley78/credenzo/releases) page and place it on your PATH.
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-macos-arm64 -o mcp-audit
+curl -L https://github.com/adudley78/credenzo/releases/latest/download/mcp-audit-macos-arm64 -o mcp-audit
 chmod +x mcp-audit
 sudo mv mcp-audit /usr/local/bin/
 
 # Linux (x86_64)
-curl -L https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-linux-x86_64 -o mcp-audit
+curl -L https://github.com/adudley78/credenzo/releases/latest/download/mcp-audit-linux-x86_64 -o mcp-audit
 chmod +x mcp-audit
 sudo mv mcp-audit /usr/local/bin/
 ```
@@ -31,7 +31,7 @@ pip install credenzo
 **From source (for contributors):**
 
 ```bash
-git clone https://github.com/adudley78/mcp-audit
+git clone https://github.com/adudley78/credenzo
 cd mcp-audit
 pip install uv
 uv pip install -e ".[dev]"
@@ -326,7 +326,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.33.0
+      - uses: adudley78/credenzo@v0.33.0
         with:
           version: v0.33.0
           severity-threshold: high
@@ -336,7 +336,7 @@ jobs:
 **With SAST analysis** (the action installs Semgrep itself, with `pipx`, when `run-sast` is `'true'`):
 
 ```yaml
-      - uses: adudley78/mcp-audit@v0.33.0
+      - uses: adudley78/credenzo@v0.33.0
         with:
           version: v0.33.0
           run-sast: 'true'
@@ -410,7 +410,7 @@ Add Credenzo to your pre-commit pipeline to catch MCP config issues before they 
 ```yaml
 # .pre-commit-config.yaml
 repos:
-  - repo: https://github.com/adudley78/mcp-audit
+  - repo: https://github.com/adudley78/credenzo
     rev: v0.33.0
     hooks:
       - id: mcp-audit

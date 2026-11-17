@@ -3,9 +3,9 @@
 # CRITICAL findings are detected in your MCP server configurations.
 #
 # `rev` is pinned to the current release and updated by each release PR.
-# Later releases: https://github.com/adudley78/mcp-audit/releases
+# Later releases: https://github.com/adudley78/credenzo/releases
 repos:
-  - repo: https://github.com/adudley78/mcp-audit
+  - repo: https://github.com/adudley78/credenzo
     rev: v0.33.0  # current release; `pre-commit autoupdate` moves it forward
     hooks:
       - id: credenzo

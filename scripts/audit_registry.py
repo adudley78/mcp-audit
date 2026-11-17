@@ -171,7 +171,7 @@ from dev_build_guard import assert_mcp_audit_is_repo_local  # noqa: E402
 
 USER_AGENT = (
     "mcp-audit-registry-audit/1.0 "
-    "(+https://github.com/adudley78/mcp-audit; registry integrity audit script)"
+    "(+https://github.com/adudley78/credenzo; registry integrity audit script)"
 )
 
 REQUEST_DELAY_SECONDS = 0.4

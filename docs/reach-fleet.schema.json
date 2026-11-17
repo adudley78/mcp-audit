@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/adudley78/mcp-audit/blob/main/docs/reach-fleet.schema.json",
+  "$id": "https://github.com/adudley78/credenzo/blob/main/docs/reach-fleet.schema.json",
   "title": "mcp-audit reach fleet roll-up",
   "description": "Output of `mcp-audit reach --fleet DIR --format json` (STORY-0145): verdict counts per agent across the reach reports in DIR.",
   "type": "object",

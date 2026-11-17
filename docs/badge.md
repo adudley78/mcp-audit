@@ -113,7 +113,7 @@ only publishes badge files for registry entries. For a package that is not liste
 the badge URL returns 404 and Shields.io renders `custom badge: resource not found`.
 Add your package in about 5 minutes:
 
-1. [Open a registry submission issue](https://github.com/adudley78/mcp-audit/issues/new?template=registry-submission.yml)
+1. [Open a registry submission issue](https://github.com/adudley78/credenzo/issues/new?template=registry-submission.yml)
    — or edit `registry/known-servers.json` directly and open a PR.
 2. Once merged, the badge appears on the next `mcp-audit.dev` deployment: blue
    `listed · 0 known CVEs` for a new entry, or green `verified · 0 known CVEs` when

@@ -19,7 +19,7 @@ directory (`<user-config-dir>/mcp-audit/{state,baselines}/`), keyed or scoped by
 scanning machine's *absolute* config paths. Neither is committable: two developers on the same repo
 produce different files, and there is nothing to `git diff` in a pull request. Meanwhile:
 
-- Issue [#88](https://github.com/adudley78/mcp-audit/issues/88) measured that a floating spec
+- Issue [#88](https://github.com/adudley78/credenzo/issues/88) measured that a floating spec
   (`npx -y foo`) resolves to whatever `foo@latest` is on the day the agent happens to launch it — a
   median of 97 transitive installs per server, none pinned anywhere reviewable.
 - The Deadbugz campaign showed a server that is clean at review time and rewrites its own tool list
@@ -512,7 +512,7 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   Action/pre-commit surface above. Tracked as an open follow-up, not a dropped requirement.
 - **Addendum (R56, v0.18.0): §4's "never a reason to fail" MUST is refined, not reversed.**
   §3/§4 above establish that `lock --verify` never *claims* to have checked a foreign section, and
-  §4 says an unrecognised key is never a reason to fail. Issue [#88](https://github.com/adudley78/mcp-audit/issues/88)
+  §4 says an unrecognised key is never a reason to fail. Issue [#88](https://github.com/adudley78/credenzo/issues/88)
   (Finding 2) pointed out this MUST had a gap in practice: the printed summary and JSON already
   named an unresolved entry or a populated foreign section honestly, but the *exit code* — the only
   thing CI reads — stayed 0 regardless, reproducing the exact "clean result over a section it
@@ -524,7 +524,7 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   `--allow-unverified`, which names exactly what it waives and never waives an actual LOCK-001/
   002/004/005 finding. See `docs/lock.md`'s "Unverified state now fails the exit code" section for
   the practitioner-facing detail and the CHANGELOG for the exact behaviour-change note.
-- **Addendum (R59): the lock_version 2 set, agreed with the trees producer on** [**#88**](https://github.com/adudley78/mcp-audit/issues/88)**.**
+- **Addendum (R59): the lock_version 2 set, agreed with the trees producer on** [**#88**](https://github.com/adudley78/credenzo/issues/88)**.**
   Four changes were agreed with Prachet Poddar during the #88 discussion but are deliberately **not**
   shipped in this window — they are recorded here as a set so they ship together rather than being
   relitigated piecemeal:
@@ -566,7 +566,7 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   packages, resolved to a different package set when the same resolver ran against the registry as of
   2026-09-07 (rebuilt from publish timestamps) and as of 2026-09-17. The corpus barely grew, from 2,867
   distinct name@version pairs to 2,882. Routine releases of five packages (zod, hono, proxy-addr, fast-uri,
-  ip-address) account for most of it." (Prachet Poddar, [#88](https://github.com/adudley78/mcp-audit/issues/88),
+  ip-address) account for most of it." (Prachet Poddar, [#88](https://github.com/adudley78/credenzo/issues/88),
   2026-09-21)
   Resolver output (13 of 13 npm-pick-manifest vectors), not a real install;
   the rebuild cannot see versions unpublished since the 7th and reads today's deprecation flags, both of which

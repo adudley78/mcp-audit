@@ -31,7 +31,7 @@ repo, over a stable raw URL — no git checkout, no repository access, no
 authentication required:
 
 ```
-https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json
 ```
 
 **This published feed is signed.** `.github/workflows/advisory-feed-publish.yml`
@@ -55,13 +55,13 @@ Fetch and verify it yourself:
 
 ```bash
 mkdir feed && cd feed
-curl -fsSLO https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+curl -fsSLO https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json
 for p in $(python3 -c "import json; print('\n'.join(a['path'] for a in json.load(open('index.json'))['advisories']))"); do
   mkdir -p "$(dirname "$p")"
-  curl -fsSLo "$p" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p"
-  curl -fsSLo "$p.sig" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p.sig"
+  curl -fsSLo "$p" "https://raw.githubusercontent.com/adudley78/credenzo/feed/$p"
+  curl -fsSLo "$p.sig" "https://raw.githubusercontent.com/adudley78/credenzo/feed/$p.sig"
 done
-curl -fsSLo index.json.sig https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json.sig
+curl -fsSLo index.json.sig https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json.sig
 
 credenzo feed verify . --key-alt minisign
 ```
@@ -75,7 +75,7 @@ over the bundled default.
 The `feed` branch is also an air-gapped bundle: `data/` and a signed `bundle.json` sit beside the feed for `scan --bundle` and `affected --bundle` (see `docs/air-gapped.md`); `feed verify` ignores them.
 
 `osv/` (for `osv-scanner`) is not needed by `feed verify`; fetch it the same
-way from `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/osv/…`
+way from `https://raw.githubusercontent.com/adudley78/credenzo/feed/osv/…`
 if you want the osv-scanner-compatible export.
 
 mcp-audit.dev is the intended long-term home for this feed (one origin for

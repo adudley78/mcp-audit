@@ -48,7 +48,7 @@ jobs:
 
       # Install the Credenzo binary from GitHub Releases (cached by version+OS).
       - name: Install Credenzo
-        uses: adudley78/mcp-audit/setup-action@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
+        uses: adudley78/credenzo/setup-action@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
         with:
           version: 'latest'
           github-token: ${{ secrets.GITHUB_TOKEN }}

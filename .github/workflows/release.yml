@@ -139,7 +139,7 @@ jobs:
     name: Attest binary provenance
     # 2026-11 hardening. Signs a SLSA build-provenance statement for each
     # shipped binary and SBOM with GitHub's Sigstore instance, so anyone can
-    # run `gh attestation verify <file> --repo adudley78/mcp-audit` and
+    # run `gh attestation verify <file> --repo adudley78/credenzo` and
     # setup-action checks it before it puts a binary on PATH. Its own job:
     # no checkout and no project code run next to `id-token: write`.
     needs: [build, gate]

@@ -41,7 +41,7 @@ a corresponding test file in `tests/`. All PRs must:
 ## Development setup
 
 ```bash
-git clone https://github.com/adudley78/mcp-audit
+git clone https://github.com/adudley78/credenzo
 cd mcp-audit
 uv sync --extra dev   # installs all dev dependencies including pytest-asyncio
 pre-commit install    # registers the git pre-commit hooks (see below)

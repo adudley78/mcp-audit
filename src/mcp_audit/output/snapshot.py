@@ -280,7 +280,7 @@ def format_cyclonedx_aibom(
             "id": finding.id,
             "source": {
                 "name": "mcp-audit",
-                "url": "https://github.com/adudley78/mcp-audit",
+                "url": "https://github.com/adudley78/credenzo",
             },
             "ratings": [
                 {
@@ -367,7 +367,7 @@ def format_cyclonedx_aibom(
             "externalReferences": [
                 {
                     "type": "website",
-                    "url": "https://github.com/adudley78/mcp-audit",
+                    "url": "https://github.com/adudley78/credenzo",
                 }
             ],
         }

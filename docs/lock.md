@@ -2,7 +2,7 @@
 
 > **EXPERIMENTAL.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2)) and
 > verifies both `1` and `2`. The name of the `section_digests` field is pending confirmation with
-> the `trees` producer ([#88](https://github.com/adudley78/mcp-audit/issues/88)) and may change
+> the `trees` producer ([#88](https://github.com/adudley78/credenzo/issues/88)) and may change
 > before it is released. Treat `mcp-lock.json`'s shape as subject to change across a minor release
 > until this note is removed — the same posture the advisory feed shipped with.
 
@@ -154,7 +154,7 @@ compared by `lock --verify`.
 ## lock_version 2
 
 Version 2 (STORY-0116) is the set of changes agreed with the `trees` producer on
-[#88](https://github.com/adudley78/mcp-audit/issues/88) (ADR-0005's R59 and R62 addenda). It is
+[#88](https://github.com/adudley78/credenzo/issues/88) (ADR-0005's R59 and R62 addenda). It is
 additive: every version-1 field keeps its meaning.
 
 - **`spec_as_written` records a bare spec as `"*"`.** `npx -y foo`, `uvx pkg`, `pipx run pkg` and
@@ -357,7 +357,7 @@ a clean summary indistinguishable from a fully resolved one.
 > foreign section (e.g. a real `trees` payload from another producer) was reported honestly in the
 > printed summary and in JSON — but never affected the exit code, so a CI job reading only the exit
 > code saw a clean pass. A pipeline that was green because of this gap **may start failing** after
-> upgrading. See [Finding 2 of issue #88](https://github.com/adudley78/mcp-audit/issues/88).
+> upgrading. See [Finding 2 of issue #88](https://github.com/adudley78/credenzo/issues/88).
 
 `lock --verify`'s exit code is now `1` when either of the following is true, in addition to an
 actual LOCK-001/002/004 drift finding:

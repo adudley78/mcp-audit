@@ -1,6 +1,6 @@
 # The weekly drift index
 
-Each week a workflow records what popular MCP servers tell the agent, and what changed since the week before. The result is a public, dated history on the [`drift-history` branch](https://github.com/adudley78/mcp-audit/tree/drift-history).
+Each week a workflow records what popular MCP servers tell the agent, and what changed since the week before. The result is a public, dated history on the [`drift-history` branch](https://github.com/adudley78/credenzo/tree/drift-history).
 
 ## What it measures
 

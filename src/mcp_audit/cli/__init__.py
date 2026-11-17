@@ -53,7 +53,7 @@ _force_utf8_std_streams()
 # If the fetched schema_version > expected, warn and skip the update to
 # avoid loading a schema with unknown fields into an older binary.
 _UPDATE_REGISTRY_URL = (
-    f"https://raw.githubusercontent.com/adudley78/mcp-audit/"
+    f"https://raw.githubusercontent.com/adudley78/credenzo/"
     f"v{__version__}/registry/known-servers.json"
 )
 _USER_CONFIG_DIR = Path(user_config_dir("mcp-audit"))

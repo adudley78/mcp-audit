@@ -91,7 +91,7 @@ ISO 8601 UTC timestamp of the snapshot (e.g. `"2026-05-03T12:34:56Z"`).
     "name": "mcp-audit",
     "version": "0.8.0",
     "externalReferences": [
-      { "type": "website", "url": "https://github.com/adudley78/mcp-audit" }
+      { "type": "website", "url": "https://github.com/adudley78/credenzo" }
     ]
   }
 ]
@@ -139,7 +139,7 @@ Each finding becomes a `vulnerability` entry:
 {
   "bom-ref": "finding-CRED-001-filesystem",
   "id": "CRED-001",
-  "source": { "name": "mcp-audit", "url": "https://github.com/adudley78/mcp-audit" },
+  "source": { "name": "mcp-audit", "url": "https://github.com/adudley78/credenzo" },
   "ratings": [{ "source": { "name": "mcp-audit" }, "severity": "high", "method": "other" }],
   "cwes": [312],
   "description": "Exposed API key",

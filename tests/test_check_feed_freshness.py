@@ -101,7 +101,7 @@ class TestMain:
             canary.main(
                 [
                     "--url",
-                    "http://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json",
+                    "http://raw.githubusercontent.com/adudley78/credenzo/feed/index.json",
                 ]
             )
             == 2

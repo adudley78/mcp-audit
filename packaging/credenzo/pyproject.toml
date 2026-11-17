@@ -30,8 +30,8 @@ credenzo = "mcp_audit._entry:main"
 
 [project.urls]
 Homepage = "https://credenzo.io"
-Repository = "https://github.com/adudley78/mcp-audit"
-Changelog = "https://github.com/adudley78/mcp-audit/blob/main/CHANGELOG.md"
+Repository = "https://github.com/adudley78/credenzo"
+Changelog = "https://github.com/adudley78/credenzo/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true

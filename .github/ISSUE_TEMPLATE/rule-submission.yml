@@ -9,9 +9,9 @@ body:
       value: |
         Thanks for sending a rule! Every rule ships with every mcp-audit install and runs on every scan, so one good pattern protects everyone who uses it.
 
-        **You can stop at the description.** If you only fill in the pattern, the source and the two example configs, the maintainer can write the rule. If you want to write it yourself, copy [`rules/community/TEMPLATE.yml`](https://github.com/adudley78/mcp-audit/blob/main/rules/community/TEMPLATE.yml) and follow [docs/contributing-rules.md](https://github.com/adudley78/mcp-audit/blob/main/docs/contributing-rules.md) (about 30 minutes).
+        **You can stop at the description.** If you only fill in the pattern, the source and the two example configs, the maintainer can write the rule. If you want to write it yourself, copy [`rules/community/TEMPLATE.yml`](https://github.com/adudley78/credenzo/blob/main/rules/community/TEMPLATE.yml) and follow [docs/contributing-rules.md](https://github.com/adudley78/credenzo/blob/main/docs/contributing-rules.md) (about 30 minutes).
 
-        Accepted contributors are named in [docs/contributors.md](https://github.com/adudley78/mcp-audit/blob/main/docs/contributors.md); see [BOUNTY.md](https://github.com/adudley78/mcp-audit/blob/main/rules/community/BOUNTY.md) for the first 50.
+        Accepted contributors are named in [docs/contributors.md](https://github.com/adudley78/credenzo/blob/main/docs/contributors.md); see [BOUNTY.md](https://github.com/adudley78/credenzo/blob/main/rules/community/BOUNTY.md) for the first 50.
 
         **Before you start:** run `credenzo rule list` to check that an existing rule doesn't already cover it.
 
