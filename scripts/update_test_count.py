@@ -19,7 +19,7 @@ Canonical sources of truth:
 - Analyzer count:   concrete ``BaseAnalyzer`` subclasses in ``src/mcp_audit/analyzers/``
   (i.e. ``class XxxAnalyzer(BaseAnalyzer)`` in any file except ``base.py``)
 - Release pin:      ``[project].version`` in ``pyproject.toml``, written as
-  ``v<version>`` into every ``uses: adudley78/mcp-audit[/setup-action]@`` ref
+  ``v<version>`` into every ``uses: adudley78/credenzo[/setup-action]@`` ref
   and pinned ``version:`` input in README.md and the Action docs, every
   pre-commit ``rev:`` for this repo in README.md, docs/ and
   examples/pre-commit/, and ``credenzo==<version>`` in
@@ -73,17 +73,17 @@ ROOT = Path(__file__).resolve().parent.parent
 # set of kwargs — only the relevant ones are substituted.
 # ---------------------------------------------------------------------------
 _PRE_COMMIT_REV_PATTERN = (
-    r"(repo: https://github\.com/adudley78/mcp-audit[ \t]*\n[ \t]+rev: )"
+    r"(repo: https://github\.com/adudley78/credenzo[ \t]*\n[ \t]+rev: )"
     r"v\d+\.\d+\.\d+(?![\w.])"
 )
 
-# Action refs: ``uses: adudley78/mcp-audit[/setup-action]@main|vX.Y.Z``.
+# Action refs: ``uses: adudley78/credenzo[/setup-action]@main|vX.Y.Z``.
 # Anchored on ``uses:`` so prose that cites a historical release ("added in
-# `adudley78/mcp-audit@v0.17.0`") is never rewritten. Group 1 keeps
+# `adudley78/credenzo@v0.17.0`") is never rewritten. Group 1 keeps
 # everything up to the ``@``. SHA pins (``@<40 hex>``) are deliberately not
 # matched: they cannot be resolved offline.
 _ACTION_REF_PATTERN = (
-    r"(uses:[ \t]*adudley78/mcp-audit(?:/setup-action)?@)"
+    r"(uses:[ \t]*adudley78/credenzo(?:/setup-action)?@)"
     r"(?:main|v\d+\.\d+\.\d+)(?![\w.])"
 )
 # The action's ``version`` input (which binary it downloads; defaults to

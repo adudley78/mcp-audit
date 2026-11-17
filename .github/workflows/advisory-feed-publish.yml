@@ -23,7 +23,7 @@
 # for that history. It now commits the signed feed to a dedicated orphan
 # `feed` branch, served over a stable raw URL any user can fetch:
 #
-#   https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+#   https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json
 #
 # Two jobs stay split even now that signing is live, for the same reason
 # R30 split them ahead of it: once a key exists, the signing step belongs

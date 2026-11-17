@@ -882,7 +882,7 @@ matters. `docs/agent-execution-surface.md` is the per-harness table.
 
 ## mcp-lock.json lock_version 2 (LOCK-010..012, SC-005 wording, lock/section_digests.py — STORY-0116)
 
-- **Prachet Poddar, [#88](https://github.com/adudley78/mcp-audit/issues/88)** (2026-09-13 to
+- **Prachet Poddar, [#88](https://github.com/adudley78/credenzo/issues/88)** (2026-09-13 to
   2026-09-22) — the four format changes (bare spec as written, `resolution_context` per section by
   the producer that resolved it, a per-section digest, SC-005's wording) were agreed in that thread,
   and the measurements behind them are his (ADR-0005 R59/R62 addenda, quoted there). No code from
@@ -1787,7 +1787,7 @@ Original design; no code copied. The three-way answer (affected / not affected /
 
 ## Saved tool text, `lock --save-tool-text` (STORY-0123)
 
-Original design; no code copied. The request is issue #215 (adudley78/mcp-audit) from Dheeraj S,
+Original design; no code copied. The request is issue #215 (adudley78/credenzo) from Dheeraj S,
 @patchmcp and AXIALIS: show what changed in a locked tool, not only that it did. The word diff uses
 Python's `difflib.SequenceMatcher`; the field-level diff is a plain recursive walk. The file stores the
 definition that `lock/tool_digests.py` already digests (RFC 8785 canonical form, as in ADR-0005), and is

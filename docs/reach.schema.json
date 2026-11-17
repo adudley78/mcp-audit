@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/adudley78/mcp-audit/blob/main/docs/reach.schema.json",
+  "$id": "https://github.com/adudley78/credenzo/blob/main/docs/reach.schema.json",
   "title": "mcp-audit reach report",
   "description": "Output of `mcp-audit reach --format json` (STORY-0145). One document per machine. Strings are redacted for credentials and the home directory is shown as ~. schema_version is 1.x; a new optional key is a minor bump, a removed or renamed key is a major bump.",
   "type": "object",

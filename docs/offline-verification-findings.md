@@ -108,9 +108,9 @@ connection immediately. It is not a slow DNS timeout that happened to expire, wh
 open the possibility of a network call succeeding under slightly different timing.
 
 Full harness: `.github/workflows/experiment-r27-offline-sigstore-verify.yml` (merged to `main`
-in [#77](https://github.com/adudley78/mcp-audit/pull/77) — `workflow_dispatch` only, signs
+in [#77](https://github.com/adudley78/credenzo/pull/77) — `workflow_dispatch` only, signs
 nothing real, never runs on a schedule). The decisive run is
-[actions/runs/32637908659](https://github.com/adudley78/mcp-audit/actions/runs/32637908659).
+[actions/runs/32637908659](https://github.com/adudley78/credenzo/actions/runs/32637908659).
 
 ## Step 2 — the signed artifact
 
@@ -125,11 +125,11 @@ Validity
     Not Before: Aug 23 11:55:42 2026 GMT
     Not After : Aug 23 12:05:42 2026 GMT          # 10-minute ephemeral cert — by design
 X509v3 Subject Alternative Name: critical
-    URI:https://github.com/adudley78/mcp-audit/.github/workflows/experiment-r27-offline-sigstore-verify.yml@refs/heads/main
+    URI:https://github.com/adudley78/credenzo/.github/workflows/experiment-r27-offline-sigstore-verify.yml@refs/heads/main
 1.3.6.1.4.1.57264.1.1 (OIDC issuer):
     https://token.actions.githubusercontent.com
 1.3.6.1.4.1.57264.1.21 (run URL):
-    https://github.com/adudley78/mcp-audit/actions/runs/32637908659/attempts/1
+    https://github.com/adudley78/credenzo/actions/runs/32637908659/attempts/1
 ```
 
 The bundle embeds a real, publicly-checkable Rekor entry:
@@ -145,14 +145,14 @@ Fulcio-issued short-lived cert → Rekor transparency-log entry → a self-conta
 
 All seven commands below ran inside `unshare --net`, i.e. with genuinely zero network egress.
 Full transcript: job `verify-offline` in
-[run 32637908659](https://github.com/adudley78/mcp-audit/actions/runs/32637908659).
+[run 32637908659](https://github.com/adudley78/credenzo/actions/runs/32637908659).
 
 | # | Setup | Command (abbreviated) | Result | Why |
 |---|---|---|---|---|
 | 1 | Fresh install, **no** cached trust root, **no** `--trusted-root` flag | `verify-blob --bundle b.json --certificate-identity … --certificate-oidc-issuer … artifact.txt` | **FAIL** | `Error: trusted root is required when using new bundle format` — preceded by a network-lookup attempt and failure (`dial udp 127.0.0.53:53: connect: network is unreachable`) |
 | 2 | `cosign initialize` run first (trust root cached), then same command with **no** `--trusted-root` | same | **FAIL** — identical error | The cached copy is never consulted. The default path always attempts a *live* TUF refresh and refuses to fall back to a local cache when that refresh fails |
 | 3 | `--trusted-root <exported file>`, tampered artifact (1 byte flipped) | `verify-blob --bundle b.json --trusted-root trusted_root.json … artifact.tampered.txt` | **FAIL, correctly** | `failed to verify signature: could not verify message: invalid signature when validating ASN.1 encoded signature` |
-| 4 | `--trusted-root <exported file>`, wrong `--certificate-identity` | same, with a fabricated identity string | **FAIL, correctly** | `failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value "https://github.com/someone-else/…", got "https://github.com/adudley78/mcp-audit/…"` |
+| 4 | `--trusted-root <exported file>`, wrong `--certificate-identity` | same, with a fabricated identity string | **FAIL, correctly** | `failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value "https://github.com/someone-else/…", got "https://github.com/adudley78/credenzo/…"` |
 | 5 | `--trusted-root <exported file>`, TUF cache **deleted entirely**, correct artifact | same, correct inputs | **PASS** — `Verified OK` | The exported file is sufficient on its own; no `~/.sigstore` cache needed at all |
 | 6 | Cache re-populated, system clock advanced 3 days past the cached `timestamp.json`'s own `expires`, **no** `--trusted-root` | same as #1/#2 | **FAIL** — identical error | Same as #2: the implicit path never works offline, staleness is not the variable |
 | 7 | Same advanced clock, **same exported file** from step 5 | `--trusted-root trusted_root.json`, correct inputs | **PASS** — `Verified OK` | The exported file was not affected by its parent TUF metadata's expiry — see below |

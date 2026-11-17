@@ -6,7 +6,7 @@
 >
 > **mcp-audit is now Credenzo.** The command is `credenzo`. The old command (`mcp-audit`) and the old package (`mcp-audit-scanner`) continue to work, and nothing you have installed or configured breaks.
 
-[![CI](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml)
+[![CI](https://github.com/adudley78/credenzo/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/credenzo/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Open VSX](https://img.shields.io/open-vsx/v/mcp-audit/mcp-audit-vscode)](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode)
 
@@ -91,7 +91,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Agent-file scanner** — scans the other instruction surfaces the AI agent reads: skills in every agent's skills directory (Claude Code, Codex, Gemini CLI, Cursor and GitHub Copilot, including the shared `.agents/skills`), Claude Code custom commands, Cursor rules, GitHub Copilot instruction/prompt files, and CLAUDE.md memory files; a plain `scan` also flags a repository's CLAUDE.md or AGENTS.md that tells the agent to send your environment variables, `.env` or keys to a server (MEM-006); `agent-files scan` also checks `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and `.cursorrules` left in `~/Downloads` and `~/Desktop` (MEM-007) and flags instruction files that tell the agent to edit a machine-wide agent config, change the model base URL or turn approvals off (MEM-008); also detects network-egress and config-persistence patterns in Claude Code hook commands (CVE-2026-30615); `credenzo agent-files scan` or `credenzo scan --include-agent-files`
 - **Claude Code plugins** — inventories installed plugins, flags a plugin whose recorded version is not the commit its marketplace currently pins (`PLUGIN-001`, a pin-drift check that compares records and does not hash plugin files) or that follows a branch with no pin (`PLUGIN-002`), and runs the skills and MCP servers plugins ship through the existing checks; audits Claude Code **mods** (plugins that run code inside Claude Code) against Anthropic's own review checklist: a mod that can approve tool calls before the permission prompt (`MOD-001`), read secrets and send data out (`MOD-002`), rewrite what Claude reads (`MOD-003`) or start programs (`MOD-004`), read statically, never run; a default `scan` includes plugin MCP servers, the pin checks and mods (`credenzo plugins scan` for the plugin-only view)
-- **Signed advisory feed** — there is no CVE/OSV/NVD equivalent for MCP servers, so `credenzo advise` publishes one: findings become OSV 1.6.0 records with OWASP MCP Top 10 metadata, canonicalized (RFC 8785) and signed with the project minisign key (since 2026-09-07; the record format is still experimental); `credenzo feed verify` checks the whole feed; a weekly signed build is published to `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` — see [`docs/advisory-feed.md`](docs/advisory-feed.md) — alongside the committed unsigned [`examples/feed/`](examples/feed/) fixture
+- **Signed advisory feed** — there is no CVE/OSV/NVD equivalent for MCP servers, so `credenzo advise` publishes one: findings become OSV 1.6.0 records with OWASP MCP Top 10 metadata, canonicalized (RFC 8785) and signed with the project minisign key (since 2026-09-07; the record format is still experimental); `credenzo feed verify` checks the whole feed; a weekly signed build is published to `https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json` — see [`docs/advisory-feed.md`](docs/advisory-feed.md) — alongside the committed unsigned [`examples/feed/`](examples/feed/) fixture
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output
 - **Authentication checks** — `AUTH-001` flags remote HTTP/SSE servers with no auth material (HIGH for public hosts, MEDIUM for private/RFC 1918); `AUTH-002` flags OAuth-configured servers missing RFC 8707 audience binding; backed by arXiv 2605.22333 (40.55% of 7,973 live remote MCP servers unauthenticated)
@@ -135,7 +135,7 @@ uv add credenzo
 > **Note:** The `credenzo` package installs the same version of
 > `mcp-audit-scanner`, the package that holds the code. Both names install the
 > same tool. Standalone binaries are also available on
-> [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
+> [GitHub Releases](https://github.com/adudley78/credenzo/releases).
 > Each run of a standalone binary is silent for about ten seconds while it starts; that is expected.
 > Each release attaches a CycloneDX 1.5 SBOM per binary (`mcp-audit-<platform>.cdx.json`)
 > plus `mcp-audit-scanner-wheel.cdx.json` for the PyPI wheel. See
@@ -252,7 +252,7 @@ URL returns 404 and Shields.io renders `custom badge: resource not found` until
 your entry is added. Add it in ~5 minutes:
 
 1. Run `credenzo vet @your-scope/your-server` to see what users see today.
-2. [Open a registry submission issue](https://github.com/adudley78/mcp-audit/issues/new?template=registry-submission.yml)
+2. [Open a registry submission issue](https://github.com/adudley78/credenzo/issues/new?template=registry-submission.yml)
    or edit `registry/known-servers.json` and open a PR.
 3. Once the entry is merged and mcp-audit.dev is next deployed, the badge appears:
    blue (`listed · 0 known CVEs`) for a new entry, green (`verified · 0 known CVEs`)
@@ -333,7 +333,7 @@ then post the diff as a PR comment via `github-script`:
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
 
-- uses: adudley78/mcp-audit/setup-action@v0.33.0
+- uses: adudley78/credenzo/setup-action@v0.33.0
 
 - run: git checkout ${{ github.event.pull_request.base.sha }}
         && credenzo scan --format json -o base.json || true
@@ -597,11 +597,11 @@ Install the [Credenzo extension](https://open-vsx.org/extension/mcp-audit/mcp-au
 - Command palette: `mcp-audit: Scan current file`, `mcp-audit: Scan workspace`, `mcp-audit: Fix current file`
 - Works in both VS Code and Cursor (Cursor is a VS Code fork — no changes needed)
 
-The extension requires the `credenzo` command to be installed (`pip install credenzo`, or a binary from the [Releases page](https://github.com/adudley78/mcp-audit/releases)). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
+The extension requires the `credenzo` command to be installed (`pip install credenzo`, or a binary from the [Releases page](https://github.com/adudley78/credenzo/releases)). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
 
 ## GitHub Action
 
-[![MCP Security Scan](https://github.com/adudley78/mcp-audit/actions/workflows/mcp-audit-example.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/mcp-audit-example.yml)
+[![MCP Security Scan](https://github.com/adudley78/credenzo/actions/workflows/mcp-audit-example.yml/badge.svg)](https://github.com/adudley78/credenzo/actions/workflows/mcp-audit-example.yml)
 
 `credenzo` ships as a [composite GitHub Action](action.yml) that you can drop into any repository with a single workflow addition. It installs `credenzo`, runs a full scan against your MCP configs, uploads findings to the GitHub Security tab as SARIF, and writes a findings summary to the job summary page. The build fails only when findings at or above your chosen severity threshold exist — making it easy to adopt incrementally (start with `severity-threshold: high`, tighten to `medium` once you've cleared existing issues).
 
@@ -629,7 +629,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@v0.33.0
+        uses: adudley78/credenzo@v0.33.0
         with:
           version: v0.33.0
           severity-threshold: high
@@ -688,11 +688,11 @@ already run. Each integration has a dedicated guide:
 
 ### Minimal setup
 
-Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-commit autoupdate` moves it to the [latest release tag](https://github.com/adudley78/mcp-audit/releases) later):
+Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-commit autoupdate` moves it to the [latest release tag](https://github.com/adudley78/credenzo/releases) later):
 
 ```yaml
 repos:
-  - repo: https://github.com/adudley78/mcp-audit
+  - repo: https://github.com/adudley78/credenzo
     rev: v0.33.0
     hooks:
       - id: mcp-audit
@@ -729,7 +729,7 @@ See [`examples/pre-commit/`](examples/pre-commit/) for ready-to-copy config patt
 ## Development
 
 ```bash
-git clone https://github.com/adudley78/mcp-audit.git
+git clone https://github.com/adudley78/credenzo.git
 cd mcp-audit
 uv sync --all-extras
 

@@ -281,9 +281,9 @@ _PIP_PIN_DOCS = _mod._PIP_PIN_DOCS
 # of --check, which only WARNs on a pattern that matches nothing.
 _PIN_ANCHORS = {
     _mod._PRE_COMMIT_REV_PATTERN: (
-        r"(?m)^[ \t-]*repo: https://github\.com/adudley78/mcp-audit[ \t]*$"
+        r"(?m)^[ \t-]*repo: https://github\.com/adudley78/credenzo[ \t]*$"
     ),
-    _mod._ACTION_REF_PATTERN: r"uses:\s*adudley78/mcp-audit[/@]",
+    _mod._ACTION_REF_PATTERN: r"uses:\s*adudley78/credenzo[/@]",
     _mod._VERSION_INPUT_PATTERN: r"(?m)^[ \t]+version:\s*['\"]?v\d",
     _mod._PIP_PIN_PATTERN: r"credenzo==",
 }
@@ -376,10 +376,10 @@ def test_readme_examples_are_pinned_to_the_current_release() -> None:
     """README never tells users to run the action from ``@main`` or a dead tag."""
     tag = f"v{_mod._collect_release_version()}"
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "adudley78/mcp-audit@main" not in readme
-    assert f"uses: adudley78/mcp-audit@{tag}" in readme
+    assert "adudley78/credenzo@main" not in readme
+    assert f"uses: adudley78/credenzo@{tag}" in readme
     assert re.search(
-        rf"repo: https://github\.com/adudley78/mcp-audit\n\s+rev: {re.escape(tag)}\b",
+        rf"repo: https://github\.com/adudley78/credenzo\n\s+rev: {re.escape(tag)}\b",
         readme,
     )
 
@@ -395,26 +395,26 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
     )
     pre_commit = (
         "repos:\n"
-        "  - repo: https://github.com/adudley78/mcp-audit\n"
+        "  - repo: https://github.com/adudley78/credenzo\n"
         "    rev: v0.21.1  # current release\n"
         "    hooks:\n"
         "      - id: mcp-audit\n"
     )
     other_repo = "  - repo: https://github.com/someone/else\n    rev: v0.21.1\n"
     (tmp_path / "README.md").write_text(
-        "        uses: adudley78/mcp-audit@main\n" + pre_commit + other_repo,
+        "        uses: adudley78/credenzo@main\n" + pre_commit + other_repo,
         encoding="utf-8",
     )
     for rel in _PRE_COMMIT_PIN_FILES[1:]:
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_text(pre_commit, encoding="utf-8")
-    sha_pin = "- uses: adudley78/mcp-audit@" + "32b648a3" * 5 + " # v0.10.0\n"
+    sha_pin = "- uses: adudley78/credenzo@" + "32b648a3" * 5 + " # v0.10.0\n"
     action_doc = (
-        "- uses: adudley78/mcp-audit@main\n"
-        "- uses: adudley78/mcp-audit@v0.3.3  # comment kept\n"
-        "- uses: adudley78/mcp-audit/setup-action@v0.10.0\n" + sha_pin
+        "- uses: adudley78/credenzo@main\n"
+        "- uses: adudley78/credenzo@v0.3.3  # comment kept\n"
+        "- uses: adudley78/credenzo/setup-action@v0.10.0\n" + sha_pin
     )
-    prose = "Lock verification was added in `adudley78/mcp-audit@v0.17.0`.\n"
+    prose = "Lock verification was added in `adudley78/credenzo@v0.17.0`.\n"
     version_input = "      - uses: x/y@v1\n        with:\n          version: v0.21.1\n"
     pip_pin = "pip install mcp-audit-scanner==0.21.1\n"
     assert _ACTION_PIN_DOCS[0] == _VERSION_INPUT_DOCS[0] == "README.md"
@@ -435,7 +435,7 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
 
     assert m._apply(check_only=False) == 0
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
-    assert "uses: adudley78/mcp-audit@v0.22.0" in readme
+    assert "uses: adudley78/credenzo@v0.22.0" in readme
     assert "    rev: v0.22.0  # current release\n" in readme
     assert other_repo in readme, "a different repo's rev must not be touched"
     for rel in _PRE_COMMIT_PIN_FILES[1:]:
@@ -446,9 +446,9 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
         if rel in _VERSION_INPUT_DOCS:
             assert text.endswith("          version: v0.22.0\n"), rel
         assert text.startswith(
-            "- uses: adudley78/mcp-audit@v0.22.0\n"
-            "- uses: adudley78/mcp-audit@v0.22.0  # comment kept\n"
-            "- uses: adudley78/mcp-audit/setup-action@v0.22.0\n" + sha_pin
+            "- uses: adudley78/credenzo@v0.22.0\n"
+            "- uses: adudley78/credenzo@v0.22.0  # comment kept\n"
+            "- uses: adudley78/credenzo/setup-action@v0.22.0\n" + sha_pin
         ), f"{rel}: tags and @main move; a SHA pin is left alone"
     for rel in _PIP_PIN_DOCS:
         text = (tmp_path / rel).read_text(encoding="utf-8")

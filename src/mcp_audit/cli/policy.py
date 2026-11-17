@@ -11,7 +11,7 @@ from mcp_audit.cli import console, policy_app
 
 _POLICY_TEMPLATE = """\
 # Credenzo governance policy
-# Reference: https://github.com/adudley78/mcp-audit/blob/main/docs/governance.md
+# Reference: https://github.com/adudley78/credenzo/blob/main/docs/governance.md
 version: 1
 name: "My organisation governance policy"
 

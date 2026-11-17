@@ -43,7 +43,7 @@ runs:
       run: |
         if [ "$INPUT_VERSION" = "latest" ]; then
           RESOLVED=$(gh release view \
-            --repo adudley78/mcp-audit \
+            --repo adudley78/credenzo \
             --json tagName \
             --jq '.tagName' 2>/dev/null || true)
           if [ -z "$RESOLVED" ]; then
@@ -81,7 +81,7 @@ runs:
         esac
 
         FILENAME="${BINARY}${EXT}"
-        DOWNLOAD_URL="https://github.com/adudley78/mcp-audit/releases/download/${VERSION}/${FILENAME}"
+        DOWNLOAD_URL="https://github.com/adudley78/credenzo/releases/download/${VERSION}/${FILENAME}"
         CACHE_KEY="mcp-audit-${VERSION}-${RUNNER_OS}-${RUNNER_ARCH}"
 
         echo "filename=$FILENAME"       >> "$GITHUB_OUTPUT"
@@ -110,7 +110,7 @@ runs:
         if ! curl -fsSL -o "$TARGET" "$DOWNLOAD_URL"; then
           echo "::error::Binary download failed." \
             "URL: $DOWNLOAD_URL" \
-            "Verify the version tag exists at https://github.com/adudley78/mcp-audit/releases"
+            "Verify the version tag exists at https://github.com/adudley78/credenzo/releases"
           exit 1
         fi
         chmod +x "$TARGET"
@@ -176,7 +176,7 @@ runs:
           echo "::error::Credenzo $VERSION failed build-provenance verification." \
             "The binary was not built by the release workflow of adudley78/mcp-audit" \
             "or adudley78/credenzo." \
-            "Do not run it; report this at https://github.com/adudley78/mcp-audit/security"
+            "Do not run it; report this at https://github.com/adudley78/credenzo/security"
           exit 1
         fi
         echo "Build provenance verified against $VERIFIED."

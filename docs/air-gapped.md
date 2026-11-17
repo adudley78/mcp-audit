@@ -43,7 +43,7 @@ Every run starts with a line such as `Signed bundle 2026-10-29, 2 days old, feed
 The weekly signed feed is also a bundle: every publish adds `data/` and a signed `bundle.json` to the `feed` branch, signed with Credenzo's project key (the one `--bundle` uses by default). On a connected machine:
 
 ```bash
-git clone --depth 1 --branch feed https://github.com/adudley78/mcp-audit.git bundle
+git clone --depth 1 --branch feed https://github.com/adudley78/credenzo.git bundle
 credenzo affected CVE-2026-59822 --bundle ./bundle     # check it before you carry it
 ```
 

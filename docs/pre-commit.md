@@ -28,13 +28,13 @@ brew install pre-commit
 
 ```yaml
 repos:
-  - repo: https://github.com/adudley78/mcp-audit
+  - repo: https://github.com/adudley78/credenzo
     rev: v0.33.0
     hooks:
       - id: credenzo
 ```
 
-`rev` must be an existing release tag. The examples on this page show the current release (each release PR updates them); `pre-commit autoupdate` moves your copy to the latest tag from [https://github.com/adudley78/mcp-audit/releases](https://github.com/adudley78/mcp-audit/releases).
+`rev` must be an existing release tag. The examples on this page show the current release (each release PR updates them); `pre-commit autoupdate` moves your copy to the latest tag from [https://github.com/adudley78/credenzo/releases](https://github.com/adudley78/credenzo/releases).
 
 **3. Install the hooks into your local repo:**
 
@@ -50,7 +50,7 @@ The default hook args run `scan --severity-threshold high`, blocking only on HIG
 
 ```yaml
 repos:
-  - repo: https://github.com/adudley78/mcp-audit
+  - repo: https://github.com/adudley78/credenzo
     rev: v0.33.0
     hooks:
       - id: credenzo
@@ -106,7 +106,7 @@ If you've adopted [`credenzo lock`](lock.md), a second hook enforces it:
 
 ```yaml
 repos:
-  - repo: https://github.com/adudley78/mcp-audit
+  - repo: https://github.com/adudley78/credenzo
     rev: v0.33.0  # the credenzo hook ids need v0.33.0 or later
     hooks:
       - id: credenzo

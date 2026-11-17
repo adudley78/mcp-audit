@@ -13,7 +13,7 @@ Available to every user — Credenzo is fully open source, no license required.
 ### 1. Distribute the binary
 
 Copy `credenzo` to each machine. The PyInstaller binary requires no Python
-installation. See the [releases page](https://github.com/adudley78/mcp-audit/releases)
+installation. See the [releases page](https://github.com/adudley78/credenzo/releases)
 for the platform-specific download.
 
 For fleet deployment you may want to use an asset prefix to give each machine a

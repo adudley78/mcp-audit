@@ -14,7 +14,7 @@ full bounty program terms.
 | Contributor | Rule ID | Rule Name | Accepted |
 |---|---|---|---|
 | Adam Dudley ([@adudley78](https://github.com/adudley78)) | COMM-001–COMM-030 | Founding rule pack | 2026-05-17 |
-| B Sainath Reddy ([@Sainath-Reddy7](https://github.com/Sainath-Reddy7)) | COMM-035 | TLS certificate checking disabled by environment variable ([#254](https://github.com/adudley78/mcp-audit/pull/254)) | 2026-11-01 |
+| B Sainath Reddy ([@Sainath-Reddy7](https://github.com/Sainath-Reddy7)) | COMM-035 | TLS certificate checking disabled by environment variable ([#254](https://github.com/adudley78/credenzo/pull/254)) | 2026-11-01 |
 
 ---
 
@@ -35,7 +35,7 @@ own documentation.
 
 | Contributor | Contribution | Cited in | Since |
 |---|---|---|---|
-| Prachet Poddar ([@prachetpoddar](https://github.com/prachetpoddar)) | Independent measurement of 250 npm MCP servers: the deps.dev-versus-install divergence bound (recomputed against his corrected resolver in v3.16), the 184-of-250 registry-drift result, and npm resolver behaviour. Author of the install-tree (`trees`) layer of `mcp-lock.json` and of format proposals adopted or queued in ADR-0005. | [supply-chain.md](supply-chain.md), [lock.md](lock.md), [ADR-0005](decisions/ADR-0005-mcp-audit-lock.md), [GAPS.md](../GAPS.md) | 2026-09-07 ([#88](https://github.com/adudley78/mcp-audit/issues/88)) |
+| Prachet Poddar ([@prachetpoddar](https://github.com/prachetpoddar)) | Independent measurement of 250 npm MCP servers: the deps.dev-versus-install divergence bound (recomputed against his corrected resolver in v3.16), the 184-of-250 registry-drift result, and npm resolver behaviour. Author of the install-tree (`trees`) layer of `mcp-lock.json` and of format proposals adopted or queued in ADR-0005. | [supply-chain.md](supply-chain.md), [lock.md](lock.md), [ADR-0005](decisions/ADR-0005-mcp-audit-lock.md), [GAPS.md](../GAPS.md) | 2026-09-07 ([#88](https://github.com/adudley78/credenzo/issues/88)) |
 
 ---
 

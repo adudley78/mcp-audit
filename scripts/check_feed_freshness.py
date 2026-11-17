@@ -32,7 +32,7 @@ import urllib.request
 from datetime import UTC, datetime, timedelta
 from urllib.error import HTTPError, URLError
 
-DEFAULT_URL = "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json"
+DEFAULT_URL = "https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json"
 
 # advisory-feed-publish.yml runs weekly (cron "0 14 * * 0"). A live feed
 # with less than one full interval of headroom before `expires` means at

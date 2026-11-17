@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository is now `adudley78/credenzo`.** GitHub redirects the old name `adudley78/mcp-audit`, and a workflow that says `uses: adudley78/mcp-audit@...` still works (tested after the rename). Links, examples, the installer, the registry update URL and the package metadata now use the new name. The command names, the package names, the binary names and the machine-readable tool names do not change.
+
 ### Fixed
 
 - **Examples pointed to an action that does not exist.** `examples/github-actions/diff-pr-comment.yml`, the README and `docs/diff.md` used `adudley78/setup-mcp-audit@v1`; the setup action is `adudley78/mcp-audit/setup-action`. The example workflows are now pinned to v0.33.0 and call `credenzo`. The links to the editor extension repository in `docs/ide-extension.md` pointed to another GitHub account; they now point to `adudley78/mcp-audit-vscode`.

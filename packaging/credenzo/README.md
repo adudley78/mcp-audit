@@ -10,4 +10,4 @@ credenzo check
 This package installs the same version of [`mcp-audit-scanner`](https://pypi.org/project/mcp-audit-scanner/), which holds the code. The command is `credenzo`. The old command, `mcp-audit`, continues to work.
 
 Site: https://credenzo.io
-Source and documentation: https://github.com/adudley78/mcp-audit
+Source and documentation: https://github.com/adudley78/credenzo

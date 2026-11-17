@@ -416,7 +416,8 @@ class TestYamlValidity:
         step = next(
             s
             for s in doc["jobs"]["mcp-audit"]["steps"]
-            if isinstance(s.get("uses"), str) and "mcp-audit" in s["uses"]
+            if isinstance(s.get("uses"), str)
+            and s["uses"].startswith("adudley78/credenzo@")
         )
         inputs = step.get("with", {}) or {}
         assert "baseline" not in inputs, (

@@ -61,7 +61,7 @@ Each GitHub Release also attaches a CycloneDX SBOM per binary
 ### Use as a GitHub Action
 
 ```yaml
-- uses: adudley78/mcp-audit@{{VERSION}}
+- uses: adudley78/credenzo@{{VERSION}}
   with:
     severity-threshold: high
 ```

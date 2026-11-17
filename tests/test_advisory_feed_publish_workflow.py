@@ -283,7 +283,7 @@ def test_amendment_7_gate_comment_reflects_it_is_now_satisfied() -> None:
 def test_documents_the_public_feed_url() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert (
-        "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json" in text
+        "https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json" in text
     )
 
 

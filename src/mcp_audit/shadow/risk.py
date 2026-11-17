@@ -96,7 +96,7 @@ def score_risk(
             return (
                 RiskLevel.UNKNOWN,
                 "UNKNOWN — capability tags missing; "
-                "file an issue at https://github.com/adudley78/mcp-audit "
+                "file an issue at https://github.com/adudley78/credenzo "
                 "to request registry enrichment",
             )
 
