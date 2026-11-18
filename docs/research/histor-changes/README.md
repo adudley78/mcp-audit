@@ -144,3 +144,15 @@ changes from 424 servers and 660 rows, and 2 POISON-060 rows in the place of
 629 (`results.json`, `after_story_0170`). The labels are not affected: 58 of
 the 60 labelled POISON-060 rows no longer fire. The sample is drawn from the
 rows of `e18622d`, so `--check-labels` passes only on that commit.
+
+STORY-0171 then changed POISON-012 and POISON-040. POISON-012 no longer counts
+a bare "do not say / tell / mention" in tool text. POISON-040 is silent for a
+joiner that Persian, an Indic script or an emoji sequence needs. With that
+change, `measure.py` gives 485 flagged changes from 387 servers and 599 rows
+(253 changes from 229 servers in a title or description). POISON-012 has 6
+rows in the place of 58 and POISON-040 has 2 in the place of 11
+(`results.json`, `after_story_0171`). Of the 58 labelled POISON-012 rows, 44
+honest rows and 3 of the 4 rows that steer the agent get no finding now. Six
+honest rows keep POISON-012. Four honest rows and 1 row that steers the agent
+keep a finding of another check. Of the 11 labelled POISON-040 rows, 9 get no
+finding now.

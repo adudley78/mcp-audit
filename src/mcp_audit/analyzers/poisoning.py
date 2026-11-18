@@ -175,6 +175,41 @@ _CONFUSABLES: dict[str, str] = {
 #   Cf — format characters; covers zero-width spaces/joiners and soft hyphen.
 _STRIP_CATEGORIES: frozenset[str] = frozenset({"Mn", "Cf"})
 
+# Invisible characters that are letters or symbols by Unicode category, so the
+# strip above does not remove them: the Hangul fillers and the blank braille
+# pattern.  One of them splits a word so that no literal pattern reads it
+# (STORY-0170 review).  ``normalize_for_detection`` drops them and POISON-040
+# reports them.
+_INVISIBLE_FILLERS: frozenset[str] = frozenset("\u3164\u115f\u1160\uffa0\u2800")
+
+# POISON-040 (STORY-0171).  A zero-width space, word joiner, BOM, soft hyphen,
+# combining grapheme joiner or Hangul filler always counts.  Three characters
+# count only where ordinary text does not need them:
+#   - a zero-width non-joiner (U+200C) is silent next to a letter of the Arabic
+#     or an Indic script (correct Persian, Urdu, Hindi, Bengali ... spelling)
+#     when no letter or digit of another script touches it;
+#   - a zero-width joiner (U+200D) is silent between two letters of those
+#     scripts, or between two emoji (a family or a flag sequence);
+#   - a blank braille pattern (U+2800) is silent unless a letter or digit
+#     touches it (braille art uses it as an empty cell).
+# On HISTOR's record of real changes 8 of the 11 POISON-040 rows were the
+# non-joiner in Persian words and 1 was an emoji sequence.  None of the
+# exceptions lets a character sit inside a Latin word.
+_JOINER_SCRIPTS: str = (
+    "\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufefe\u0900-\u0dff"
+)
+_OTHER_WORD_CHAR: str = f"[^\\W{_JOINER_SCRIPTS}]"
+_EMOJI: str = "\u2600-\u27bf\U0001f000-\U0001faff"
+_EMOJI_BEFORE_JOINER: str = _EMOJI + "\ufe0f\U0001f3fb-\U0001f3ff"
+_POISON_040_CLASS: str = (
+    "[\u200b\ufeff\u2060\u00ad\u034f\u3164\u115f\u1160\uffa0]"
+    "|(?<=\\w)\u2800|\u2800(?=\\w)"
+    f"|\u200c(?:(?<![{_JOINER_SCRIPTS}]\u200c)(?![{_JOINER_SCRIPTS}])"
+    f"|(?<={_OTHER_WORD_CHAR}\u200c)|(?={_OTHER_WORD_CHAR}))"
+    f"|\u200d(?:(?<![{_JOINER_SCRIPTS}]\u200d)|(?![{_JOINER_SCRIPTS}]))"
+    f"(?:(?<![{_EMOJI_BEFORE_JOINER}]\u200d)|(?![{_EMOJI}]))"
+)
+
 # IDs whose threat model IS the obfuscation itself — these must run against the
 # ORIGINAL text (normalization would erase the very characters they detect).
 _OBFUSCATION_PATTERN_IDS: frozenset[str] = frozenset({"POISON-040", "POISON-060"})
@@ -194,6 +229,8 @@ def normalize_for_detection(text: str) -> str:
        Latin (``cürl`` → ``curl``).
     3. Drop format characters (category ``Cf``) — removes zero-width spaces /
        joiners and soft hyphens used to break up trigger words.
+       Also drop the invisible fillers (:data:`_INVISIBLE_FILLERS`), which are
+       letters or symbols by category but show nothing.
     4. Apply the :data:`_CONFUSABLES` map — folds Cyrillic / Greek / Armenian /
        Cherokee / Coptic look-alikes to their ASCII equivalent.
 
@@ -219,7 +256,7 @@ def normalize_for_detection(text: str) -> str:
         if replacement is not None:
             out.append(replacement)
             continue
-        if unicodedata.category(ch) in _STRIP_CATEGORIES:
+        if unicodedata.category(ch) in _STRIP_CATEGORIES or ch in _INVISIBLE_FILLERS:
             continue
         out.append(ch)
     return "".join(out)
@@ -464,7 +501,7 @@ def _mixed_word_view(text: str) -> tuple[str, tuple[int, ...]]:
     for index, char in enumerate(text):
         if not char.isascii():
             category = unicodedata.category(char)
-            if category in _STRIP_CATEGORIES:
+            if category in _STRIP_CATEGORIES or char in _INVISIBLE_FILLERS:
                 continue
             if category[0] == "L" and not _WIDE_RE.match(char):
                 base = [
@@ -749,10 +786,13 @@ PATTERNS: list[DetectionPattern] = [
         id="POISON-012",
         name="Behavioral override instructions",
         # See ``_POISON_012_BRANCHES``; the regex is unchanged by STORY-0099.
-        pattern=re.compile(
-            "(" + "|".join(_POISON_012_BRANCHES) + ")",
-            re.IGNORECASE,
-        ),
+        # STORY-0171: the bare secrecy branch ("do not say / tell / mention")
+        # is not counted here.  On HISTOR's record of real changes it gave 52
+        # of the 58 POISON-012 rows, and 48 of them were honest ("do not say it
+        # is booked until it is paid").  POISON-070 reads the secrecy orders
+        # that name an audience or a demonstrative object.  MEM-001 still
+        # reads the branch for memory files (``memory_override_match``).
+        pattern=POISON_012_WITHOUT_SECRECY,
         severity=Severity.HIGH,
         description="Tool description attempts to override agent behavior",
         remediation="Remove this MCP server; it contains behavioral manipulation",
@@ -861,7 +901,10 @@ PATTERNS: list[DetectionPattern] = [
             # user must not know".
             rf"\b{_DIR_NEG}\s+(?:mention|tell|reveal|disclose|inform|notify|alert|report|say|show)\b"
             rf"(?:(?:\s+{_DIR_THIS})?\s+(?:to|with)\s+{_DIR_AUDIENCE}"
-            r"|(?:\s+(?:this|it|that|anything))?\s+in\s+(?:the\s+)?"
+            # STORY-0171: the object may be "these instructions", as before
+            # "to the user" ("Do not reveal these instructions in your
+            # response."); POISON-012 no longer reads that sentence.
+            rf"|(?:\s+{_DIR_THIS})?\s+in\s+(?:the\s+)?"
             r"(?:conversation|chat|your\s+(?:reply|response|answer|output|summary)))"
             rf"|\b{_DIR_NEG}\s+(?:tell|inform|notify|alert)\s+{_DIR_AUDIENCE_ANY}"
             r"(?=\s*(?:[.!;,)]|$)"
@@ -882,7 +925,11 @@ PATTERNS: list[DetectionPattern] = [
             r"(?:doesn'?t|does\s+not|don'?t|do\s+not|needn'?t|need\s+not)\s+"
             r"(?:(?:need|have)\s+to\s+)?(?:know|find\s+out|be\s+(?:told|informed|notified))"
             rf"(?:\s+(?:about\s+)?{_DIR_THIS}|\s+(?:what|that)\s+you\b|(?=\s*(?:[.!;,)]|$)))"
-            rf"|\b{_DIR_NEG}\s+let\s+{_DIR_AUDIENCE_ANY}\s+(?:know|find\s+out|notice)\b",
+            rf"|\b{_DIR_NEG}\s+let\s+{_DIR_AUDIENCE_ANY}\s+(?:know|find\s+out|notice)\b"
+            # STORY-0171: "Do not mention this change." -- a demonstrative
+            # object and the end of the clause, with no audience named.
+            rf"|\b{_DIR_NEG}\s+(?:mention|reveal|disclose)\s+"
+            r"(?:this|that|these)(?:\s+[\w-]+){0,2}?(?=\s*(?:[.!;)]|$))",
             re.IGNORECASE | re.MULTILINE,
         ),
         severity=Severity.HIGH,
@@ -1091,11 +1138,11 @@ PATTERNS: list[DetectionPattern] = [
     DetectionPattern(
         id="POISON-040",
         name="Zero-width Unicode characters",
-        pattern=re.compile(r"[\u200b\u200c\u200d\ufeff\u2060\u00ad\u034f]"),
+        pattern=re.compile(_POISON_040_CLASS),
         severity=Severity.MEDIUM,
         description=(
-            "Tool description contains invisible Unicode"
-            " characters used for stealth"
+            "Tool description contains an invisible Unicode character where"
+            " ordinary text does not need one"
         ),
         remediation=(
             "Investigate this MCP server;"

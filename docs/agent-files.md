@@ -155,13 +155,19 @@ they need ..."), which tells the agent what to say rather than what to hide
 ("Do not tell a reviewer to pre-filter", trailofbits/skills `AGENTS.md`).
 It still counts when the someone is the user, human, operator or owner, or
 when "to <verb>" is a purpose ("Do not inform the user to avoid suspicion").
+Since STORY-0171 a bare "do not say / tell / mention" counts only here, in
+memory files.  In a skill file (SKILL-001) and in tool text, POISON-012 does
+not count it; POISON-070 reads an order that names the user or a demonstrative
+object ("do not mention this step").
 
 ### MEM-002 (MEDIUM): injection pattern in memory file
 
 Fires on the **restricted** pattern subset for memory:
 - `POISON-010` — XML injection markers (`<SYSTEM>`, `<INST>`, etc.)
 - `POISON-011` — LLM format markers (`[INST]`, `<<SYS>>`, etc.)
-- `POISON-040` — zero-width Unicode
+- `POISON-040` — invisible Unicode where ordinary text does not need it (the
+  joiners of Persian, Urdu, Indic scripts and emoji sequences are silent,
+  STORY-0171)
 - `POISON-060` — homoglyphs
 
 Exfiltration, cross-tool, and excessive-length patterns are **excluded** to
