@@ -444,27 +444,39 @@ _MIXED_WORD_RE: re.Pattern[str] = re.compile(_POISON_060_MIXED_WORD)
 _SPAN_RE: re.Pattern[str] = re.compile(r"(?s).*")
 
 
-def _mixed_word_view(text: str) -> tuple[str, list[int]]:
+@lru_cache(maxsize=4)
+def _mixed_word_view(text: str) -> tuple[str, tuple[int, ...]]:
     """Return the view of *text* the mixed-word test reads, and its offsets.
 
-    Each character is decomposed (NFKD); marks and format characters
-    (:data:`_STRIP_CATEGORIES`) are dropped.  Fullwidth and mathematical
-    letters stay as they are: part 1 of POISON-060 reports them.
+    A mark or a format character (:data:`_STRIP_CATEGORIES`) is dropped.  A
+    letter that decomposes (NFKD) to one base letter plus marks is replaced by
+    that base letter (an accented Greek alpha becomes alpha).  Every other
+    character stays as it is: a symbol that NFKD would spell out in ASCII (the
+    trade-mark sign, the numero sign) must not make a word look mixed, and
+    fullwidth and mathematical letters are reported by part 1 of POISON-060.
     ``offsets[i]`` is the index in *text* of the character that gave ``view[i]``.
+
+    The result is cached: the agent-file analyzer searches the same text
+    several times.
     """
     view: list[str] = []
     offsets: list[int] = []
     for index, char in enumerate(text):
-        if char.isascii() or _WIDE_RE.match(char):
-            view.append(char)
-            offsets.append(index)
-            continue
-        for part in unicodedata.normalize("NFKD", char):
-            if unicodedata.category(part) in _STRIP_CATEGORIES:
+        if not char.isascii():
+            category = unicodedata.category(char)
+            if category in _STRIP_CATEGORIES:
                 continue
-            view.append(part)
-            offsets.append(index)
-    return "".join(view), offsets
+            if category[0] == "L" and not _WIDE_RE.match(char):
+                base = [
+                    part
+                    for part in unicodedata.normalize("NFKD", char)
+                    if unicodedata.category(part) not in _STRIP_CATEGORIES
+                ]
+                if len(base) == 1:
+                    char = base[0]
+        view.append(char)
+        offsets.append(index)
+    return "".join(view), tuple(offsets)
 
 
 class _Poison060Pattern:
