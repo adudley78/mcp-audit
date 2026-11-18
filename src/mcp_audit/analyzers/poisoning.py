@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -24,7 +25,7 @@ class DetectionPattern:
 
     id: str
     name: str
-    pattern: re.Pattern[str]
+    pattern: re.Pattern[str] | _Poison060Pattern
     severity: Severity
     description: str
     remediation: str
@@ -99,6 +100,24 @@ _CONFUSABLES: dict[str, str] = {
     "\u0405": "S",
     "\u0406": "I",
     "\u0408": "J",
+    # STORY-0170 review: look-alikes that the map did not hold.  With the
+    # mixed-word rule a letter outside the map gives no finding at all, so the
+    # common ones must be here.
+    "\u04cf": "l",  # palochka, small
+    "\u04c0": "I",  # palochka, capital
+    "\u043a": "k",
+    "\u0442": "t",
+    "\u043c": "m",
+    "\u0432": "b",
+    "\u0475": "v",
+    "\u0474": "V",
+    "\u0423": "Y",
+    "\u04af": "y",
+    "\u04ae": "Y",
+    "\u04ba": "H",
+    "\u051a": "Q",
+    "\u051c": "W",
+    "\u0500": "D",
     # ── Greek → ASCII ──
     "\u03b1": "a",
     "\u03b2": "b",
@@ -111,6 +130,9 @@ _CONFUSABLES: dict[str, str] = {
     "\u03c5": "u",
     "\u03c7": "x",
     "\u03bd": "v",
+    "\u03c2": "c",  # final sigma; NFKD turns the lunate sigma U+03F2 into it
+    "\u03f3": "j",
+    "\u037f": "J",
     "\u0391": "A",
     "\u0392": "B",
     "\u0395": "E",
@@ -374,29 +396,114 @@ def redacted_snippet(text: str, limit: int) -> str:
     return redact_evidence(text[: limit + _REDACT_LOOKAHEAD])[:limit]
 
 
-# POISON-060 fires on the presence of a confusable character in the ORIGINAL
-# text (a strong obfuscation signal in its own right, separate from whether a
-# literal pattern matched the normalized form).  The class is the union of the
-# broad confusable-script ranges and the specific code points in
-# :data:`_CONFUSABLES` (which adds Armenian / Cherokee / Coptic letters that
-# fall outside those ranges).
-_POISON_060_EXTRA: str = "".join(
-    sorted({c for c in _CONFUSABLES if not ("\u0370" <= c <= "\u04ff")})
-)
+# POISON-060 fires on a disguised word in the ORIGINAL text (an obfuscation
+# signal in its own right, separate from whether a literal pattern matched the
+# normalized form).  It has two parts.
 #
-# Fullwidth forms (STORY-0107): only the fullwidth DIGITS and LETTERS
-# (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) are in the class.  The fullwidth
-# punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses, ...) is the
-# ordinary punctuation of Chinese, Japanese and Korean text, and was 488 of the
-# 661 false findings on the top-100 npm corpus and 16 of 18 flagged MCPTox clean
-# tools.  A punctuation mark cannot spell a disguised word, and the literal
-# patterns still see through it: ``normalize_for_detection`` folds U+FF1C to
-# ``<``, so a fullwidth-bracketed <IMPORTANT> still fires POISON-010.
-_POISON_060_CLASS: str = (
-    "[\u0370-\u03ff\u0400-\u04ff"
-    "\uff10-\uff19\uff21-\uff3a\uff41-\uff5a"
-    "\U0001d400-\U0001d7ff" + _POISON_060_EXTRA + "]"
+# 1. Fullwidth digits and letters (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) and
+#    mathematical alphanumerics (U+1D400-1D7FF), anywhere.  STORY-0107: the
+#    fullwidth punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses,
+#    ...) is the ordinary punctuation of Chinese, Japanese and Korean text, and
+#    was 488 of the 661 false findings on the top-100 npm corpus and 16 of 18
+#    flagged MCPTox clean tools.  A punctuation mark cannot spell a disguised
+#    word, and the literal patterns still see through it:
+#    ``normalize_for_detection`` folds U+FF1C to ``<``, so a fullwidth-bracketed
+#    <IMPORTANT> still fires POISON-010.
+#
+# 2. A mixed word (STORY-0170): one run of letters, three or more long, that
+#    holds an ASCII letter and a letter of :data:`_CONFUSABLES` (a Cyrillic,
+#    Greek, Armenian, Cherokee or Coptic letter that looks like a Latin letter),
+#    and no other letter.  ``p\u0430ypal`` and ``id_rs\u0430`` (a Cyrillic a)
+#    fire.  A word written wholly in Cyrillic or Greek does not: on HISTOR's
+#    record of real changes (STORY-0169) the earlier rule, "any Cyrillic or
+#    Greek character", fired on 629 rows, of which 603 were a whole word of
+#    ordinary Russian, Ukrainian, Bulgarian or Greek text and 24 a Greek letter
+#    in a science term.
+#
+#    The word is read on a view of the text (:func:`_mixed_word_view`): each
+#    character decomposed (NFKD) with marks and format characters removed, so
+#    an accent, a combining mark or a variation selector cannot split or hide a
+#    mixed word.  ``normalize_for_detection`` folds the letters of the map, so a
+#    literal pattern still reads an instruction written in those letters.  A
+#    look-alike letter that is NOT in the map gets no finding from either: the
+#    map must hold the common ones.
+_POISON_060_WIDE: str = "[\uff10-\uff19\uff21-\uff3a\uff41-\uff5a\U0001d400-\U0001d7ff]"
+_POISON_060_CONFUSABLE: str = "".join(re.escape(c) for c in sorted(_CONFUSABLES))
+_POISON_060_LETTER: str = r"[^\W\d_]"
+_POISON_060_MIXED_WORD: str = (
+    rf"(?<!{_POISON_060_LETTER})"
+    rf"(?=[A-Za-z{_POISON_060_CONFUSABLE}]{{3,}}(?!{_POISON_060_LETTER}))"
+    rf"(?=[A-Za-z]*[{_POISON_060_CONFUSABLE}])"
+    rf"(?=[{_POISON_060_CONFUSABLE}]*[A-Za-z])"
+    rf"[A-Za-z{_POISON_060_CONFUSABLE}]+"
 )
+_POISON_060_CLASS: str = "(?:" + _POISON_060_WIDE + "|" + _POISON_060_MIXED_WORD + ")"
+
+_WIDE_RE: re.Pattern[str] = re.compile(_POISON_060_WIDE)
+_MIXED_WORD_RE: re.Pattern[str] = re.compile(_POISON_060_MIXED_WORD)
+_SPAN_RE: re.Pattern[str] = re.compile(r"(?s).*")
+
+
+@lru_cache(maxsize=4)
+def _mixed_word_view(text: str) -> tuple[str, tuple[int, ...]]:
+    """Return the view of *text* the mixed-word test reads, and its offsets.
+
+    A mark or a format character (:data:`_STRIP_CATEGORIES`) is dropped.  A
+    letter that decomposes (NFKD) to one base letter plus marks is replaced by
+    that base letter (an accented Greek alpha becomes alpha).  Every other
+    character stays as it is: a symbol that NFKD would spell out in ASCII (the
+    trade-mark sign, the numero sign) must not make a word look mixed, and
+    fullwidth and mathematical letters are reported by part 1 of POISON-060.
+    ``offsets[i]`` is the index in *text* of the character that gave ``view[i]``.
+
+    The result is cached: the agent-file analyzer searches the same text
+    several times.
+    """
+    view: list[str] = []
+    offsets: list[int] = []
+    for index, char in enumerate(text):
+        if not char.isascii():
+            category = unicodedata.category(char)
+            if category in _STRIP_CATEGORIES:
+                continue
+            if category[0] == "L" and not _WIDE_RE.match(char):
+                base = [
+                    part
+                    for part in unicodedata.normalize("NFKD", char)
+                    if unicodedata.category(part) not in _STRIP_CATEGORIES
+                ]
+                if len(base) == 1:
+                    char = base[0]
+        view.append(char)
+        offsets.append(index)
+    return "".join(view), tuple(offsets)
+
+
+class _Poison060Pattern:
+    """POISON-060 as an object with the ``re.Pattern`` methods its callers use.
+
+    A match is always a real :class:`re.Match` over the ORIGINAL text, so its
+    offsets and ``group(0)`` are the attacker's own characters.
+    """
+
+    pattern: str = _POISON_060_CLASS
+    flags: int = _MIXED_WORD_RE.flags
+
+    def finditer(self, text: str) -> Iterator[re.Match[str]]:
+        """Yield each fullwidth or mathematical letter and each mixed word."""
+        spans: list[tuple[int, int]] = [m.span() for m in _WIDE_RE.finditer(text)]
+        if not text.isascii():
+            view, offsets = _mixed_word_view(text)
+            for m in _MIXED_WORD_RE.finditer(view):
+                spans.append((offsets[m.start()], offsets[m.end() - 1] + 1))
+        for start, end in sorted(spans):
+            found = _SPAN_RE.match(text, start, end)
+            if found is not None:
+                yield found
+
+    def search(self, text: str) -> re.Match[str] | None:
+        """Return the first match in *text*, or ``None``."""
+        return next(self.finditer(text), None)
 
 
 # POISON-012's alternatives, kept apart so MEM-001 can read the bare secrecy
@@ -1002,30 +1109,27 @@ PATTERNS: list[DetectionPattern] = [
     DetectionPattern(
         id="POISON-060",
         name="Unicode homoglyph substitution",
-        # The character class is built at import time (``_POISON_060_CLASS``) as
-        # the union of the broad confusable-script ranges — Cyrillic
-        # (U+0400–04FF), Greek (U+0370–03FF), fullwidth digits and letters
-        # (U+FF10–FF19, U+FF21–FF3A, U+FF41–FF5A; not fullwidth punctuation),
-        # mathematical alphanumerics (U+1D400–1D7FF) — and the specific code
-        # points in ``_CONFUSABLES``, which add the Armenian / Cherokee / Coptic
-        # letters that fall outside those ranges.  POISON-060 runs against the
+        # Fullwidth digits and letters, mathematical alphanumerics, or a mixed
+        # word: ASCII letters with a look-alike letter of ``_CONFUSABLES`` (see
+        # ``_POISON_060_CLASS``; STORY-0170).  POISON-060 runs against the
         # ORIGINAL text (it is an obfuscation detector); the companion
-        # ``normalize_for_detection`` pass folds these same characters to ASCII
-        # so the *literal* patterns (POISON-010..030) also fire on the decoded
+        # ``normalize_for_detection`` pass folds the same characters to ASCII so
+        # the *literal* patterns (POISON-010..030) also fire on the decoded
         # instruction.
-        pattern=re.compile(_POISON_060_CLASS),
+        pattern=_Poison060Pattern(),
         severity=Severity.HIGH,
         description=(
-            "Tool description contains Unicode characters from Cyrillic, Greek,"
-            " fullwidth-ASCII, mathematical-alphanumeric, Armenian, Cherokee, or"
-            " Coptic blocks that are visually identical to ASCII letters"
-            " (homoglyphs)."
+            "Tool description contains a disguised word: fullwidth or"
+            " mathematical letters, or a word that mixes ASCII letters with"
+            " Cyrillic, Greek, Armenian, Cherokee or Coptic letters that look"
+            " like Latin letters (homoglyphs)."
             " Attackers use this technique to hide malicious instructions from"
             " human reviewers while keeping them readable to language models."
         ),
         remediation=(
             "Review the full tool description for hidden instructions."
-            " Remove any non-ASCII characters that are not legitimately required."
+            " Replace the look-alike letters in the reported word, or remove the"
+            " server if you did not expect them."
         ),
         cwe="CWE-116",
         owasp_mcp_top_10=["MCP03"],

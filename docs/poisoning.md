@@ -52,12 +52,27 @@ Per case, exactly one MCPTox case changed findings: a P1 case with a full-width 
 
 Measured 2026-11-18 on a public record of 126,105 real changes to MCP tool definitions (HISTOR, snapshot 2026-11-16). The POISON-* text checks fired on 784 changes from 545 servers. The script checks the added words of each title and description, and the full new text of each changed schema node. `credenzo lock --verify` checks titles and descriptions only; the record has descriptions, and the checks fired there on 448 changes from 334 servers. A labelled set of 280 flagged rows has 0 malicious rows, 269 honest rows and 11 rows that steer the agent. One of the 11 orders a call to a tool that its server does not list; it is probably a demonstration.
 
-- **POISON-060 fires on every word in Cyrillic or Greek.** Of all 629 flagged rows, 603 have a whole word in one of those scripts at the match and 24 have a Greek letter inside a Latin or other term. A server with a Russian description gets a HIGH finding.
+- **POISON-060 fired on every word in Cyrillic or Greek (corrected in STORY-0170, next section).** Of all 629 flagged rows, 603 have a whole word in one of those scripts at the match and 24 have a Greek letter inside a Latin or other term. A server with a Russian description got a HIGH finding.
 - **POISON-030 fires on a tool's own sequence.** 99 of 100 labelled rows are text such as "the first call returns a preview naming every recipient".
 - **POISON-012 fires on "do not say", "do not tell" and "do not mention" in each sense.** 54 of 58 rows are honest: guidance about what to tell the user, plain statements and quoted examples.
 - **POISON-040 fires on correct Persian spelling.** 8 of 11 rows are the zero-width non-joiner.
 
-This measures false alarms only. The record has no list of known malicious changes, so it gives no recall number. An AI model labelled the rows and a second AI reader checked 170 of them; no person checked the labels. The method, the labels and the limits are in [`docs/research/histor-changes/`](research/histor-changes/README.md). No check changed.
+This measures false alarms only. The record has no list of known malicious changes, so it gives no recall number. An AI model labelled the rows and a second AI reader checked 170 of them; no person checked the labels. The method, the labels and the limits are in [`docs/research/histor-changes/`](research/histor-changes/README.md). These numbers are from before STORY-0170.
+
+## POISON-060 fires on a mixed word, not on a language (STORY-0170)
+
+POISON-060 fired on each Cyrillic or Greek character. Now it fires on fullwidth digits and letters, on mathematical alphanumerics, and on a mixed word: one run of three or more letters that holds an ASCII letter and a look-alike letter (Cyrillic, Greek, Armenian, Cherokee or Coptic, from the confusables map) and no other letter. `pаypal` with a Cyrillic `а` fires. A Russian sentence does not.
+
+| | Before | After |
+|---|---|---|
+| POISON-060 rows on HISTOR's record of real changes | 629 | 2 |
+| Changes flagged by any POISON-* check, of 126,105 | 784 | 532 |
+| Servers flagged | 545 | 424 |
+| MCPTox recall, all 1,312 cases (any severity / HIGH or above) | 74.7% / 69.3% | 74.7% / 69.3% |
+| MCPTox recall, 485 descriptions with no wrapper | 25.4% / 7.2% | 25.4% / 7.2% |
+| MCPTox clean tools flagged, of 353 | 2 | 2 |
+
+The two rows that stay are a surname written with `β` in the place of `ß`, and the example input of a tool that detects mixed scripts. The word is read with accents, combining marks, variation selectors and zero-width characters removed, so they do not hide it. What the rule does not count is in `GAPS.md`: a word with no ASCII letter, a look-alike letter that is not in the confusables map, and a mixed word that also holds a letter outside the map. The literal checks fold the letters of the map first, so they still read an order written in those letters; a letter outside the map is not folded. The 2026-11-18 review added 18 letters to the map (the palochka, `к`, `т`, `м`, `в` and others), because a letter outside the map now gets no finding. SKILL-002 and MEM-002 in agent files use the same rule.
 
 ## What was measured
 
@@ -320,7 +335,7 @@ With them, the 855 real descriptions give 1 (was 4) and the 215 held out still g
 
 ### What this measurement does not cover
 
-- Paraphrased references ("the file-reading tool"), zero-width or homoglyph-broken names (POISON-040/060 flag those characters), and non-English descriptions.
+- Paraphrased references ("the file-reading tool"), zero-width or homoglyph-broken names (POISON-040 flags a zero-width character; POISON-060 flags a mixed word of three or more letters), and non-English descriptions.
 - MCP-ITP's optimized implicit poisoning (arXiv 2601.07395): no dataset was published.
 - Resource and prompt descriptions, `outputSchema`, annotations, and schema `enum`/`default`/`examples` strings (the POISON-* text checks read every string of these since STORY-0099; DELEG-* does not).
 - Servers that fail to enumerate: their tool names are not in the session.

@@ -135,5 +135,12 @@ list. It is probably a demonstration. Its label is `steers-agent`.
 
 ## What changes in Credenzo
 
-Nothing in the checks changes with this measurement. A change that makes a
-check weaker is a separate decision, with these numbers.
+This measurement changed no check. All numbers above are from Credenzo
+`e18622d`.
+
+STORY-0170 then changed POISON-060: it fires on a mixed word, not on each
+Cyrillic or Greek character. With that change, `measure.py` gives 532 flagged
+changes from 424 servers and 660 rows, and 2 POISON-060 rows in the place of
+629 (`results.json`, `after_story_0170`). The labels are not affected: 58 of
+the 60 labelled POISON-060 rows no longer fire. The sample is drawn from the
+rows of `e18622d`, so `--check-labels` passes only on that commit.

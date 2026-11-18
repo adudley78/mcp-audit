@@ -11,6 +11,9 @@ Usage::
     uv run python docs/research/histor-changes/measure.py PATH/changes.jsonl.gz \
         --rows rows.json --check-labels docs/research/histor-changes/labels.json
 
+The labelled sample was drawn from the rows of Credenzo ``e18622d``.  A later
+change to a check changes the rows, so ``--check-labels`` passes only there.
+
 What is checked.  For a ``title`` or ``description`` field HISTOR gives a word
 diff, and the script checks the added words: this is what
 ``credenzo lock --verify`` checks.  For a changed schema node HISTOR gives the

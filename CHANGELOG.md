@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **POISON-060 fires on a mixed word, not on a language (STORY-0170).** It fired on each Cyrillic or Greek character, so a tool description in Russian, Ukrainian, Bulgarian or Greek got a HIGH finding, and so did `kΩ` and `ΔE`. Now it fires on fullwidth and mathematical letters, and on a word of three or more letters that mixes ASCII letters with look-alike letters and holds no other letter (`pаypal` with a Cyrillic `а`). On a public record of 126,105 real changes the POISON-060 rows went from 629 to 2. MCPTox recall and the clean-tool count did not change. An accent, a combining mark, a variation selector or a zero-width character does not hide a mixed word. The confusables map has 18 more letters (the palochka, `к`, `т`, `м`, `в` and others), so the literal checks read them too. A word with no ASCII letter no longer gets POISON-060; the literal checks still read the letters of the map. SKILL-002 and MEM-002 in agent files use the same rule. What is not counted is in `GAPS.md`.
+
 - **The repository is now `adudley78/credenzo`.** GitHub redirects the old name `adudley78/mcp-audit`, and a workflow that says `uses: adudley78/mcp-audit@...` still works (tested after the rename). Links, examples, the installer, the registry update URL and the package metadata now use the new name. The command names, the package names, the binary names and the machine-readable tool names do not change.
 
 ### Fixed
