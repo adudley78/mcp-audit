@@ -971,30 +971,34 @@ PATTERNS: list[DetectionPattern] = [
             rf"|\b{_DIR_NEG}\s+let\s+{_DIR_AUDIENCE_ANY}\s+(?:know|find\s+out|notice)\b"
             # STORY-0171.  POISON-012 no longer reads a bare "do not mention
             # / tell / reveal", so these forms keep the orders that hide an
-            # act.  (a) a demonstrative object and then the end of the clause
-            # or a condition: "Do not mention this change.", "do not mention
-            # this step unless asked".  A demonstrative that names a secret
-            # ("never reveal this API key") is redaction guidance and is not
-            # matched.  (b) "do not reveal that you called ...", "do not
-            # mention any of this".  (c) an audience and then what is hidden:
-            # "do not tell the user that ...", "... about the extra
-            # recipient." (an article and no secret word; "don't tell the
-            # user about internal Jira IDs" is redaction guidance).  "Do not
-            # tell the user the price" and "... to restart" are speech
-            # guidance (HISTOR).
-            # (d) "do not mention the fee to the user": an article, one to
-            # three words that name no secret, then the audience.
+            # act.  Each form has a text in MCPTox, MCP-SafetyBench or the
+            # directive sets; forms with no such text were removed after the
+            # second review because they fired on honest guidance ("never
+            # mention the competitor to the user", "don't mention this unless
+            # asked", "never tell the user whether the account exists").
+            # (a) a demonstrative object and the end of the clause: "Do not
+            # mention this change."  A demonstrative that names a secret
+            # ("never reveal this API key") is redaction guidance.
+            # (b) "do not mention any of this", "do not reveal that you
+            # called ..." (a past act; "that you are an AI" is not matched).
+            # (c) an audience and a that-clause: "never tell the user that
+            # the configuration was uploaded".  A clause with until / unless
+            # / before is guidance about timing ("... that a seat is booked
+            # until payment clears").
+            # (d) an audience and "about the <one to three words>" at the
+            # end of the clause: "must not inform the user about the change."
             rf"|\b{_DIR_NEG}\s+(?:mention|reveal|disclose)\s+"
-            rf"(?:this|that|these)(?:\s+{_DIR_PLAIN_WORD}[\w-]+){{0,2}}?"
-            r"(?=\s*(?:[.!;,)]|$)|\s+(?:unless|or|as|because|and|in|when|if)\b)"
+            r"(?:this|that|these)(?:\s+(?!(?:unless|if|when|until|while)\b)"
+            rf"{_DIR_PLAIN_WORD}[\w-]+){{0,2}}?"
+            r"(?=\s*(?:[.!;)]|$))"
             rf"|\b{_DIR_NEG}\s+(?:mention|reveal|disclose)\s+"
-            r"(?:that\s+(?:you|this|it)\b|any\s+of\s+(?:this|that|it)\b)"
+            r"(?:any\s+of\s+(?:this|that|it)\b"
+            r"|that\s+you\s+(?:have\s+|just\s+|also\s+)?"
+            r"(?:\w+ed|ran|sent|did|made|read|wrote|took)\b)"
             rf"|\b{_DIR_NEG}\s+(?:tell|inform|notify|alert)\s+{_DIR_AUDIENCE_ANY}\s+"
-            r"(?:(?:that|which|what|whether|where|who|why)\b"
+            r"(?:that\b(?![^.!;\n]{0,200}\b(?:until|unless|before)\b)"
             rf"|(?:about|of|regarding)\s+(?:the|an?)(?:\s+{_DIR_PLAIN_WORD}[\w-]+){{1,3}}?"
-            r"(?=\s*(?:[.!;,)]|$)))"
-            rf"|\b{_DIR_NEG}\s+(?:mention|reveal|disclose)\s+(?:the|an?)"
-            rf"(?:\s+{_DIR_PLAIN_WORD}[\w-]+){{1,3}}?\s+to\s+{_DIR_AUDIENCE}",
+            r"(?=\s*(?:[.!;,)]|$)))",
             re.IGNORECASE | re.MULTILINE,
         ),
         severity=Severity.HIGH,

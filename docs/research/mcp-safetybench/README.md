@@ -50,10 +50,12 @@ By check: POISON-030 on 13 texts, POISON-070 on 13, POISON-001 on 4.
   holds it.
 - The checks read literal phrases. A description that states a preference or
   a plausible reason, with none of those phrases, gets no finding.
-- STORY-0171 widened POISON-070. Two of its forms were written after two of
-  these texts lost their POISON-012 finding; for those two texts the result
-  is in-sample. The 4 texts that the change added were not the target of a
-  form: the forms that catch them were written from a reviewer's examples.
+- STORY-0171 widened POISON-070. One form ("Do not mention this change.")
+  was written after two of these texts lost their POISON-012 finding; for
+  those two texts the result is in-sample. The 4 texts that the change added
+  ("must not inform the user about the change") were first caught by a form
+  written from a reviewer's examples, and the form was kept because these
+  texts need it.
 
 ## Run it again
 
