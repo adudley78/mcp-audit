@@ -135,7 +135,7 @@ the finding's `line` field (JSON) and in SARIF `region.startLine`.
 
 Fires on:
 - Zero-width Unicode characters (invisible to human reviewers; visible to LLMs)
-- Homoglyph substitution (look-alike characters hiding instructions)
+- Homoglyph substitution: fullwidth or mathematical letters, or a word that mixes Latin letters with look-alike letters (a word written wholly in Cyrillic or Greek does not fire, STORY-0170)
 - File body ≥ 2 000 characters (potential hidden content via excessive padding)
 
 ### SKILL-003 (MEDIUM): skill file references external URL

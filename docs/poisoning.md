@@ -72,7 +72,7 @@ POISON-060 fired on each Cyrillic or Greek character. Now it fires on fullwidth 
 | MCPTox recall, 485 descriptions with no wrapper | 25.4% / 7.2% | 25.4% / 7.2% |
 | MCPTox clean tools flagged, of 353 | 2 | 2 |
 
-The two rows that stay are a surname written with `β` in the place of `ß`, and the example input of a tool that detects mixed scripts. What the rule does not count is in `GAPS.md`: a word written wholly in look-alike letters gets no POISON-060, but the literal checks still read it, because they fold look-alike letters first.
+The two rows that stay are a surname written with `β` in the place of `ß`, and the example input of a tool that detects mixed scripts. The word is read with accents, combining marks, variation selectors and zero-width characters removed, so they do not hide it. What the rule does not count is in `GAPS.md`: a word with no ASCII letter, a look-alike letter that is not in the confusables map, and a mixed word that also holds a letter outside the map. The literal checks fold the letters of the map first, so they still read an order written in those letters; a letter outside the map is not folded. The 2026-11-18 review added 18 letters to the map (the palochka, `к`, `т`, `м`, `в` and others), because a letter outside the map now gets no finding. SKILL-002 and MEM-002 in agent files use the same rule.
 
 ## What was measured
 
@@ -335,7 +335,7 @@ With them, the 855 real descriptions give 1 (was 4) and the 215 held out still g
 
 ### What this measurement does not cover
 
-- Paraphrased references ("the file-reading tool"), zero-width or homoglyph-broken names (POISON-040/060 flag those characters), and non-English descriptions.
+- Paraphrased references ("the file-reading tool"), zero-width or homoglyph-broken names (POISON-040 flags a zero-width character; POISON-060 flags a mixed word of three or more letters), and non-English descriptions.
 - MCP-ITP's optimized implicit poisoning (arXiv 2601.07395): no dataset was published.
 - Resource and prompt descriptions, `outputSchema`, annotations, and schema `enum`/`default`/`examples` strings (the POISON-* text checks read every string of these since STORY-0099; DELEG-* does not).
 - Servers that fail to enumerate: their tool names are not in the session.

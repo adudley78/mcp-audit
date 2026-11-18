@@ -142,4 +142,5 @@ STORY-0170 then changed POISON-060: it fires on a mixed word, not on each
 Cyrillic or Greek character. With that change, `measure.py` gives 532 flagged
 changes from 424 servers and 660 rows, and 2 POISON-060 rows in the place of
 629 (`results.json`, `after_story_0170`). The labels are not affected: 58 of
-the 60 labelled POISON-060 rows no longer fire.
+the 60 labelled POISON-060 rows no longer fire. The sample is drawn from the
+rows of `e18622d`, so `--check-labels` passes only on that commit.

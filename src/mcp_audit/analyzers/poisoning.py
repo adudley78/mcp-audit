@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -24,7 +25,7 @@ class DetectionPattern:
 
     id: str
     name: str
-    pattern: re.Pattern[str]
+    pattern: re.Pattern[str] | _Poison060Pattern
     severity: Severity
     description: str
     remediation: str
@@ -99,6 +100,24 @@ _CONFUSABLES: dict[str, str] = {
     "\u0405": "S",
     "\u0406": "I",
     "\u0408": "J",
+    # STORY-0170 review: look-alikes that the map did not hold.  With the
+    # mixed-word rule a letter outside the map gives no finding at all, so the
+    # common ones must be here.
+    "\u04cf": "l",  # palochka, small
+    "\u04c0": "I",  # palochka, capital
+    "\u043a": "k",
+    "\u0442": "t",
+    "\u043c": "m",
+    "\u0432": "b",
+    "\u0475": "v",
+    "\u0474": "V",
+    "\u0423": "Y",
+    "\u04af": "y",
+    "\u04ae": "Y",
+    "\u04ba": "H",
+    "\u051a": "Q",
+    "\u051c": "W",
+    "\u0500": "D",
     # ── Greek → ASCII ──
     "\u03b1": "a",
     "\u03b2": "b",
@@ -111,6 +130,9 @@ _CONFUSABLES: dict[str, str] = {
     "\u03c5": "u",
     "\u03c7": "x",
     "\u03bd": "v",
+    "\u03c2": "c",  # final sigma; NFKD turns the lunate sigma U+03F2 into it
+    "\u03f3": "j",
+    "\u037f": "J",
     "\u0391": "A",
     "\u0392": "B",
     "\u0395": "E",
@@ -394,12 +416,18 @@ def redacted_snippet(text: str, limit: int) -> str:
 #    and no other letter.  ``p\u0430ypal`` and ``id_rs\u0430`` (a Cyrillic a)
 #    fire.  A word written wholly in Cyrillic or Greek does not: on HISTOR's
 #    record of real changes (STORY-0169) the earlier rule, "any Cyrillic or
-#    Greek character",
-#    fired on 629 rows, of which 603 were a whole word of ordinary Russian,
-#    Ukrainian, Bulgarian or Greek text and 24 a Greek letter in a science term.
-#    ``normalize_for_detection`` still folds every confusable letter, so a
-#    literal pattern still reads an instruction that is written wholly in
-#    look-alike letters.
+#    Greek character", fired on 629 rows, of which 603 were a whole word of
+#    ordinary Russian, Ukrainian, Bulgarian or Greek text and 24 a Greek letter
+#    in a science term.
+#
+#    The word is read on a view of the text (:func:`_mixed_word_view`): each
+#    character decomposed (NFKD) with marks and format characters removed, so
+#    an accent, a combining mark or a variation selector cannot split or hide a
+#    mixed word.  ``normalize_for_detection`` folds the letters of the map, so a
+#    literal pattern still reads an instruction written in those letters.  A
+#    look-alike letter that is NOT in the map gets no finding from either: the
+#    map must hold the common ones.
+_POISON_060_WIDE: str = "[\uff10-\uff19\uff21-\uff3a\uff41-\uff5a\U0001d400-\U0001d7ff]"
 _POISON_060_CONFUSABLE: str = "".join(re.escape(c) for c in sorted(_CONFUSABLES))
 _POISON_060_LETTER: str = r"[^\W\d_]"
 _POISON_060_MIXED_WORD: str = (
@@ -409,10 +437,61 @@ _POISON_060_MIXED_WORD: str = (
     rf"(?=[{_POISON_060_CONFUSABLE}]*[A-Za-z])"
     rf"[A-Za-z{_POISON_060_CONFUSABLE}]+"
 )
-_POISON_060_CLASS: str = (
-    "(?:[\uff10-\uff19\uff21-\uff3a\uff41-\uff5a\U0001d400-\U0001d7ff]"
-    "|" + _POISON_060_MIXED_WORD + ")"
-)
+_POISON_060_CLASS: str = "(?:" + _POISON_060_WIDE + "|" + _POISON_060_MIXED_WORD + ")"
+
+_WIDE_RE: re.Pattern[str] = re.compile(_POISON_060_WIDE)
+_MIXED_WORD_RE: re.Pattern[str] = re.compile(_POISON_060_MIXED_WORD)
+_SPAN_RE: re.Pattern[str] = re.compile(r"(?s).*")
+
+
+def _mixed_word_view(text: str) -> tuple[str, list[int]]:
+    """Return the view of *text* the mixed-word test reads, and its offsets.
+
+    Each character is decomposed (NFKD); marks and format characters
+    (:data:`_STRIP_CATEGORIES`) are dropped.  Fullwidth and mathematical
+    letters stay as they are: part 1 of POISON-060 reports them.
+    ``offsets[i]`` is the index in *text* of the character that gave ``view[i]``.
+    """
+    view: list[str] = []
+    offsets: list[int] = []
+    for index, char in enumerate(text):
+        if char.isascii() or _WIDE_RE.match(char):
+            view.append(char)
+            offsets.append(index)
+            continue
+        for part in unicodedata.normalize("NFKD", char):
+            if unicodedata.category(part) in _STRIP_CATEGORIES:
+                continue
+            view.append(part)
+            offsets.append(index)
+    return "".join(view), offsets
+
+
+class _Poison060Pattern:
+    """POISON-060 as an object with the ``re.Pattern`` methods its callers use.
+
+    A match is always a real :class:`re.Match` over the ORIGINAL text, so its
+    offsets and ``group(0)`` are the attacker's own characters.
+    """
+
+    pattern: str = _POISON_060_CLASS
+    flags: int = _MIXED_WORD_RE.flags
+
+    def finditer(self, text: str) -> Iterator[re.Match[str]]:
+        """Yield each fullwidth or mathematical letter and each mixed word."""
+        spans: list[tuple[int, int]] = [m.span() for m in _WIDE_RE.finditer(text)]
+        if not text.isascii():
+            view, offsets = _mixed_word_view(text)
+            for m in _MIXED_WORD_RE.finditer(view):
+                spans.append((offsets[m.start()], offsets[m.end() - 1] + 1))
+        for start, end in sorted(spans):
+            found = _SPAN_RE.match(text, start, end)
+            if found is not None:
+                yield found
+
+    def search(self, text: str) -> re.Match[str] | None:
+        """Return the first match in *text*, or ``None``."""
+        return next(self.finditer(text), None)
 
 
 # POISON-012's alternatives, kept apart so MEM-001 can read the bare secrecy
@@ -1025,7 +1104,7 @@ PATTERNS: list[DetectionPattern] = [
         # ``normalize_for_detection`` pass folds the same characters to ASCII so
         # the *literal* patterns (POISON-010..030) also fire on the decoded
         # instruction.
-        pattern=re.compile(_POISON_060_CLASS),
+        pattern=_Poison060Pattern(),
         severity=Severity.HIGH,
         description=(
             "Tool description contains a disguised word: fullwidth or"
