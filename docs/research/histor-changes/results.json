@@ -7,8 +7,8 @@
   "changes_with_modified_tool": 112155,
   "changes_flagged": 784,
   "servers_flagged": 545,
-  "changes_flagged_title_or_description_only": 448,
-  "servers_flagged_title_or_description_only": 334,
+  "changes_flagged_in_title_or_description": 448,
+  "servers_flagged_in_title_or_description": 334,
   "distinct_rows": 1287,
   "distinct_rows_by_check": {
    "POISON-060": 629,
