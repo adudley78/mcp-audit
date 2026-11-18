@@ -48,6 +48,17 @@ Per case, exactly one MCPTox case changed findings: a P1 case with a full-width 
 **POISON-030 was not changed.** STORY-0107 also tried gating POISON-030 ("first call", "instead use", "after calling this") on an order. MCPTox showed no loss, but MCPTox had shaped the gate; on a review set of 40 poisoned and 40 benign descriptions written outside MCPTox, the current pattern catches 39 of the poisoned descriptions and the gate caught 2; a widened version tuned on that same set caught 32 (82% of 39), below the 90% bar set before the experiment. POISON-030 therefore keeps firing on workflow documentation (30 of the 661 top-100 findings); telling an order from documentation needs a measured approach that holds out of sample.
 - **Length is a weak signal.** `POISON-050` (LOW, description of 2,000 characters or more) fired 139 times on the top-100 corpus, on API reference text, and twice on MCPTox's clean tools.
 
+## On real changes, the flags are false alarms (STORY-0169)
+
+Measured 2026-11-18 on a public record of 126,105 real changes to MCP tool definitions (HISTOR, snapshot 2026-11-16, CC BY 4.0). The checks that `credenzo lock --verify` runs on added words fired on 784 changes from 545 servers. A labelled set of 280 flagged rows has 0 malicious rows, 272 honest rows, 7 rows that steer the agent with no harmful aim, and 1 row not decided.
+
+- **POISON-060 fires on a language.** Of all 629 flagged rows, 603 are a whole word in Cyrillic or Greek and 24 are a Greek letter in a science term. A server with a Russian description gets a HIGH finding.
+- **POISON-030 fires on a tool's own sequence.** 99 of 100 labelled rows are text such as "the first call returns a preview".
+- **POISON-012 fires on guidance about speech.** 57 of 58 rows are text such as "do not say it is booked until it is paid".
+- **POISON-040 fires on correct Persian spelling.** 8 of 11 rows are the zero-width non-joiner.
+
+This measures false alarms only. The record has no list of known malicious changes, so it gives no recall number. The method, the labels and the limits are in [`docs/research/histor-changes/`](research/histor-changes/README.md). No check changed.
+
 ## What was measured
 
 ### MCPTox (recall, and the clean-tool flag rate)
