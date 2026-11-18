@@ -505,18 +505,38 @@ class TestBuildAdvisory:
         advisory = build_advisory(finding, _server(), now=FIXED_NOW)
         assert advisory.owasp_mcp == []
 
-    def test_cwe_and_cve_are_carried_through(self) -> None:
+    def test_cwe_is_carried_through(self) -> None:
+        advisory = build_advisory(_finding(), _server(), now=FIXED_NOW)
+        assert advisory.cwe_ids == ["CWE-798"]
+
+    def test_cited_cve_is_related_not_an_alias(self) -> None:
+        # A finding that is not a published vulnerability in the package cites
+        # CVEs as background. OSV `aliases` means "the same vulnerability".
         finding = _finding(cve=["CVE-2026-12345"])
         advisory = build_advisory(finding, _server(), now=FIXED_NOW)
-        assert advisory.cwe_ids == ["CWE-798"]
-        assert advisory.aliases == ["CVE-2026-12345"]
+        assert advisory.aliases == []
+        assert advisory.related == ["CVE-2026-12345"]
+        record = advisory.to_osv()
+        assert "aliases" not in record
+        assert record["related"] == ["CVE-2026-12345"]
 
-    def test_cve_mentioned_in_prose_becomes_an_alias(self) -> None:
+    def test_cve_mentioned_in_prose_is_related_and_referenced(self) -> None:
         finding = _finding(description="Tracked as CVE-2026-30615 upstream.")
         advisory = build_advisory(finding, _server(), now=FIXED_NOW)
-        assert "CVE-2026-30615" in advisory.aliases
+        assert advisory.aliases == []
+        assert "CVE-2026-30615" in advisory.related
         urls = [ref.url for ref in advisory.references]
         assert "https://nvd.nist.gov/vuln/detail/CVE-2026-30615" in urls
+
+    @pytest.mark.parametrize("finding_id", ["SC-004", "SC-008"])
+    def test_known_vulnerability_keeps_its_cve_as_an_alias(
+        self, finding_id: str
+    ) -> None:
+        finding = _finding(finding_id=finding_id, cve=["CVE-2026-12345"])
+        advisory = build_advisory(finding, _server(), now=FIXED_NOW)
+        assert advisory.aliases == ["CVE-2026-12345"]
+        assert advisory.related == []
+        assert "related" not in advisory.to_osv()
 
     def test_details_include_evidence_remediation_and_provenance(self) -> None:
         advisory = build_advisory(_finding(), _server(), now=FIXED_NOW)

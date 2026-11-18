@@ -252,7 +252,8 @@ def build_advisory(
         modified=now,
         location=normalize_location(finding),
         observation=observation_for(finding.id),
-        aliases=_aliases_for(finding),
+        aliases=_aliases_for(finding, finding_class),
+        related=_related_for(finding, finding_class),
         cwe_ids=cwe_ids,
         cvss_basis=cvss_basis,
     )
@@ -278,17 +279,37 @@ def _transport_for(server: ServerConfig) -> str | None:
     return value if value in {"stdio", "sse", "http"} else None
 
 
-def _aliases_for(finding: Finding) -> list[str]:
-    """Return public vulnerability IDs this advisory is an alias of."""
-    aliases = set(finding.cve)
-    aliases.update(extract_cves(finding.description, finding.evidence, finding.title))
-    return sorted(aliases)
+# The only finding class whose finding IS a published vulnerability in the package
+# (SC-004: a registry known_vulns entry; SC-008: an OSV MAL-* record). OSV defines
+# `aliases` as "the same vulnerability in another database", so only this class may
+# use it. Every other finding cites CVEs as background (a rule that matches a risky
+# launch pattern names the CVEs that show why the pattern matters); those go to
+# `related`. Until 2026-11 every cited CVE was written to `aliases`, which told an
+# OSV consumer that, for example, "npx without a pin" was CVE-2025-49596.
+_IDENTITY_CLASSES: frozenset[str] = frozenset({"known-vulnerability"})
+
+
+def _cited_cves(finding: Finding) -> list[str]:
+    """Return every CVE the finding names, in its `cve` field or in its prose."""
+    cited = set(finding.cve)
+    cited.update(extract_cves(finding.description, finding.evidence, finding.title))
+    return sorted(cited)
+
+
+def _aliases_for(finding: Finding, finding_class: str) -> list[str]:
+    """Return public IDs for the same vulnerability (identity classes only)."""
+    return _cited_cves(finding) if finding_class in _IDENTITY_CLASSES else []
+
+
+def _related_for(finding: Finding, finding_class: str) -> list[str]:
+    """Return public IDs the finding cites as background, not as its identity."""
+    return [] if finding_class in _IDENTITY_CLASSES else _cited_cves(finding)
 
 
 def _references_for(finding: Finding) -> list[Reference]:
     """Return the reference list, ordered deterministically and de-duplicated."""
     refs = [Reference(url=OWASP_MCP_TOP_10_URI, type="WEB")]
-    for cve in _aliases_for(finding):
+    for cve in _cited_cves(finding):
         refs.append(
             Reference(url=f"https://nvd.nist.gov/vuln/detail/{cve}", type="ADVISORY")
         )

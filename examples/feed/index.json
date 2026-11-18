@@ -35,7 +35,7 @@
           ]
         }
       ],
-      "canonical_sha256": "96ea1e10453abe24db2f56590d8556de110e2a07abf3bd69f2dec278511955f4",
+      "canonical_sha256": "8a11370c40b2f61f725695217d2868f630dffadbad19bd950e3068d240bbecf8",
       "id": "x_MCPSA-20ce54c348dd",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -191,7 +191,7 @@
           ]
         }
       ],
-      "canonical_sha256": "0559cefc973b39ff83feefc5e266d67b995eca885281f1f7504f7eab31e9c562",
+      "canonical_sha256": "d6f654f084afb4f43c4df15bc9ff8a6d65676842219280a3d16c829b4904c580",
       "id": "x_MCPSA-38aec9703e90",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -451,7 +451,7 @@
           ]
         }
       ],
-      "canonical_sha256": "110252100a3ea32122552a5a8bcc43195211e59b8542c740aad48b7b16aa8bf5",
+      "canonical_sha256": "39cca56079da93734646a7a54bad250f6b542ff850e8e5c0bcbaa040fed4ab6d",
       "id": "x_MCPSA-6e008dc0208b",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -608,7 +608,7 @@
           ]
         }
       ],
-      "canonical_sha256": "0d4bd3d47fde486002c032233b70475d1a18919bd60b3032abde103a0deb4517",
+      "canonical_sha256": "949b13f471663d006185d6a3d0a008f3eb831497d999c86b921559a99e3bb9c2",
       "id": "x_MCPSA-866c7040087d",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -761,7 +761,7 @@
           ]
         }
       ],
-      "canonical_sha256": "fcb610460787cf4ed2721f878cc4421c714d8331bfc31c27ca8dd8c9bc8bc09c",
+      "canonical_sha256": "d5c637a2ca46bf0ed0037640cdd4cfcad70e6aaad345d0f4e8dd44b99f18a1dc",
       "id": "x_MCPSA-8e7a2699ca2f",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -811,7 +811,7 @@
           ]
         }
       ],
-      "canonical_sha256": "f33c410a9e54eac0e565813f6ff1961004728a40fac4f9b0c5c5fa90e102531a",
+      "canonical_sha256": "0daabab92aea4e182892c854a9305e2b24293d4b3defbbc8482d59d7ec000ab3",
       "id": "x_MCPSA-bc1986c4d7bb",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
