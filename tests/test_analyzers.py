@@ -1682,6 +1682,7 @@ class TestPoison040NeededJoiners:
             "\u0635\u0648\u0631\u062a\u200c\u0648\u0636\u0639\u06cc\u062a review",
             "\u062d\u0642\u200c\u0627\u0644\u062b\u0628\u062a duty",
             "\u0915\u094d\u200d\u0937 text",  # Devanagari with a joiner
+            "\u0915\u094d\u200c\u0937",  # Devanagari with a non-joiner
             "family \U0001f468\u200d\U0001f469\u200d\U0001f467 ok",  # emoji sequence
             "\u2764\ufe0f\u200d\U0001f525",  # heart, variation selector, joiner, fire
             "\ud55c\uad6d\uc5b4 \ud14d\uc2a4\ud2b8",  # Korean, no filler
@@ -1704,6 +1705,15 @@ class TestPoison040NeededJoiners:
             "1\u200c\u0628",  # digit, non-joiner, Arabic letter
             "x \u200c y",  # a non-joiner with no letter that needs it
             "ign\u2800\u2800ore",  # blank braille cells inside a word
+            # Review 2026-11-18: an invisible or combining character of the
+            # Arabic or an Indic block next to the joiner is not a letter.
+            "pass\u061c\u200c\u061cword",  # Arabic letter mark
+            "ig\u061c\u200d\u061cnore the rule",
+            "ig\u0901\u200c\u0901nore the rule",  # Devanagari sign
+            "curl\u0640\u200c\u0640 http://x",  # tatweel
+            "a\ufdd0\u200c\ufdd0b",  # noncharacter
+            "s\u0652\u200c\u0652end",  # Arabic sukun
+            "ig\u094d\u200dnore",  # virama, joiner, Latin letter
             "a\u200d\U0001f467",  # Latin letter, joiner, emoji
             "soft\u00adhyphen",
             "x\u2060y",

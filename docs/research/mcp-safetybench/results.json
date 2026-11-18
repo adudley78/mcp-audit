@@ -3,16 +3,17 @@
  "source": "https://github.com/xjzzzzzzzz/MCPSafety",
  "source_commit": "7872437b6369aac1150e3a19e350a981dc554f81",
  "paper": "https://arxiv.org/abs/2512.15163",
+ "before_story_0171": {"credenzo_commit": "1411c1c", "flagged_any_severity": 26, "flagged_high_or_above": 13, "descriptions_by_check": {"POISON-001": 4, "POISON-012": 7, "POISON-030": 13, "POISON-070": 7}},
  "measure_py_output":
 {
  "distinct_poisoned_descriptions": 154,
  "sha256_of_sorted_text_sha256_lines": "e7040a8dad88106b955785eada08a14654e08578bab4ce098462c6c84354b21f",
- "flagged_any_severity": 26,
- "flagged_high_or_above": 13,
+ "flagged_any_severity": 30,
+ "flagged_high_or_above": 17,
  "descriptions_by_check": {
   "POISON-001": 4,
   "POISON-030": 13,
-  "POISON-070": 9
+  "POISON-070": 13
  },
  "flagged_of_total_by_attack_category": {
   "Function Overlapping": "0/20",
@@ -21,7 +22,7 @@
   "Tool Poisoning-FileSystem Poisoning": "0/7",
   "Tool Poisoning-Function Dependency Injection": "10/23",
   "Tool Poisoning-Network Request Poisoning": "0/6",
-  "Tool Poisoning-Parameter Poisoning": "8/18",
+  "Tool Poisoning-Parameter Poisoning": "12/18",
   "Tool Poisoning-Tool Redirection": "0/10",
   "Tool Shadowing": "4/21"
  }

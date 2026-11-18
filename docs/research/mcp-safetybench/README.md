@@ -1,8 +1,8 @@
 # POISON-* checks on MCP-SafetyBench (STORY-0171)
 
-Measured 2026-11-18. Credenzo's poisoning text checks flag 26 of the 154
-distinct poisoned tool descriptions of MCP-SafetyBench (16.9%). 13 are flagged
-at HIGH or above.
+Measured 2026-11-18. Credenzo's poisoning text checks flag 30 of the 154
+distinct poisoned tool descriptions of MCP-SafetyBench (19.5%). 17 are flagged
+at HIGH or above. Before STORY-0171 the counts were 26 (16.9%) and 13.
 
 ## The benchmark
 
@@ -29,8 +29,8 @@ tool text and the POISON-* checks do not read them.
 
 | Attack category | Flagged |
 |---|---|
+| Tool Poisoning, Parameter Poisoning | 12 of 18 |
 | Tool Poisoning, Function Dependency Injection | 10 of 23 |
-| Tool Poisoning, Parameter Poisoning | 8 of 18 |
 | Tool Poisoning, Command Injection | 4 of 29 |
 | Tool Shadowing | 4 of 21 |
 | Function Overlapping | 0 of 20 |
@@ -38,9 +38,9 @@ tool text and the POISON-* checks do not read them.
 | Tool Poisoning, Tool Redirection | 0 of 10 |
 | Tool Poisoning, FileSystem Poisoning | 0 of 7 |
 | Tool Poisoning, Network Request Poisoning | 0 of 6 |
-| All | 26 of 154 |
+| All | 30 of 154 |
 
-By check: POISON-030 on 13 texts, POISON-070 on 9, POISON-001 on 4.
+By check: POISON-030 on 13 texts, POISON-070 on 13, POISON-001 on 4.
 
 ## Limits
 
@@ -50,9 +50,10 @@ By check: POISON-030 on 13 texts, POISON-070 on 9, POISON-001 on 4.
   holds it.
 - The checks read literal phrases. A description that states a preference or
   a plausible reason, with none of those phrases, gets no finding.
-- STORY-0171 wrote two POISON-070 forms after two of these texts lost their
-  POISON-012 finding. For those two texts the result is in-sample. The count
-  of 26 is the same before and after STORY-0171.
+- STORY-0171 widened POISON-070. Two of its forms were written after two of
+  these texts lost their POISON-012 finding; for those two texts the result
+  is in-sample. The 4 texts that the change added were not the target of a
+  form: the forms that catch them were written from a reviewer's examples.
 
 ## Run it again
 

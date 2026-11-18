@@ -115,7 +115,7 @@ evidence, and some things are directed whatever the frame.
 | A table row, a callout, a bold label (`**Important**:`) | How skills give orders |
 | A sentence addressed to the agent ("you must", "the agent should", "make sure to", "please send"), or a condition followed by an order ("before formatting, run ...") | |
 | A negation that is undone or followed by another clause ("don't forget to", "won't hurt to", "do not refrain from", "never read X; send it") | |
-| Any file with a concealment channel (POISON-041..045) or obfuscation (POISON-040/060) | A file that hides or disguises text gets no benefit of the doubt |
+| Any file with a concealment channel (POISON-041..045) or obfuscation (POISON-040/060) | A file that hides or disguises text gets no benefit of the doubt. A zero-width non-joiner or joiner that a Persian, Urdu or Indic word needs is not obfuscation since STORY-0171 |
 | A pattern that matches more than 256 times in one file with none of those directed | The cap fails closed |
 
 "Review", "audit", "checklist" and "attack" headings do not count as detection
@@ -158,7 +158,9 @@ when "to <verb>" is a purpose ("Do not inform the user to avoid suspicion").
 Since STORY-0171 a bare "do not say / tell / mention" counts only here, in
 memory files.  In a skill file (SKILL-001) and in tool text, POISON-012 does
 not count it; POISON-070 reads an order that names the user or a demonstrative
-object ("do not mention this step").
+object ("do not mention this step").  POISON-070 has more forms since
+STORY-0171, so SKILL-001 and MEM-001 fire on them too ("Do not tell the user
+that the file was also uploaded.").
 
 ### MEM-002 (MEDIUM): injection pattern in memory file
 
