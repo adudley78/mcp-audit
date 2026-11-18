@@ -675,6 +675,40 @@ class TestVetCliOnline:
             result = runner.invoke(app, ["vet", "completely-unknown-pkg", "--online"])
         assert result.exit_code == 0
 
+    def test_online_fallback_json_stdout_is_only_the_document(self) -> None:
+        """With --format json the fallback message must not be on stdout.
+
+        The editor extension parses stdout.  The message was printed there
+        before the document, so ``json.loads`` of the output failed
+        (found 2026-11-18 in the review of the extension).
+        """
+        try:  # click < 8.2 mixes stderr into stdout unless told not to
+            split_runner = CliRunner(mix_stderr=False)
+        except TypeError:  # click >= 8.2 always keeps them apart
+            split_runner = CliRunner()
+        reg = _make_registry([_VERIFIED_ENTRY])
+        with (
+            patch("mcp_audit.cli.vet.load_registry", return_value=reg),
+            patch("mcp_audit.cli.vet._fetch_online_verdict", return_value=None),
+        ):
+            result = split_runner.invoke(
+                app, ["vet", "completely-unknown-pkg", "--online", "--format", "json"]
+            )
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert data["package"]["name"] == "completely-unknown-pkg"
+        assert "using bundled" in result.stderr.replace("\n", " ")
+
+    def test_online_fallback_message_stays_on_stdout_for_people(self) -> None:
+        """Without --format json the message is part of the terminal output."""
+        reg = _make_registry([_VERIFIED_ENTRY])
+        with (
+            patch("mcp_audit.cli.vet.load_registry", return_value=reg),
+            patch("mcp_audit.cli.vet._fetch_online_verdict", return_value=None),
+        ):
+            result = runner.invoke(app, ["vet", "completely-unknown-pkg", "--online"])
+        assert "using bundled" in result.stdout.replace("\n", " ")
+
     @_windows_skip
     def test_online_cache_written_at_0o600(self, tmp_path: Path) -> None:
         """Verdict cache file must be created with mode 0o600."""

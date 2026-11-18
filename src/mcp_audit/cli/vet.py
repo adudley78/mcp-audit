@@ -1001,9 +1001,12 @@ def vet(
 
     # ── Online mode: attempt live fetch, fall back to registry ────────────────
     if online:
-        online_verdict = _fetch_online_verdict(eco, pkg_name, console)
+        # With --format json, stdout holds the JSON document and nothing else:
+        # a program reads it.  The status lines go to stderr.
+        status_console = Console(stderr=True) if format_flag == "json" else console
+        online_verdict = _fetch_online_verdict(eco, pkg_name, status_console)
         if online_verdict is None:
-            console.print(
+            status_console.print(
                 "[dim]Online fetch failed or package not found on mcp-audit.dev — "
                 "using bundled registry.[/dim]"
             )
