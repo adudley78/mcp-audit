@@ -529,7 +529,7 @@ class TestBuildAdvisory:
         assert "https://nvd.nist.gov/vuln/detail/CVE-2026-30615" in urls
 
     @pytest.mark.parametrize("finding_id", ["SC-004", "SC-008"])
-    def test_known_vulnerability_keeps_its_cve_as_an_alias(
+    def test_known_vulnerability_with_one_cve_keeps_it_as_an_alias(
         self, finding_id: str
     ) -> None:
         finding = _finding(finding_id=finding_id, cve=["CVE-2026-12345"])
@@ -537,6 +537,43 @@ class TestBuildAdvisory:
         assert advisory.aliases == ["CVE-2026-12345"]
         assert advisory.related == []
         assert "related" not in advisory.to_osv()
+
+    def test_known_vulnerability_with_several_cves_has_no_alias(self) -> None:
+        # Two CVEs are not aliases of one another. SC-004 can cite several.
+        finding = _finding(
+            finding_id="SC-004",
+            description="Known: CVE-2025-53109. Not counted: CVE-2025-53110.",
+        )
+        advisory = build_advisory(finding, _server(), now=FIXED_NOW)
+        assert advisory.aliases == []
+        assert advisory.related == ["CVE-2025-53109", "CVE-2025-53110"]
+
+    @pytest.mark.parametrize(
+        ("finding_id", "alias"),
+        [
+            ("VULN-CVE-2026-12345", ["CVE-2026-12345"]),
+            ("VULN-GHSA-vp9c-fpxx-744v", ["GHSA-vp9c-fpxx-744v"]),
+            ("VULN-UNPINNED", []),
+            ("VULN-UNRESOLVED", []),
+        ],
+    )
+    def test_vuln_finding_is_the_vulnerability_its_id_names(
+        self, finding_id: str, alias: list[str]
+    ) -> None:
+        finding = _finding(
+            finding_id=finding_id, description="See also CVE-2026-99999."
+        )
+        advisory = build_advisory(finding, _server(), now=FIXED_NOW)
+        assert advisory.aliases == alias
+        assert advisory.related == ["CVE-2026-99999"]
+
+    def test_an_id_is_never_in_both_aliases_and_related(self) -> None:
+        finding = _finding(
+            finding_id="VULN-CVE-2026-12345", title="CVE-2026-12345 in the package"
+        )
+        advisory = build_advisory(finding, _server(), now=FIXED_NOW)
+        assert advisory.aliases == ["CVE-2026-12345"]
+        assert advisory.related == []
 
     def test_details_include_evidence_remediation_and_provenance(self) -> None:
         advisory = build_advisory(_finding(), _server(), now=FIXED_NOW)

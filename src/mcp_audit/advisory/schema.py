@@ -153,8 +153,8 @@ class Advisory:
     location: str = ""
     # "package-intrinsic" | "deployment" — see module docstring constants.
     observation: str = OBSERVATION_DEPLOYMENT
-    # Public identifiers of the SAME vulnerability (OSV `aliases`). Only for a
-    # finding that is itself a published vulnerability in the package.
+    # The public identifier of the SAME vulnerability (OSV `aliases`). Only for a
+    # record that is exactly one published vulnerability (see feed._aliases_for).
     aliases: list[str] = field(default_factory=list)
     # Public identifiers the finding cites as background (OSV `related`), for
     # example the CVEs that show why a risky launch pattern matters.

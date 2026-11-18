@@ -123,13 +123,14 @@ Each advisory is a stock OSV `schema_version` 1.6.0 document. The core fields â€
 `references[]`, `aliases[]`, `related[]` â€” carry their standard OSV meanings, so a generic OSV
 parser needs to know nothing about MCP to consume the feed.
 
-`aliases[]` is used only when the record is itself a published vulnerability in the
-package (finding class `known-vulnerability`: `SC-004`, `SC-008`). OSV defines an alias
-as the same vulnerability in a different database. A record of any other class puts the
-CVEs that it cites in `related[]`: they show why the pattern matters, and they are not the
-same vulnerability. Before release 0.34.0 each cited CVE was in `aliases[]`. That was
-wrong: it told an OSV consumer that, for example, "npx used without pinned version" was
-CVE-2025-49596. The advisory IDs did not change.
+`aliases[]` is used only when the record is one published vulnerability. OSV defines an
+alias as the same vulnerability in a different database. Two cases qualify: a
+`VULN-<ID>` finding of `scan --check-vulns` (the alias is that ID), and a finding of
+class `known-vulnerability` (`SC-004`, `SC-008`) that cites exactly one CVE. A record
+that cites other CVEs, or several CVEs, puts them in `related[]`: they show why the
+finding matters, and they are not the same vulnerability. Until November 2026 each cited
+CVE was in `aliases[]`. That was wrong: it told an OSV consumer that, for example, "npx
+used without pinned version" was CVE-2025-49596. The advisory IDs did not change.
 
 Everything MCP-specific lives under `affected[].database_specific`, the extension point
 OSV reserves for exactly this:
