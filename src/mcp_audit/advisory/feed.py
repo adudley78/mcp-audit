@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -252,7 +253,8 @@ def build_advisory(
         modified=now,
         location=normalize_location(finding),
         observation=observation_for(finding.id),
-        aliases=_aliases_for(finding),
+        aliases=_aliases_for(finding, finding_class),
+        related=_related_for(finding, finding_class),
         cwe_ids=cwe_ids,
         cvss_basis=cvss_basis,
     )
@@ -278,17 +280,52 @@ def _transport_for(server: ServerConfig) -> str | None:
     return value if value in {"stdio", "sse", "http"} else None
 
 
-def _aliases_for(finding: Finding) -> list[str]:
-    """Return public vulnerability IDs this advisory is an alias of."""
-    aliases = set(finding.cve)
-    aliases.update(extract_cves(finding.description, finding.evidence, finding.title))
-    return sorted(aliases)
+# OSV defines `aliases` as "the same vulnerability in another database". A record
+# may use it only when it names exactly one public vulnerability and IS that
+# vulnerability:
+#
+# - `VULN-<ID>` (`scan --check-vulns`): the finding ID carries the OSV ID.
+# - class `known-vulnerability` (SC-004, SC-008) when the finding cites exactly
+#   one CVE. SC-004 can cite several (one for each known_vulns entry, and the
+#   ones it rules out); several CVEs are not aliases of one another.
+#
+# Every other cited CVE is background (a rule that matches a risky launch pattern
+# names the CVEs that show why the pattern matters) and goes to `related`. Until
+# 2026-11 every cited CVE was written to `aliases`, which told an OSV consumer
+# that, for example, "npx without a pin" was CVE-2025-49596.
+_IDENTITY_CLASSES: frozenset[str] = frozenset({"known-vulnerability"})
+_VULN_PREFIX = "VULN-"
+_PUBLIC_ID = re.compile(r"^(CVE-\d{4}-\d{4,}|GHSA(-[23456789cfghjmpqrvwx]{4}){3})$")
+
+
+def _cited_cves(finding: Finding) -> list[str]:
+    """Return every CVE the finding names, in its `cve` field or in its prose."""
+    cited = set(finding.cve)
+    cited.update(extract_cves(finding.description, finding.evidence, finding.title))
+    return sorted(cited)
+
+
+def _aliases_for(finding: Finding, finding_class: str) -> list[str]:
+    """Return the one public ID this record is, or nothing."""
+    if finding.id.startswith(_VULN_PREFIX):
+        public_id = finding.id[len(_VULN_PREFIX) :]
+        return [public_id] if _PUBLIC_ID.match(public_id) else []
+    cited = _cited_cves(finding)
+    if finding_class in _IDENTITY_CLASSES and len(cited) == 1:
+        return cited
+    return []
+
+
+def _related_for(finding: Finding, finding_class: str) -> list[str]:
+    """Return the public IDs the finding cites that are not its identity."""
+    identity = set(_aliases_for(finding, finding_class))
+    return [cve for cve in _cited_cves(finding) if cve not in identity]
 
 
 def _references_for(finding: Finding) -> list[Reference]:
     """Return the reference list, ordered deterministically and de-duplicated."""
     refs = [Reference(url=OWASP_MCP_TOP_10_URI, type="WEB")]
-    for cve in _aliases_for(finding):
+    for cve in _cited_cves(finding):
         refs.append(
             Reference(url=f"https://nvd.nist.gov/vuln/detail/{cve}", type="ADVISORY")
         )

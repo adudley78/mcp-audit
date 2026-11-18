@@ -154,6 +154,11 @@ class TestOsvFields:
         record = _advisory(aliases=["CVE-2026-9", "CVE-2026-1"]).to_osv()
         assert record["aliases"] == ["CVE-2026-1", "CVE-2026-9"]
 
+    def test_related_is_sorted_and_absent_when_empty(self) -> None:
+        record = _advisory(related=["CVE-2026-9", "CVE-2026-1"]).to_osv()
+        assert record["related"] == ["CVE-2026-1", "CVE-2026-9"]
+        assert "related" not in _advisory().to_osv()
+
 
 # ── database_specific ─────────────────────────────────────────────────────────
 

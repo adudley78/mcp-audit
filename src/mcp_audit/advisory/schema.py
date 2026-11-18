@@ -153,8 +153,12 @@ class Advisory:
     location: str = ""
     # "package-intrinsic" | "deployment" — see module docstring constants.
     observation: str = OBSERVATION_DEPLOYMENT
-    # Cross-references to public vulnerability identifiers (e.g. ["CVE-2026-1234"]).
+    # The public identifier of the SAME vulnerability (OSV `aliases`). Only for a
+    # record that is exactly one published vulnerability (see feed._aliases_for).
     aliases: list[str] = field(default_factory=list)
+    # Public identifiers the finding cites as background (OSV `related`), for
+    # example the CVEs that show why a risky launch pattern matters.
+    related: list[str] = field(default_factory=list)
     # CWE identifiers carried through from the originating finding (e.g. ["CWE-798"]).
     cwe_ids: list[str] = field(default_factory=list)
     # How the CVSS vector in `severity` was derived. See advisory/classify.py.
@@ -249,6 +253,8 @@ class Advisory:
         }
         if self.aliases:
             record["aliases"] = sorted(self.aliases)
+        if self.related:
+            record["related"] = sorted(self.related)
         if self.severity:
             record["severity"] = [
                 {"type": s.type, "score": s.score} for s in self.severity

@@ -10,10 +10,15 @@
 for MCP server packages, and publishes them as a feed on disk. `credenzo feed verify`
 checks one.
 
-There is no CVE/OSV/NVD equivalent for MCP servers. This is the machine-readable
-advisory format registries, gateways, and other scanners can reference — deliberately
-built on OSV rather than as a bespoke schema, so `osv-scanner` and everything
-compatible with it already know how to read it.
+CVE, GHSA and OSV records name a fault in a version of a package. They do not name a
+fault in how a server is set up on one machine. This format carries both kinds, and
+each record says which kind it is (`observation`: `package-intrinsic` or `deployment`).
+It is built on OSV rather than as a new schema, so `osv-scanner` and every tool that
+reads OSV can read it.
+
+A fault in a real package also belongs in the systems that tools already read: ask the
+maintainer for a GitHub Security Advisory and a CVE. A record of this feed can then list
+that ID in `aliases`.
 
 ```bash
 # Scan and publish signed advisories to ./feed
@@ -33,6 +38,13 @@ authentication required:
 ```
 https://raw.githubusercontent.com/adudley78/credenzo/feed/index.json
 ```
+
+**The published feed holds example records.** The publish workflow builds it from the
+example configurations in `fixtures/vulnerable-servers/`. The packages in those records
+(for example `mcp-audit-fixture-github-server`) are not in npm or PyPI. The feed shows
+the format, the signing and the freshness rules on real infrastructure. It is not a list
+of faults in real packages, and it is not offered to OSV.dev. The ID prefix `x_MCPSA`
+is the OSV prefix for a local database; `MCPSA` is not a registered OSV prefix.
 
 **This published feed is signed.** `.github/workflows/advisory-feed-publish.yml`
 runs weekly (`workflow_dispatch` on demand), split into a `build` job
@@ -108,8 +120,17 @@ feed/
 
 Each advisory is a stock OSV `schema_version` 1.6.0 document. The core fields —
 `id`, `modified`, `published`, `summary`, `details`, `severity[]`, `affected[]`,
-`references[]`, `aliases[]` — carry their standard OSV meanings, so a generic OSV
+`references[]`, `aliases[]`, `related[]` — carry their standard OSV meanings, so a generic OSV
 parser needs to know nothing about MCP to consume the feed.
+
+`aliases[]` is used only when the record is one published vulnerability. OSV defines an
+alias as the same vulnerability in a different database. Two cases qualify: a
+`VULN-<ID>` finding of `scan --check-vulns` (the alias is that ID), and a finding of
+class `known-vulnerability` (`SC-004`, `SC-008`) that cites exactly one CVE. A record
+that cites other CVEs, or several CVEs, puts them in `related[]`: they show why the
+finding matters, and they are not the same vulnerability. Until November 2026 each cited
+CVE was in `aliases[]`. That was wrong: it told an OSV consumer that, for example, "npx
+used without pinned version" was CVE-2025-49596. The advisory IDs did not change.
 
 Everything MCP-specific lives under `affected[].database_specific`, the extension point
 OSV reserves for exactly this:

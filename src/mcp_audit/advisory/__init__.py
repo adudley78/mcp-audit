@@ -1,6 +1,7 @@
 """Signed, OSV-compatible security advisories for MCP server packages.
 
-There is no CVE/OSV/NVD equivalent for MCP servers. This subsystem turns mcp-audit
+CVE, GHSA and OSV records name a fault in a package version, not a fault in how a
+server is set up on one machine. This subsystem turns mcp-audit
 scan findings into advisory records that any osv-scanner-compatible tool can already
 consume, carrying MCP-specific and OWASP MCP Top 10 metadata under the
 ``affected[].database_specific`` extension point OSV reserves for exactly this.

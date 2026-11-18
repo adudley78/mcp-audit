@@ -33,9 +33,6 @@
       ]
     }
   ],
-  "aliases": [
-    "CVE-2026-30623"
-  ],
   "details": "Server 'shell-runner' has shell metacharacters in args: $ Evidence: rule:COMM-015; matched: $ Remediation: Review the rule 'COMM-015' (Shell metacharacters in server args) and the server configuration for 'shell-runner'. Detected by Credenzo rule COMM-015 (rules analyzer, severity CRITICAL).",
   "id": "x_MCPSA-8e7a2699ca2f",
   "modified": "2026-01-31T00:00:00Z",
@@ -49,6 +46,9 @@
       "type": "ADVISORY",
       "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30623"
     }
+  ],
+  "related": [
+    "CVE-2026-30623"
   ],
   "schema_version": "1.6.0",
   "severity": [

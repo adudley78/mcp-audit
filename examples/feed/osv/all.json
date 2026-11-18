@@ -34,9 +34,6 @@
         ]
       }
     ],
-    "aliases": [
-      "CVE-2025-49596"
-    ],
     "details": "Server 'filesystem' runs a package with npx without an exact version pin — supply chain risk Evidence: rule:COMM-010; matched: npx; first package argument has no exact version Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'filesystem'. Detected by Credenzo rule COMM-010 (rules analyzer, severity LOW).",
     "id": "x_MCPSA-20ce54c348dd",
     "modified": "2026-01-31T00:00:00Z",
@@ -50,6 +47,9 @@
         "type": "ADVISORY",
         "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49596"
       }
+    ],
+    "related": [
+      "CVE-2025-49596"
     ],
     "schema_version": "1.6.0",
     "severity": [
@@ -209,9 +209,6 @@
         ]
       }
     ],
-    "aliases": [
-      "CVE-2026-22688"
-    ],
     "details": "Server 'shell-runner' executes inline code via -c flag: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Evidence: rule:COMM-006; matched: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Remediation: Review the rule 'COMM-006' (Inline code execution via -c flag) and the server configuration for 'shell-runner'. Detected by Credenzo rule COMM-006 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-38aec9703e90",
     "modified": "2026-01-31T00:00:00Z",
@@ -225,6 +222,9 @@
         "type": "ADVISORY",
         "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22688"
       }
+    ],
+    "related": [
+      "CVE-2026-22688"
     ],
     "schema_version": "1.6.0",
     "severity": [
@@ -496,14 +496,6 @@
         ]
       }
     ],
-    "aliases": [
-      "CVE-2025-49596",
-      "CVE-2025-54136",
-      "CVE-2025-54994",
-      "CVE-2026-22252",
-      "CVE-2026-22688",
-      "CVE-2026-30615"
-    ],
     "details": "Server 'filesystem' uses npx/bunx with auto-confirm flag — silent execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615) Evidence: rule:COMM-013; matched: npx; -y Remediation: Review the rule 'COMM-013' (npx auto-confirm flag (silent execution)) and the server configuration for 'filesystem'. Detected by Credenzo rule COMM-013 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-6e008dc0208b",
     "modified": "2026-01-31T00:00:00Z",
@@ -537,6 +529,14 @@
         "type": "ADVISORY",
         "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30615"
       }
+    ],
+    "related": [
+      "CVE-2025-49596",
+      "CVE-2025-54136",
+      "CVE-2025-54994",
+      "CVE-2026-22252",
+      "CVE-2026-22688",
+      "CVE-2026-30615"
     ],
     "schema_version": "1.6.0",
     "severity": [
@@ -695,14 +695,6 @@
         ]
       }
     ],
-    "aliases": [
-      "CVE-2025-49596",
-      "CVE-2025-54136",
-      "CVE-2025-54994",
-      "CVE-2026-22252",
-      "CVE-2026-22688",
-      "CVE-2026-30615"
-    ],
     "details": "Server 'github' uses npx/bunx with auto-confirm flag — silent execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615) Evidence: rule:COMM-013; matched: npx; -y Remediation: Review the rule 'COMM-013' (npx auto-confirm flag (silent execution)) and the server configuration for 'github'. Detected by Credenzo rule COMM-013 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-866c7040087d",
     "modified": "2026-01-31T00:00:00Z",
@@ -736,6 +728,14 @@
         "type": "ADVISORY",
         "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30615"
       }
+    ],
+    "related": [
+      "CVE-2025-49596",
+      "CVE-2025-54136",
+      "CVE-2025-54994",
+      "CVE-2026-22252",
+      "CVE-2026-22688",
+      "CVE-2026-30615"
     ],
     "schema_version": "1.6.0",
     "severity": [
@@ -890,9 +890,6 @@
         ]
       }
     ],
-    "aliases": [
-      "CVE-2026-30623"
-    ],
     "details": "Server 'shell-runner' has shell metacharacters in args: $ Evidence: rule:COMM-015; matched: $ Remediation: Review the rule 'COMM-015' (Shell metacharacters in server args) and the server configuration for 'shell-runner'. Detected by Credenzo rule COMM-015 (rules analyzer, severity CRITICAL).",
     "id": "x_MCPSA-8e7a2699ca2f",
     "modified": "2026-01-31T00:00:00Z",
@@ -906,6 +903,9 @@
         "type": "ADVISORY",
         "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30623"
       }
+    ],
+    "related": [
+      "CVE-2026-30623"
     ],
     "schema_version": "1.6.0",
     "severity": [
@@ -951,9 +951,6 @@
         ]
       }
     ],
-    "aliases": [
-      "CVE-2026-30615"
-    ],
     "details": "Server 'shell-runner' passes eval/exec in args (CVE-2026-30615): exec Evidence: rule:COMM-007; matched: exec Remediation: Review the rule 'COMM-007' (eval or exec passed in args) and the server configuration for 'shell-runner'. Detected by Credenzo rule COMM-007 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-bc1986c4d7bb",
     "modified": "2026-01-31T00:00:00Z",
@@ -967,6 +964,9 @@
         "type": "ADVISORY",
         "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30615"
       }
+    ],
+    "related": [
+      "CVE-2026-30615"
     ],
     "schema_version": "1.6.0",
     "severity": [
