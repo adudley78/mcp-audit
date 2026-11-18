@@ -1,0 +1,113 @@
+{
+ "measured": "2026-11-18",
+ "credenzo_commit": "e18622d",
+ "source": "HISTOR snapshot 2026-11-16, changes.jsonl.gz, SHA-256 starts 58759f93498c5293",
+ "measure_py_output": {
+  "changes": 126105,
+  "changes_with_modified_tool": 112155,
+  "changes_flagged": 784,
+  "servers_flagged": 545,
+  "changes_flagged_in_title_or_description": 448,
+  "servers_flagged_in_title_or_description": 334,
+  "distinct_rows": 1287,
+  "distinct_rows_by_check": {
+   "POISON-060": 629,
+   "POISON-030": 538,
+   "POISON-012": 58,
+   "POISON-020": 23,
+   "POISON-040": 11,
+   "POISON-003": 9,
+   "POISON-071": 6,
+   "POISON-070": 5,
+   "POISON-076": 3,
+   "POISON-045": 2,
+   "POISON-001": 2,
+   "POISON-072": 1
+  },
+  "distinct_rows_in_schema_fields": 615,
+  "distinct_added_texts_by_check": {
+   "POISON-060": 655,
+   "POISON-030": 581,
+   "POISON-012": 68,
+   "POISON-020": 23,
+   "POISON-040": 11,
+   "POISON-003": 10,
+   "POISON-071": 6,
+   "POISON-070": 5,
+   "POISON-076": 3,
+   "POISON-045": 2,
+   "POISON-001": 2,
+   "POISON-072": 1
+  },
+  "poison_060_rows_by_script_of_matched_word": {
+   "Cyr": 567,
+   "Grk": 36,
+   "Grk+Lat": 23,
+   "Grk+Oth": 1,
+   "": 1,
+   "Cyr+Lat": 1
+  }
+ },
+ "servers_that_changed_in_the_record": 19115,
+ "labelled_rows": 280,
+ "labels_by_check": {
+  "POISON-001": {
+   "honest": 2
+  },
+  "POISON-003": {
+   "honest": 9
+  },
+  "POISON-012": {
+   "honest": 54,
+   "steers-agent": 4
+  },
+  "POISON-020": {
+   "honest": 23
+  },
+  "POISON-030": {
+   "honest": 99,
+   "steers-agent": 1
+  },
+  "POISON-040": {
+   "honest": 11
+  },
+  "POISON-045": {
+   "honest": 2
+  },
+  "POISON-060": {
+   "honest": 60
+  },
+  "POISON-070": {
+   "honest": 5
+  },
+  "POISON-071": {
+   "honest": 1,
+   "steers-agent": 5
+  },
+  "POISON-072": {
+   "steers-agent": 1
+  },
+  "POISON-076": {
+   "honest": 3
+  }
+ },
+ "labels_total": {
+  "honest": 269,
+  "steers-agent": 11
+ },
+ "second_reader": {
+  "rows_read": 170,
+  "disagreements": [
+   5,
+   15,
+   19,
+   21
+  ],
+  "labels_changed_after": [
+   5,
+   19,
+   21,
+   126
+  ]
+ }
+}

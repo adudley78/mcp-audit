@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Measured false alarms on real changes (STORY-0169).** On HISTOR's public record of 126,105 real changes to MCP tool definitions, the POISON-* text checks fired on 784 changes from 545 servers (448 changes in descriptions, the scope of `lock --verify`). In a labelled set of 280 flagged rows, 0 are malicious, 269 are honest text and 11 steer the agent. POISON-060 fires on every Cyrillic or Greek word, POISON-030 on a tool's own call sequence, POISON-012 on "do not say / tell / mention" in each sense, and POISON-040 on correct Persian spelling. The labels, the method and the limits are in `docs/research/histor-changes/`; `docs/poisoning.md` and `GAPS.md` have the numbers. No check changed.
+
 ### Changed
 
 - **The repository is now `adudley78/credenzo`.** GitHub redirects the old name `adudley78/mcp-audit`, and a workflow that says `uses: adudley78/mcp-audit@...` still works (tested after the rename). Links, examples, the installer, the registry update URL and the package metadata now use the new name. The command names, the package names, the binary names and the machine-readable tool names do not change.

@@ -100,4 +100,5 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | [research/2026-12-launch-drift/](research/2026-12-launch-drift/README.md) | The launch drift study: corpus, method and results |
 | [research/poisoning-benchmark/](research/poisoning-benchmark/) | POISON-* labels and results |
 | [research/head-to-head/](research/head-to-head/README.md) | Benchmark beside other scanners |
+| [research/histor-changes/](research/histor-changes/README.md) | False alarms of POISON-* on a public record of real changes |
 | [research/mem006/](research/mem006/) · [research/mem008/](research/mem008/) | MEM-006 and MEM-008 measurements |
