@@ -1,8 +1,8 @@
 {
- "source": "HISTOR snapshot 2026-11-16, changes.jsonl.gz (CC BY 4.0), https://histor.modelmarket.dev/datasets/",
+ "source": "HISTOR snapshot 2026-11-16, changes.jsonl.gz, https://histor.modelmarket.dev/datasets/ . The compilation is CC BY 4.0. Tool names and quoted words belong to the authors of each server.",
  "source_sha256_prefix": "58759f93498c5293",
  "credenzo_commit": "e18622d",
- "labelled_by": "Claude (general manager agent), one reader, 2026-11-18",
+ "labelled_by": "An AI model (Claude, the general manager agent), 2026-11-18. A second AI reader checked 170 rows and disagreed on 4 (rows 5, 15, 19, 21); rows 5, 19 and 21 now carry its label, row 15 does not. No person checked the labels.",
  "rows": [
   {
    "n": 1,
@@ -61,8 +61,8 @@
    "check": "POISON-012",
    "matched": "Do not say",
    "added_text_sha256": "d4b6a0a55bc53e22919e5966b5b782ef556f4f9d16dc861bfa0538ea7d482866",
-   "label": "honest",
-   "why": "speech-guidance"
+   "label": "steers-agent",
+   "why": "orders-the-agent-not-to-ask-or-not-to-tell-the-user-a-limit"
   },
   {
    "n": 6,
@@ -218,7 +218,7 @@
    "matched": "do not mention",
    "added_text_sha256": "f9668167bb4b0007680e871ab287e06e2c28c11fac5dd943297932ff4255c538",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 19,
@@ -229,8 +229,8 @@
    "check": "POISON-012",
    "matched": "Do not say",
    "added_text_sha256": "a3f2b53dfac68a065a05ca8a6a3cd045109dcb8bbb25adf921485e747767bdbc",
-   "label": "honest",
-   "why": "speech-guidance"
+   "label": "steers-agent",
+   "why": "orders-the-agent-not-to-ask-or-not-to-tell-the-user-a-limit"
   },
   {
    "n": 20,
@@ -253,8 +253,8 @@
    "check": "POISON-012",
    "matched": "do not say",
    "added_text_sha256": "61670955c4a56aaadc076f26cba676000d08952f12e1979abca11f9439fca078",
-   "label": "honest",
-   "why": "speech-guidance"
+   "label": "steers-agent",
+   "why": "orders-the-agent-not-to-ask-or-not-to-tell-the-user-a-limit"
   },
   {
    "n": 22,
@@ -338,7 +338,7 @@
    "matched": "do not say",
    "added_text_sha256": "9629c800c64b7824fef09d9d49d04bcfa88595ee652a166c8e362e7040a9e588",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 29,
@@ -386,7 +386,7 @@
    "matched": "do not say",
    "added_text_sha256": "9eb9fb0938e956e175e9c217d1bd1b868748efcb8269eb3e9536de0400bfad8e",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 33,
@@ -422,7 +422,7 @@
    "matched": "do not tell",
    "added_text_sha256": "2ab8ded1338b033c7666a1a67c944e9e0bdcfb1b25abb25186bf0bc37b7862e4",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 36,
@@ -530,7 +530,7 @@
    "matched": "do not say",
    "added_text_sha256": "7298cfc51cf112aa0f1943239a0e24e3461e30a0ce285322adc7d0725d218f70",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 45,
@@ -566,7 +566,7 @@
    "matched": "do not say",
    "added_text_sha256": "42dc053e34cbf2446914d9eef26eda08ebdd0bceeb27ca51cd31a75aa2682ded",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 48,
@@ -590,7 +590,7 @@
    "matched": "do not mention",
    "added_text_sha256": "59c54d3f941745d9ed9d1eebdd44bd88aa5b94b1329c25e373d6f47625f3bd4e",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 50,
@@ -602,7 +602,7 @@
    "matched": "do not say",
    "added_text_sha256": "2cabd8e03e491f87f7f62c6f15df74793374ff7b3bffaae92502c0fc2c50fb84",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 51,
@@ -686,7 +686,7 @@
    "matched": "do not mention",
    "added_text_sha256": "84ce42d01c387c3f9451677aaf64161e9473e16ced5359af57276bba9a259e63",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 58,
@@ -722,7 +722,7 @@
    "matched": "do not say",
    "added_text_sha256": "52b24835a7915200a09700812c528fc1bde7366735a80efeafc0a9eb2647e735",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 61,
@@ -746,7 +746,7 @@
    "matched": "do not say",
    "added_text_sha256": "1568dbc0388c5c9961a46ab2004989e506a5ed4ebc2a958dc6f38fa1d5423f1d",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 63,
@@ -794,7 +794,7 @@
    "matched": "do not say",
    "added_text_sha256": "7e5b1ebe234de4877996bb2bf850ea6246fb69fbc18a2bd4f78493dc674d2577",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 67,
@@ -1034,7 +1034,7 @@
    "matched": "do not say",
    "added_text_sha256": "6eb87b3527dab581ca8dff086dc660372a21291b949a06916276b328ee7dd5b6",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 87,
@@ -1142,7 +1142,7 @@
    "matched": "do not mention",
    "added_text_sha256": "192e3a4dafd462f6aee5cf012e81ec21eff2603b58f80ad3f748af9037f176e6",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 96,
@@ -1226,7 +1226,7 @@
    "matched": "do not say",
    "added_text_sha256": "5ee5f79180bfd6546a7638d7657393ad3ebb4715c1ab66e73caa0188e742e87c",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 103,
@@ -1238,7 +1238,7 @@
    "matched": "do not say",
    "added_text_sha256": "efbe0793f37395e791c4700757e0216c7e44082a0784ed553735f5e388d9e009",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 104,
@@ -1310,7 +1310,7 @@
    "matched": "do not say",
    "added_text_sha256": "04a0bd19d508b702c3ee93664a136d6adac064af12a0601302de65192580e41f",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 110,
@@ -1334,7 +1334,7 @@
    "matched": "do not say",
    "added_text_sha256": "386ca35b4877d5727d6ca1fe052736190ded10baf694e78b97953a5b0860d307",
    "label": "honest",
-   "why": "speech-guidance"
+   "why": "descriptive-statement"
   },
   {
    "n": 112,
@@ -1513,8 +1513,8 @@
    "check": "POISON-030",
    "matched": "before using this tool",
    "added_text_sha256": "c19d14080b4ffea97e1902778bf976737b92f510d8f70f0917d872dc176fa13c",
-   "label": "not-decided",
-   "why": "names-another-tool-server-not-checked"
+   "label": "steers-agent",
+   "why": "orders-a-call-to-a-tool-that-the-server-does-not-list; the description alternates at one server version; probable demonstration"
   },
   {
    "n": 127,
@@ -2690,7 +2690,7 @@
    "matched": "а",
    "added_text_sha256": "1df375613d41927ca12d859fd1aba92ce566d4a1eefae466f6d702f591d393eb",
    "label": "honest",
-   "why": "science-symbol"
+   "why": "quoted-example"
   },
   {
    "n": 225,
@@ -2954,7 +2954,7 @@
    "matched": "β",
    "added_text_sha256": "1eabf76e07670449dc11901196b9d0dd6bada2f11aacd8f1b74903079fe9159e",
    "label": "honest",
-   "why": "science-symbol"
+   "why": "mixed-script-typo"
   },
   {
    "n": 247,

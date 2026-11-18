@@ -48,16 +48,16 @@ Per case, exactly one MCPTox case changed findings: a P1 case with a full-width 
 **POISON-030 was not changed.** STORY-0107 also tried gating POISON-030 ("first call", "instead use", "after calling this") on an order. MCPTox showed no loss, but MCPTox had shaped the gate; on a review set of 40 poisoned and 40 benign descriptions written outside MCPTox, the current pattern catches 39 of the poisoned descriptions and the gate caught 2; a widened version tuned on that same set caught 32 (82% of 39), below the 90% bar set before the experiment. POISON-030 therefore keeps firing on workflow documentation (30 of the 661 top-100 findings); telling an order from documentation needs a measured approach that holds out of sample.
 - **Length is a weak signal.** `POISON-050` (LOW, description of 2,000 characters or more) fired 139 times on the top-100 corpus, on API reference text, and twice on MCPTox's clean tools.
 
-## On real changes, the flags are false alarms (STORY-0169)
+## On real changes, almost every labelled flag is a false alarm (STORY-0169)
 
-Measured 2026-11-18 on a public record of 126,105 real changes to MCP tool definitions (HISTOR, snapshot 2026-11-16, CC BY 4.0). The checks that `credenzo lock --verify` runs on added words fired on 784 changes from 545 servers. A labelled set of 280 flagged rows has 0 malicious rows, 272 honest rows, 7 rows that steer the agent with no harmful aim, and 1 row not decided.
+Measured 2026-11-18 on a public record of 126,105 real changes to MCP tool definitions (HISTOR, snapshot 2026-11-16). The POISON-* text checks fired on 784 changes from 545 servers. The script checks the added words of each title and description, and the full new text of each changed schema node. `credenzo lock --verify` checks titles and descriptions only: 448 changes from 334 servers. A labelled set of 280 flagged rows has 0 malicious rows, 269 honest rows and 11 rows that steer the agent. One of the 11 orders a call to a tool that its server does not list; it is probably a demonstration.
 
-- **POISON-060 fires on a language.** Of all 629 flagged rows, 603 are a whole word in Cyrillic or Greek and 24 are a Greek letter in a science term. A server with a Russian description gets a HIGH finding.
-- **POISON-030 fires on a tool's own sequence.** 99 of 100 labelled rows are text such as "the first call returns a preview".
-- **POISON-012 fires on guidance about speech.** 57 of 58 rows are text such as "do not say it is booked until it is paid".
+- **POISON-060 fires on every word in Cyrillic or Greek.** Of all 629 flagged rows, 603 have a whole word in one of those scripts at the match and 24 have a Greek letter inside a Latin or other term. A server with a Russian description gets a HIGH finding.
+- **POISON-030 fires on a tool's own sequence.** 99 of 100 labelled rows are text such as "the first call returns a preview naming every recipient".
+- **POISON-012 fires on "do not say", "do not tell" and "do not mention" in each sense.** 54 of 58 rows are honest: guidance about what to tell the user, plain statements and quoted examples.
 - **POISON-040 fires on correct Persian spelling.** 8 of 11 rows are the zero-width non-joiner.
 
-This measures false alarms only. The record has no list of known malicious changes, so it gives no recall number. The method, the labels and the limits are in [`docs/research/histor-changes/`](research/histor-changes/README.md). No check changed.
+This measures false alarms only. The record has no list of known malicious changes, so it gives no recall number. An AI model labelled the rows and a second AI reader checked 170 of them; no person checked the labels. The method, the labels and the limits are in [`docs/research/histor-changes/`](research/histor-changes/README.md). No check changed.
 
 ## What was measured
 

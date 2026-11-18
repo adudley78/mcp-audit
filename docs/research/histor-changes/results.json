@@ -1,27 +1,54 @@
 {
  "measured": "2026-11-18",
  "credenzo_commit": "e18622d",
- "source": "HISTOR snapshot 2026-11-16 changes.jsonl.gz",
- "changes": 126105,
- "changes_with_modified_tool": 112155,
- "changes_flagged_added_words": 784,
- "servers_flagged": 545,
- "changes_flagged_full_new_text": 1808,
- "distinct_flagged_rows": 1287,
- "distinct_rows_by_check": {
-  "POISON-060": 629,
-  "POISON-030": 538,
-  "POISON-012": 58,
-  "POISON-020": 23,
-  "POISON-040": 11,
-  "POISON-003": 9,
-  "POISON-071": 6,
-  "POISON-070": 5,
-  "POISON-076": 3,
-  "POISON-045": 2,
-  "POISON-001": 2,
-  "POISON-072": 1
+ "source": "HISTOR snapshot 2026-11-16, changes.jsonl.gz, SHA-256 starts 58759f93498c5293",
+ "measure_py_output": {
+  "changes": 126105,
+  "changes_with_modified_tool": 112155,
+  "changes_flagged": 784,
+  "servers_flagged": 545,
+  "changes_flagged_title_or_description_only": 448,
+  "servers_flagged_title_or_description_only": 334,
+  "distinct_rows": 1287,
+  "distinct_rows_by_check": {
+   "POISON-060": 629,
+   "POISON-030": 538,
+   "POISON-012": 58,
+   "POISON-020": 23,
+   "POISON-040": 11,
+   "POISON-003": 9,
+   "POISON-071": 6,
+   "POISON-070": 5,
+   "POISON-076": 3,
+   "POISON-045": 2,
+   "POISON-001": 2,
+   "POISON-072": 1
+  },
+  "distinct_rows_in_schema_fields": 615,
+  "distinct_added_texts_by_check": {
+   "POISON-060": 655,
+   "POISON-030": 581,
+   "POISON-012": 68,
+   "POISON-020": 23,
+   "POISON-040": 11,
+   "POISON-003": 10,
+   "POISON-071": 6,
+   "POISON-070": 5,
+   "POISON-076": 3,
+   "POISON-045": 2,
+   "POISON-001": 2,
+   "POISON-072": 1
+  },
+  "poison_060_rows_by_script_of_matched_word": {
+   "Cyr": 567,
+   "Grk": 36,
+   "Grk+Lat": 23,
+   "Grk+Oth": 1,
+   "": 1,
+   "Cyr+Lat": 1
+  }
  },
+ "servers_that_changed_in_the_record": 19115,
  "labelled_rows": 280,
  "labels_by_check": {
   "POISON-001": {
@@ -31,15 +58,15 @@
    "honest": 9
   },
   "POISON-012": {
-   "honest": 57,
-   "steers-agent": 1
+   "honest": 54,
+   "steers-agent": 4
   },
   "POISON-020": {
    "honest": 23
   },
   "POISON-030": {
    "honest": 99,
-   "not-decided": 1
+   "steers-agent": 1
   },
   "POISON-040": {
    "honest": 11
@@ -65,37 +92,22 @@
   }
  },
  "labels_total": {
-  "honest": 272,
-  "steers-agent": 7,
-  "not-decided": 1
+  "honest": 269,
+  "steers-agent": 11
  },
- "poison_060_all_distinct_rows_by_script_of_the_word": {
-  "whole word in Cyrillic": 567,
-  "whole word in Greek": 36,
-  "Greek letter in a Latin or other term (science symbol)": 24,
-  "character class in a regular expression": 1,
-  "Latin word with one Cyrillic letter (example input of a tool named mixed-script-detect)": 1
- },
- "distinct_flagged_rows_note": "one row for each different check and matched context (110 characters each side of the match)",
- "measure_py_output": {
-  "changes": 126105,
-  "changes_with_modified_tool": 112155,
-  "changes_flagged_added_words": 784,
-  "servers_flagged": 545,
-  "distinct_added_texts_by_check": {
-   "POISON-060": 655,
-   "POISON-030": 581,
-   "POISON-012": 68,
-   "POISON-020": 23,
-   "POISON-040": 11,
-   "POISON-003": 10,
-   "POISON-071": 6,
-   "POISON-070": 5,
-   "POISON-076": 3,
-   "POISON-045": 2,
-   "POISON-001": 2,
-   "POISON-072": 1
-  },
-  "note": "measure.py counts one row for each different check and whole added text, so its counts are a little higher than the rows by matched context"
+ "second_reader": {
+  "rows_read": 170,
+  "disagreements": [
+   5,
+   15,
+   19,
+   21
+  ],
+  "labels_changed_after": [
+   5,
+   19,
+   21,
+   126
+  ]
  }
 }
