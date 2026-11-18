@@ -10,8 +10,9 @@ set of 280 flagged rows, 0 are malicious, 269 are honest text and 11 steer the
 agent. One of the 11 has the shape of a cross-tool order (see "The one row
 that is not ordinary").
 
-`credenzo lock --verify` checks titles and descriptions only. In that scope the
-checks fired on 448 changes from 334 servers. The other 336 changes have a flag
+`credenzo lock --verify` checks titles and descriptions only. This record has
+no titles, so that scope is descriptions: the checks fired there on 448
+changes from 334 servers. The other 336 changes have a flag
 only in schema text.
 
 This is a measurement of false alarms. It is not a measurement of misses: the
@@ -127,7 +128,7 @@ list. It is probably a demonstration. Its label is `steers-agent`.
   a key is not in the record.
 - POISON-030 and POISON-060 are sampled (100 of 538, 60 of 629). 1,007 rows
   have no label. A keyword search of those rows by the second reader found no
-  malicious row and four more rows that steer the agent.
+  malicious row and at least four more rows that steer the agent.
 - One server gives 49 of the 784 changes. The ten largest give 122.
 - No recall number. HISTOR's own pattern matches and classifier flags were not
   compared.
