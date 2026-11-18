@@ -374,28 +374,44 @@ def redacted_snippet(text: str, limit: int) -> str:
     return redact_evidence(text[: limit + _REDACT_LOOKAHEAD])[:limit]
 
 
-# POISON-060 fires on the presence of a confusable character in the ORIGINAL
-# text (a strong obfuscation signal in its own right, separate from whether a
-# literal pattern matched the normalized form).  The class is the union of the
-# broad confusable-script ranges and the specific code points in
-# :data:`_CONFUSABLES` (which adds Armenian / Cherokee / Coptic letters that
-# fall outside those ranges).
-_POISON_060_EXTRA: str = "".join(
-    sorted({c for c in _CONFUSABLES if not ("\u0370" <= c <= "\u04ff")})
-)
+# POISON-060 fires on a disguised word in the ORIGINAL text (an obfuscation
+# signal in its own right, separate from whether a literal pattern matched the
+# normalized form).  It has two parts.
 #
-# Fullwidth forms (STORY-0107): only the fullwidth DIGITS and LETTERS
-# (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) are in the class.  The fullwidth
-# punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses, ...) is the
-# ordinary punctuation of Chinese, Japanese and Korean text, and was 488 of the
-# 661 false findings on the top-100 npm corpus and 16 of 18 flagged MCPTox clean
-# tools.  A punctuation mark cannot spell a disguised word, and the literal
-# patterns still see through it: ``normalize_for_detection`` folds U+FF1C to
-# ``<``, so a fullwidth-bracketed <IMPORTANT> still fires POISON-010.
+# 1. Fullwidth digits and letters (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) and
+#    mathematical alphanumerics (U+1D400-1D7FF), anywhere.  STORY-0107: the
+#    fullwidth punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses,
+#    ...) is the ordinary punctuation of Chinese, Japanese and Korean text, and
+#    was 488 of the 661 false findings on the top-100 npm corpus and 16 of 18
+#    flagged MCPTox clean tools.  A punctuation mark cannot spell a disguised
+#    word, and the literal patterns still see through it:
+#    ``normalize_for_detection`` folds U+FF1C to ``<``, so a fullwidth-bracketed
+#    <IMPORTANT> still fires POISON-010.
+#
+# 2. A mixed word (STORY-0170): one run of letters, three or more long, that
+#    holds an ASCII letter and a letter of :data:`_CONFUSABLES` (a Cyrillic,
+#    Greek, Armenian, Cherokee or Coptic letter that looks like a Latin letter),
+#    and no other letter.  ``p\u0430ypal`` and ``id_rs\u0430`` (a Cyrillic a)
+#    fire.  A word written wholly in Cyrillic or Greek does not: on HISTOR's
+#    record of real changes (STORY-0169) the earlier rule, "any Cyrillic or
+#    Greek character",
+#    fired on 629 rows, of which 603 were a whole word of ordinary Russian,
+#    Ukrainian, Bulgarian or Greek text and 24 a Greek letter in a science term.
+#    ``normalize_for_detection`` still folds every confusable letter, so a
+#    literal pattern still reads an instruction that is written wholly in
+#    look-alike letters.
+_POISON_060_CONFUSABLE: str = "".join(re.escape(c) for c in sorted(_CONFUSABLES))
+_POISON_060_LETTER: str = r"[^\W\d_]"
+_POISON_060_MIXED_WORD: str = (
+    rf"(?<!{_POISON_060_LETTER})"
+    rf"(?=[A-Za-z{_POISON_060_CONFUSABLE}]{{3,}}(?!{_POISON_060_LETTER}))"
+    rf"(?=[A-Za-z]*[{_POISON_060_CONFUSABLE}])"
+    rf"(?=[{_POISON_060_CONFUSABLE}]*[A-Za-z])"
+    rf"[A-Za-z{_POISON_060_CONFUSABLE}]+"
+)
 _POISON_060_CLASS: str = (
-    "[\u0370-\u03ff\u0400-\u04ff"
-    "\uff10-\uff19\uff21-\uff3a\uff41-\uff5a"
-    "\U0001d400-\U0001d7ff" + _POISON_060_EXTRA + "]"
+    "(?:[\uff10-\uff19\uff21-\uff3a\uff41-\uff5a\U0001d400-\U0001d7ff]"
+    "|" + _POISON_060_MIXED_WORD + ")"
 )
 
 
@@ -1002,30 +1018,27 @@ PATTERNS: list[DetectionPattern] = [
     DetectionPattern(
         id="POISON-060",
         name="Unicode homoglyph substitution",
-        # The character class is built at import time (``_POISON_060_CLASS``) as
-        # the union of the broad confusable-script ranges — Cyrillic
-        # (U+0400–04FF), Greek (U+0370–03FF), fullwidth digits and letters
-        # (U+FF10–FF19, U+FF21–FF3A, U+FF41–FF5A; not fullwidth punctuation),
-        # mathematical alphanumerics (U+1D400–1D7FF) — and the specific code
-        # points in ``_CONFUSABLES``, which add the Armenian / Cherokee / Coptic
-        # letters that fall outside those ranges.  POISON-060 runs against the
+        # Fullwidth digits and letters, mathematical alphanumerics, or a mixed
+        # word: ASCII letters with a look-alike letter of ``_CONFUSABLES`` (see
+        # ``_POISON_060_CLASS``; STORY-0170).  POISON-060 runs against the
         # ORIGINAL text (it is an obfuscation detector); the companion
-        # ``normalize_for_detection`` pass folds these same characters to ASCII
-        # so the *literal* patterns (POISON-010..030) also fire on the decoded
+        # ``normalize_for_detection`` pass folds the same characters to ASCII so
+        # the *literal* patterns (POISON-010..030) also fire on the decoded
         # instruction.
         pattern=re.compile(_POISON_060_CLASS),
         severity=Severity.HIGH,
         description=(
-            "Tool description contains Unicode characters from Cyrillic, Greek,"
-            " fullwidth-ASCII, mathematical-alphanumeric, Armenian, Cherokee, or"
-            " Coptic blocks that are visually identical to ASCII letters"
-            " (homoglyphs)."
+            "Tool description contains a disguised word: fullwidth or"
+            " mathematical letters, or a word that mixes ASCII letters with"
+            " Cyrillic, Greek, Armenian, Cherokee or Coptic letters that look"
+            " like Latin letters (homoglyphs)."
             " Attackers use this technique to hide malicious instructions from"
             " human reviewers while keeping them readable to language models."
         ),
         remediation=(
             "Review the full tool description for hidden instructions."
-            " Remove any non-ASCII characters that are not legitimately required."
+            " Replace the look-alike letters in the reported word, or remove the"
+            " server if you did not expect them."
         ),
         cwe="CWE-116",
         owasp_mcp_top_10=["MCP03"],

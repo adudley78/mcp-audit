@@ -179,8 +179,8 @@ def measure(path: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         "changes_with_modified_tool": with_modified,
         "changes_flagged": len(flagged["all"]),
         "servers_flagged": len(servers["all"]),
-        "changes_flagged_title_or_description_only": len(flagged["text"]),
-        "servers_flagged_title_or_description_only": len(servers["text"]),
+        "changes_flagged_in_title_or_description": len(flagged["text"]),
+        "servers_flagged_in_title_or_description": len(servers["text"]),
         "distinct_rows": len(rows),
         "distinct_rows_by_check": dict(by_row.most_common()),
         "distinct_rows_in_schema_fields": sum(
