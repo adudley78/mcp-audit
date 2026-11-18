@@ -701,13 +701,20 @@ class TestVetCliOnline:
 
     def test_online_fallback_message_stays_on_stdout_for_people(self) -> None:
         """Without --format json the message is part of the terminal output."""
+        try:  # the module runner mixes the streams on click < 8.2
+            split_runner = CliRunner(mix_stderr=False)
+        except TypeError:
+            split_runner = CliRunner()
         reg = _make_registry([_VERIFIED_ENTRY])
         with (
             patch("mcp_audit.cli.vet.load_registry", return_value=reg),
             patch("mcp_audit.cli.vet._fetch_online_verdict", return_value=None),
         ):
-            result = runner.invoke(app, ["vet", "completely-unknown-pkg", "--online"])
+            result = split_runner.invoke(
+                app, ["vet", "completely-unknown-pkg", "--online"]
+            )
         assert "using bundled" in result.stdout.replace("\n", " ")
+        assert "using bundled" not in result.stderr.replace("\n", " ")
 
     @_windows_skip
     def test_online_cache_written_at_0o600(self, tmp_path: Path) -> None:
