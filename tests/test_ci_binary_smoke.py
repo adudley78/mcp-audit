@@ -8,9 +8,14 @@ and release cannot drift on interpreter, extras, spec, or PyInstaller.
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -258,3 +263,69 @@ def test_dependabot_scans_every_composite() -> None:
         if parent.parent == ROOT / ".github" / "actions":
             continue  # covered by the glob
         assert parent in scanned_roots or parent.parent in scanned_roots, parent
+
+
+def _action_step(name: str) -> dict:
+    steps = _load(BUILD_ACTION_YML)["runs"]["steps"]
+    matches = [s for s in steps if s.get("name") == name]
+    assert len(matches) == 1, name
+    return matches[0]
+
+
+def test_dependency_install_waits_longer_for_a_slow_download() -> None:
+    """A slow runner network failed `uv sync` at uv's 30-second default."""
+    step = _action_step("Install dependencies")
+    assert step["env"]["UV_HTTP_TIMEOUT"] == "120"
+    assert step["run"] == "uv sync --all-extras --locked"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="runs the step with bash")
+@pytest.mark.parametrize(
+    ("value", "accepted"),
+    [
+        ("3.12.14", True),
+        ("3.13", True),
+        ("3.12.14\nEVIL=1", False),
+        ("3.12 ", False),
+        ("", False),
+        (".3", False),
+        ("3.", False),
+        ("3.12.14;id", False),
+    ],
+)
+def test_python_version_input_can_only_be_a_version_number(
+    tmp_path: Path, value: str, accepted: bool
+) -> None:
+    """The value is written to GITHUB_ENV; only a version number may get there."""
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is not installed")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_python = fake_bin / "fake-python"
+    fake_python.write_text("#!/bin/sh\necho Python 0\n")
+    fake_python.chmod(0o755)
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(f'#!/bin/sh\n[ "$2" = find ] && echo "{fake_python}"\nexit 0\n')
+    fake_uv.chmod(0o755)
+    env_file = tmp_path / "github_env"
+    env_file.write_text("")
+    done = subprocess.run(  # noqa: S603 — bash runs the step text from this repository
+        [bash, "-c", _action_step("Set up Python")["run"]],
+        env={
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+            "PYTHON_VERSION": value,
+            "GITHUB_ENV": str(env_file),
+        },
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    written = env_file.read_text()
+    if accepted:
+        assert done.returncode == 0, done.stderr
+        assert written == f"UV_PYTHON={value}\n"
+    else:
+        assert done.returncode != 0
+        assert written == "", "nothing may reach the environment file"
