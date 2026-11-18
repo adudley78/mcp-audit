@@ -104,7 +104,7 @@ list. It is probably a demonstration. Its label is `steers-agent`.
   ("the first call returns a preview naming every recipient") or an
   alternative ("instead of calling this once per brand").
 - **POISON-012 (HIGH).** The check fires on the words "do not say", "do not
-  tell" and "do not mention" in each sense. Of 58 rows, about 32 are guidance
+  tell" and "do not mention" in each sense. Of 58 rows, 29 are guidance
   about what to tell the user ("do not say it is booked until it is paid"), 18
   are plain statements ("the documents do not say where they went"), 4 are
   quoted or defensive examples, 2 are "override defaults", 1 is the title of a
