@@ -101,4 +101,5 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | [research/poisoning-benchmark/](research/poisoning-benchmark/) | POISON-* labels and results |
 | [research/head-to-head/](research/head-to-head/README.md) | Benchmark beside other scanners |
 | [research/histor-changes/](research/histor-changes/README.md) | False alarms of POISON-* on a public record of real changes |
+| [research/mcp-safetybench/](research/mcp-safetybench/README.md) | Recall of POISON-* on MCP-SafetyBench's poisoned tool descriptions |
 | [research/mem006/](research/mem006/) · [research/mem008/](research/mem008/) | MEM-006 and MEM-008 measurements |

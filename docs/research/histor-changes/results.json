@@ -154,5 +154,63 @@
    "changes_flagged_in_title_or_description": 278,
    "servers_flagged_in_title_or_description": 252
   }
+ },
+ "after_story_0171": {
+  "note": "measure.py output after POISON-012 drops the bare secrecy branch and POISON-040 gets its exceptions",
+  "measure_py_output": {
+   "changes": 126105,
+   "changes_with_modified_tool": 112155,
+   "changes_flagged": 485,
+   "servers_flagged": 387,
+   "changes_flagged_in_title_or_description": 253,
+   "servers_flagged_in_title_or_description": 229,
+   "distinct_rows": 599,
+   "distinct_rows_by_check": {
+    "POISON-030": 538,
+    "POISON-020": 23,
+    "POISON-003": 9,
+    "POISON-012": 6,
+    "POISON-071": 6,
+    "POISON-070": 5,
+    "POISON-076": 3,
+    "POISON-060": 2,
+    "POISON-045": 2,
+    "POISON-001": 2,
+    "POISON-040": 2,
+    "POISON-072": 1
+   },
+   "distinct_rows_in_schema_fields": 305,
+   "distinct_added_texts_by_check": {
+    "POISON-030": 581,
+    "POISON-020": 23,
+    "POISON-012": 10,
+    "POISON-003": 10,
+    "POISON-071": 6,
+    "POISON-070": 5,
+    "POISON-076": 3,
+    "POISON-060": 2,
+    "POISON-045": 2,
+    "POISON-001": 2,
+    "POISON-040": 2,
+    "POISON-072": 1
+   },
+   "poison_060_rows_by_script_of_matched_word": {
+    "Grk+Lat": 1,
+    "Cyr+Lat": 1
+   }
+  },
+  "labelled_rows_after": {
+   "POISON-012": {
+    "honest, no finding": 44,
+    "honest, POISON-012": 6,
+    "honest, another check only": 4,
+    "steers-agent, no finding": 3,
+    "steers-agent, POISON-072": 1
+   },
+   "POISON-040": {
+    "honest, no finding": 9,
+    "honest, POISON-040": 2
+   }
+  }
  }
 }
