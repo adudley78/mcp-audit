@@ -104,6 +104,11 @@ runs:
         PYTHON_VERSION: ${{ inputs.python-version }}
       run: |
         set -euo pipefail
+        # The value goes into the environment file of the job. Accept only a
+        # version number, so that no other line can be added to that file.
+        case "$PYTHON_VERSION" in
+          *[!0-9.]* | "" | .* | *.) echo "::error::python-version must be a version number, got '$PYTHON_VERSION'"; exit 1 ;;
+        esac
         uv python install "$PYTHON_VERSION"
         echo "UV_PYTHON=$PYTHON_VERSION" >> "$GITHUB_ENV"
         echo "Pinned CPython: $PYTHON_VERSION"
@@ -118,6 +123,10 @@ runs:
       # pyinstaller` step was removed in 2026-11 because it would have
       # fetched an unpinned PyInstaller into every shipped binary had the
       # extra ever dropped it.
+      env:
+        # uv stops a download after 30 seconds by default. On 2026-11-18 a
+        # Windows runner with a slow network failed here on one wheel.
+        UV_HTTP_TIMEOUT: "120"
       run: uv sync --all-extras --locked
 
     - name: Build binary
