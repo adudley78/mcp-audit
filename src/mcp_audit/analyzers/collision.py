@@ -415,3 +415,236 @@ def detect_tool_name_squats(
     for kind, a, b in medium[: MAX_NAME_COPY_FINDINGS - len(findings)]:
         emit(kind, a, b)
     return findings
+
+
+# ── COLLIDE-003: a tool that carries another server's tool description ────────
+#
+# STORY-0174.  The word lists of COLLIDE-002 and POISON-083 caught none of the
+# name-overlap and preference cases of MCP Security Bench (arXiv 2510.15994):
+# a copy there is ``execute_command_v1``, and the text that sells it is in
+# another order of words.  What each of those cases shares is not a word.  The
+# copy carries the description of the tool it copies.  That text is honest, so
+# a check that reads one description cannot see it; a check that reads the
+# session can.
+
+#: Findings one scan reports.
+MAX_DESCRIPTION_COPY_FINDINGS = 100
+#: A description is read to this many characters and this many sentences.
+_MAX_DESCRIPTION_CHARS = 20_000
+_MAX_SENTENCES = 64
+#: Tools that may share one first sentence in the index.
+_MAX_OWNERS_PER_SENTENCE = 8
+#: Sentence comparisons one scan may make.  A hostile server chooses its text.
+_COPY_WORK_BUDGET = 2_000_000
+#: A sentence of this many words or more is a "long" sentence.
+_LONG_SENTENCE_WORDS = 5
+#: A copy needs this many words in the long sentences of the copied text ...
+_MIN_COPIED_WORDS = 10
+#: ... or this many words in all, when the name is also the other name plus
+#: one or two words.
+_MIN_COPIED_WORDS_WITH_NAME = 4
+#: The copy has "added text" when it has this many words more.
+_ADDED_WORDS = 3
+_SENTENCE_END = re.compile(r"[.\n!?;:]+")
+_SPACES = re.compile(r"\s+")
+
+
+def _sentences(text: str | None) -> list[str]:
+    """Return the lowercase sentences of a description, spaces collapsed."""
+    out: list[str] = []
+    for part in _SENTENCE_END.split((text or "")[:_MAX_DESCRIPTION_CHARS]):
+        sentence = _SPACES.sub(" ", part).strip().lower()
+        if sentence:
+            out.append(sentence)
+            if len(out) >= _MAX_SENTENCES:
+                break
+    return out
+
+
+def _is_name_plus_words(longer: str, shorter: str) -> bool:
+    """Is *longer* the name *shorter* (two or more words) plus one or two words?"""
+    long_tokens, short_tokens = _name_tokens(longer), _name_tokens(shorter)
+    extra = len(long_tokens) - len(short_tokens)
+    if len(short_tokens) < 2 or not 1 <= extra <= 2:
+        return False
+    rest = iter(long_tokens)
+    return all(any(token == other for other in rest) for token in short_tokens)
+
+
+class _Described:
+    """One tool with the parts of its description that the check compares."""
+
+    __slots__ = ("identity", "name", "all", "long", "long_words", "words")
+
+    def __init__(self, identity: tuple, name: str, description: str | None) -> None:
+        self.identity = identity
+        self.name = name
+        self.all = _sentences(description)
+        self.long = [s for s in self.all if s.count(" ") + 1 >= _LONG_SENTENCE_WORDS]
+        self.long_words = sum(s.count(" ") + 1 for s in self.long)
+        self.words = sum(s.count(" ") + 1 for s in self.all)
+
+
+def detect_description_copies(
+    pairs: list[tuple[ServerConfig, ServerEnumeration]],
+    errors: list[str] | None = None,
+) -> list[Finding]:
+    """Report a tool that carries another server's tool description (COLLIDE-003).
+
+    Tool A on one server copies tool B on another server when the two names
+    differ and each long sentence of B's description is a sentence of A's
+    description (B's long sentences hold ten words or more).  When A's name is
+    also B's name plus one or two words, four words of description are enough
+    and each sentence of B must be in A.
+
+    - **HIGH**: the description is copied and the name is the other name plus
+      one or two words (``execute_command_v1`` beside ``execute_command``).
+    - **MEDIUM**: the description is copied under a name of its own, with or
+      without added text.  Servers of one vendor share tools this way.
+
+    The same name on two servers is COLLIDE-001 and is not reported here.
+    Reads names and descriptions only.  The copied text itself is not put in
+    the finding.
+
+    Args:
+        pairs: ``(ServerConfig, ServerEnumeration)`` from the ``--connect`` loop.
+        errors: When given, gets one line if the scan left comparisons out.
+
+    Returns:
+        ``COLLIDE-003`` findings, one per copying tool at most,
+        ``MAX_DESCRIPTION_COPY_FINDINGS`` in all, HIGH first.
+    """
+    live = [(s, e) for s, e in pairs if not e.error]
+    if len(live) < 2:
+        return []
+    by_identity: dict[tuple, ServerConfig] = {}
+    tools: list[_Described] = []
+    for server, enum in live:
+        identity = _server_identity(server)
+        by_identity.setdefault(identity, server)
+        tools.extend(_Described(identity, t.name, t.description) for t in enum.tools)
+
+    by_long: dict[str, list[_Described]] = {}
+    by_first: dict[str, list[_Described]] = {}
+    for tool in tools:
+        if tool.long and tool.long_words >= _MIN_COPIED_WORDS:
+            owners = by_long.setdefault(tool.long[0], [])
+            if len(owners) < _MAX_OWNERS_PER_SENTENCE:
+                owners.append(tool)
+        if tool.all and tool.words >= _MIN_COPIED_WORDS_WITH_NAME:
+            owners = by_first.setdefault(tool.all[0], [])
+            if len(owners) < _MAX_OWNERS_PER_SENTENCE:
+                owners.append(tool)
+
+    budget = _COPY_WORK_BUDGET
+    high: list[tuple[_Described, _Described, str]] = []
+    medium: list[tuple[_Described, _Described, str]] = []
+    reported: set[tuple[tuple, str]] = set()
+
+    def record(a: _Described, b: _Described, long_copy: bool) -> None:
+        """Add the pair once, on the tool that is the copy."""
+        added = a.words - b.words >= _ADDED_WORDS
+        if _is_name_plus_words(a.name, b.name):
+            copy, original, bucket = a, b, high
+            kind = "added text, name" if added else "name"
+        elif not added and long_copy and _is_name_plus_words(b.name, a.name):
+            copy, original, bucket, kind = b, a, high, "name"
+        elif long_copy:
+            copy, original, bucket = a, b, medium
+            kind = "added text" if added else "same text"
+        else:
+            return
+        key = (copy.identity, copy.name)
+        mirror = (original.identity, original.name)
+        if key in reported or (kind == "same text" and mirror in reported):
+            return
+        reported.add(key)
+        bucket.append((copy, original, kind))
+
+    for a in tools:
+        if budget <= 0:
+            break
+        sentences = set(a.all)
+        for sentence in a.all:
+            for b in by_long.get(sentence, ()):
+                budget -= len(b.long)
+                if (
+                    b.identity != a.identity
+                    and b.name != a.name
+                    and all(s in sentences for s in b.long)
+                ):
+                    record(a, b, True)
+            for b in by_first.get(sentence, ()):
+                budget -= len(b.all)
+                if (
+                    b.identity != a.identity
+                    and b.name != a.name
+                    and all(s in sentences for s in b.all)
+                ):
+                    record(a, b, False)
+    if budget <= 0 and errors is not None:
+        errors.append(
+            "COLLIDE-003: too many tool descriptions to compare; some were left out"
+        )
+
+    findings: list[Finding] = []
+    chosen = [(c, o, k, Severity.HIGH) for c, o, k in high]
+    chosen += [(c, o, k, Severity.MEDIUM) for c, o, k in medium]
+    if len(chosen) > MAX_DESCRIPTION_COPY_FINDINGS and errors is not None:
+        errors.append(
+            "COLLIDE-003: more description copies than"
+            f" {MAX_DESCRIPTION_COPY_FINDINGS}; the rest are not listed"
+        )
+    for copy, original, kind, severity in chosen[:MAX_DESCRIPTION_COPY_FINDINGS]:
+        sa, sb = by_identity[copy.identity], by_identity[original.identity]
+        named = severity == Severity.HIGH
+        findings.append(
+            Finding(
+                id="COLLIDE-003",
+                severity=severity,
+                analyzer="collision",
+                client=sa.client if sa.client == sb.client else "multiple",
+                server=sa.name,
+                tool=copy.name,
+                title=(
+                    f"Tool '{copy.name}' carries the description of"
+                    f" '{original.name}' on another server"
+                ),
+                description=(
+                    f"Server '{sa.name}' lists the tool '{copy.name}'.  Its"
+                    f" description holds the description of '{original.name}'"
+                    f" on server '{sb.name}'"
+                    + (" with more text added.  " if "added" in kind else ".  ")
+                    + (
+                        "Its name is also the other name plus one or two"
+                        " words.  A server that wants the agent to call its"
+                        " tool in the place of a trusted one copies the tool"
+                        " this way.  The copied text is honest, so a check of"
+                        " one description does not see it."
+                        if named
+                        else "The agent sees two tools that say they do the"
+                        " same job.  Servers of one vendor can share a tool;"
+                        " a server you did not expect to copy another one"
+                        " should not."
+                    )
+                ),
+                evidence=(
+                    f"'{copy.name}' ({sa.name}) holds the {original.words}-word"
+                    f" description of '{original.name}' ({sb.name});"
+                    f" its own description has {copy.words} words"
+                    " (detected via --connect live enumeration)"
+                ),
+                remediation=(
+                    f"Check that you installed '{sa.name}' on purpose and"
+                    f" compare what '{copy.name}' and '{original.name}' do."
+                    "  Remove the server that you did not expect."
+                    if named
+                    else "Check that both servers are the ones you expect."
+                    "  If they are from one vendor, no action is needed."
+                ),
+                cwe="CWE-694",
+                owasp_mcp_top_10=["MCP03", "MCP09"],
+                finding_path=str(sa.config_path),
+            )
+        )
+    return findings
