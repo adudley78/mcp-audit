@@ -126,6 +126,10 @@ server or a tool that is not in the record.
 A local-scope server never uses the approval of a project server with the
 same name, and a user server never uses a project server's record.
 
+When the hook's environment has no home directory, the guard cannot read
+`~/.claude.json`. User-level servers are then not covered (denied only with
+`--strict`). Project servers are decided as usual.
+
 ## Options
 
 | Option | Meaning |
