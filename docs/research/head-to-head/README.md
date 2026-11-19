@@ -4,7 +4,7 @@ A harness and a fixed corpus for comparing mcp-audit with other scanners that re
 
 **Update (2026-11-18).** Cisco mcp-scanner 4.8.7 was run on tool text, with other scripts and other sets (MCPTox, MCP-SafetyBench and HISTOR's record of real changes): see [`cisco-yara/`](cisco-yara/README.md). NVIDIA SkillSpector v2.12.0 was run in its static mode on 2026-11-19: see [`skillspector/`](skillspector/README.md). The table below was not re-run and its mcp-audit column is from 0.29.0.
 
-**Status (2026-11-04).** The mcp-audit column is the one measured so far. SkillSpector, Cisco mcp-scanner and Snyk agent-scan were not installed or run when this was built, so their columns read "not run", not zero. Whoever fills them in runs the commands under [How to run it](#how-to-run-it).
+**Status of the table below (2026-11-04; the two later runs are in the folders named above).** The mcp-audit column is the one measured in this table. SkillSpector, Cisco mcp-scanner and Snyk agent-scan were not installed or run when this was built, so their columns read "not run", not zero. Whoever fills them in runs the commands under [How to run it](#how-to-run-it).
 
 ## Why this exists
 

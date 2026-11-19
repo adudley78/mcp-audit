@@ -173,12 +173,18 @@ Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only. YARA is the
 
 ## Compared with NVIDIA SkillSpector, static mode (measured 2026-11-19)
 
-| Set | Credenzo | SkillSpector | Cisco YARA |
-|---|---|---|---|
-| MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 30 (19.5%) | 36 (23.4%) |
-| MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 111 (22.9%) | 99 (20.4%) |
-| MCPTox, 353 clean tools, flagged | 2 | 6 | 3 |
-| HISTOR, sample of 2,000 distinct added texts, flagged | 6 | 23 | 31 |
+| Set | Reading | Credenzo | SkillSpector | Cisco YARA |
+|---|---|---|---|---|
+| MCP-SafetyBench, 154 poisoned descriptions | any finding | 56 | 30 | 36 |
+| | verdict level | 40 | 12 | 36 |
+| MCPTox, 485 poisoned descriptions with no wrapper | any finding | 149 | 111 | 99 |
+| | verdict level | 53 | 34 | 99 |
+| MCPTox, 353 clean tools, flagged | any finding | 2 | 6 | 3 |
+| | verdict level | 0 | 2 | 3 |
+| HISTOR, sample of 2,000 distinct added texts, flagged | any finding | 6 | 23 | 31 |
+| | verdict level | 1 | 1 | 20 |
+
+"Verdict level" is each tool's own line for "act on this": HIGH or above for Credenzo (what `check` and the pre-commit hook fail on) and for Cisco, and a recommendation other than SAFE for SkillSpector. SkillSpector rates most skills that have a listed issue as SAFE: 18 of 30, 77 of 111, 4 of 6 and 22 of 23.
 
 SkillSpector v2.12.0 ran with `--no-llm`, on each text written as a skill file. That is not the input it was built for, and its mode with a language model was not measured. Neither the attack sets nor the HISTOR sample are independent of Credenzo, as above. The limits and the scripts are in [`docs/research/head-to-head/skillspector/`](research/head-to-head/skillspector/README.md).
 

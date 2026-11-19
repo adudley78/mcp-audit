@@ -24,7 +24,8 @@
     "PE2 Sudo/Root Execution MEDIUM": 6,
     "E1 External Transmission MEDIUM": 4,
     "P1 Instruction Override HIGH": 2
-   }
+   },
+   "skillspector_recommendation_not_safe": 12
   },
   "mcptox_unwrapped": {
    "n": 485,
@@ -44,7 +45,8 @@
     "E1 External Transmission MEDIUM": 9,
     "TM1 Tool Parameter Abuse HIGH": 4,
     "YR4 YARA rule 'agent_skill_mcp_tool_poisoning_metadata': MCP/tool metadata poisoning indicators in tool schemas or skill manifests [agent_skills] HIGH": 1
-   }
+   },
+   "skillspector_recommendation_not_safe": 34
   },
   "mcptox_clean": {
    "n": 353,
@@ -63,7 +65,8 @@
     "AR2 Anti-Refusal Statement HIGH": 1,
     "E1 External Transmission MEDIUM": 1,
     "RP1 MCP server referenced without pinned version: 'npx prisma'. MEDIUM": 1
-   }
+   },
+   "skillspector_recommendation_not_safe": 2
   },
   "histor_sample": {
    "n": 2000,
@@ -83,7 +86,9 @@
     "AS2 MCP Config Access HIGH": 1,
     "E1 External Transmission MEDIUM": 1,
     "YR4 YARA rule 'agent_skill_mcp_tool_poisoning_metadata': MCP/tool metadata poisoning indicators in tool schemas or skill manifests [agent_skills] HIGH": 1
-   }
+   },
+   "skillspector_recommendation_not_safe": 1
   }
- }
+ },
+ "note_on_verdicts": "SkillSpector gives each skill a recommendation (SAFE, CAUTION, DO_NOT_INSTALL). Most skills with a listed issue are rated SAFE. Both readings are recorded."
 }

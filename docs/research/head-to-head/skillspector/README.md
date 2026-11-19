@@ -1,7 +1,9 @@
 # Credenzo, SkillSpector and Cisco mcp-scanner on the same text (STORY-0172)
 
 Measured 2026-11-19. NVIDIA SkillSpector in its static mode flags fewer
-poisoned tool descriptions than Credenzo, and more honest text.
+poisoned tool descriptions than Credenzo. On honest text the answer depends on
+the reading: SkillSpector lists more issues than Credenzo, and at the level of
+its own verdict it flags as few texts as Credenzo does at HIGH.
 
 ## What was compared
 
@@ -15,13 +17,18 @@ poisoned tool descriptions than Credenzo, and more honest text.
 
 ## Result
 
-| Set | Credenzo | SkillSpector | Cisco YARA |
-|---|---|---|---|
-| MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 30 (19.5%) | 36 (23.4%) |
-| MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 111 (22.9%) | 99 (20.4%) |
-| MCPTox, 353 clean tools, flagged | 2 | 6 | 3 |
-| HISTOR, sample of 2,000 distinct added texts, flagged | 6 | 23 | 31 |
-| HISTOR sample, flagged at HIGH or above (each vendor's own scale) | 1 | 10 | 20 |
+| Set | Reading | Credenzo | SkillSpector | Cisco YARA |
+|---|---|---|---|---|
+| MCP-SafetyBench, 154 poisoned descriptions | any finding | 56 | 30 | 36 |
+| | verdict level | 40 | 12 | 36 |
+| MCPTox, 485 poisoned descriptions with no wrapper | any finding | 149 | 111 | 99 |
+| | verdict level | 53 | 34 | 99 |
+| MCPTox, 353 clean tools, flagged | any finding | 2 | 6 | 3 |
+| | verdict level | 0 | 2 | 3 |
+| HISTOR, sample of 2,000 distinct added texts, flagged | any finding | 6 | 23 | 31 |
+| | verdict level | 1 | 1 | 20 |
+
+"Verdict level" is each tool's own line for "act on this": HIGH or above for Credenzo (what `check` and the pre-commit hook fail on) and for Cisco, and a recommendation other than SAFE for SkillSpector. SkillSpector rates most skills that have a listed issue as SAFE: 18 of 30, 77 of 111, 4 of 6 and 22 of 23.
 
 SkillSpector and Credenzo flag different texts: of the 30 MCP-SafetyBench
 texts that SkillSpector flags, Credenzo flags 18. On MCPTox it is 51 of 111.
