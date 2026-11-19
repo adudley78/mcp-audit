@@ -26,7 +26,7 @@ scanners judge the text of one tool, by rules or with a language model.
 
 ## Measured
 
-Each tool in this table was run on the same text, in a mode that sends nothing away.
+In each row, the tools were run on the same cases, in a mode that sends nothing away. In the rows that link to `README.md`, each tool got the case in the input format that it reads (a tool list or a `SKILL.md`).
 
 | Measurement | Credenzo | Cisco YARA 4.8.7 | SkillSpector 2.12.0 static | Basis |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@ Each tool in this table was run on the same text, in a mode that sends nothing a
 | Blind set: kept away from the agent | 27 | no guard | no guard | [`../copy-checks/`](../copy-checks/README.md) |
 | Real changes to tool text (HISTOR, 126,105): changes flagged | 489 | 3,435 | not run on the full record | [`cisco-yara/`](cisco-yara/README.md), [`../histor-changes/`](../histor-changes/README.md) |
 | 2,000 real added texts: flagged at each tool's own verdict level | 1 | 20 | 1 | [`skillspector/`](skillspector/README.md) |
-| MCPTox, 485 poisoned descriptions with no wrapper: any finding | 149 | 99 | 111 | in-sample for Credenzo |
+| MCPTox, 485 distinct poisoned descriptions with no wrapper (`pure_tool.json`): any finding | 149 | 99 | 111 | in-sample for Credenzo |
 | MCPTox, all 1,312 poisoned cases (877 have an "important" tag or an "ignore" wrapper): any finding | 1,005 | 277 | 295 | in-sample for Credenzo; [`README.md`](README.md) |
 | MCPTox, 353 real clean tools: flagged (at HIGH) | 2 (0) | 3 (3) | 6 (2) | [`README.md`](README.md) |
 | 8 skills with one payload, 7 hidden in different ways: found at HIGH | 8 | 6 | 6 | [`README.md`](README.md) |

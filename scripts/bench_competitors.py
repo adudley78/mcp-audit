@@ -47,15 +47,16 @@ Corpora (``corpus`` subcommand writes and validates the committed ones)
 Every input file is hashed; ``run`` fails with exit 2 when a hash differs from
 the pinned one.
 
-Shapes that are ASSUMED and UNVERIFIED
---------------------------------------
-No competitor was installed or run while this was written (a permission rule
-forbids it in the build environment). The parsers below follow each project's
-public documentation and nothing else:
+Output shapes
+-------------
+The parsers below were written from each project's public documentation.
+They were run against real output on 2026-11-19 (SkillSpector v2.12.0,
+cisco-ai-mcp-scanner 4.8.7): 1,686 inputs for each scanner and no parse
+error. Another version of a scanner can change its output:
 
 * SkillSpector (README, "Machine-readable output"): ``risk_assessment`` with
   ``score``/``severity``/``recommendation`` and an ``issues`` list whose items
-  carry ``severity`` (LOW|MEDIUM|HIGH|CRITICAL). Assumed: an empty ``issues``
+  carry ``severity`` (LOW|MEDIUM|HIGH|CRITICAL). An empty ``issues``
   list means nothing flagged; a document with neither ``issues`` nor
   ``findings`` is an error, never a clean result. Exit 1 means risk_score > 50
   and exit 2 means error, so the exit code is not used as an error signal.
@@ -63,8 +64,8 @@ public documentation and nothing else:
   ``scan_results`` list; each result has ``status``, ``is_safe``, ``tool_name``
   and one object per analyzer (key such as ``yara_analyzer``) holding
   ``severity`` (SAFE|LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN), ``threat_names`` and
-  ``total_findings``. Assumed: the ``static`` subcommand uses the same
-  envelope (the docs list it as using it), and where the analyzer objects sit
+  ``total_findings``. The ``static`` subcommand uses the same envelope.
+  The parser accepts each place where the analyzer objects can sit
   (directly on the result, or under ``analyzers``/``analyzer_results``/
   ``findings``). A result whose status is not ``completed``, or whose
   ``is_safe`` is null, is an error, never clean.

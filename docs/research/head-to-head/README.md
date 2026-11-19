@@ -2,9 +2,7 @@
 
 A harness and a fixed corpus for comparing mcp-audit with other scanners that read agent skills and MCP tool descriptions, run the same way on every tool, with every number stating its basis. `scripts/bench_competitors.py` runs it; `results.json` pins the output.
 
-**Update (2026-11-18).** Cisco mcp-scanner 4.8.7 was run on tool text, with other scripts and other sets (MCPTox, MCP-SafetyBench and HISTOR's record of real changes): see [`cisco-yara/`](cisco-yara/README.md). NVIDIA SkillSpector v2.12.0 was run in its static mode on 2026-11-19: see [`skillspector/`](skillspector/README.md). The table below was not re-run and its mcp-audit column is from 0.29.0.
-
-**Status of the table below (2026-11-04; the two later runs are in the folders named above).** The mcp-audit column is the one measured in this table. SkillSpector, Cisco mcp-scanner and Snyk agent-scan were not installed or run when this was built, so their columns read "not run", not zero. Whoever fills them in runs the commands under [How to run it](#how-to-run-it).
+**Status (2026-11-19).** The table under [Current table](#current-table) is a run of three scanners on 2026-11-19: Credenzo, NVIDIA SkillSpector v2.12.0 (static mode) and Cisco mcp-scanner 4.8.7 (YARA only). Snyk agent-scan was not run, so its column reads "not run", not zero. Two earlier runs used other scripts and other sets (MCP-SafetyBench, HISTOR's record of real changes, 485 MCPTox descriptions with no wrapper): see [`cisco-yara/`](cisco-yara/README.md) and [`skillspector/`](skillspector/README.md).
 
 ## Why this exists
 
@@ -77,7 +75,7 @@ The Credenzo MCPTox rows reproduce `docs/research/poisoning-benchmark/results.js
 ### How to read this table
 
 - **MCPTox is in-sample for Credenzo.** Credenzo's text checks were measured on MCPTox while they were written. The two other scanners did not have that advantage. The row shows that Credenzo reads these texts; it does not show what Credenzo finds in a new attack. On a set that nobody had looked at (MCP Security Bench), Credenzo's word lists found 0 of 42 tools ([`../copy-checks/`](../copy-checks/README.md)).
-- **Most of Credenzo's lead on MCPTox is the wrapper.** 877 of the 1,312 cases put the payload in an "important" tag or an "ignore previous" wrapper, and Credenzo finds all of those. On the 485 distinct descriptions with no wrapper the three scanners are closer: Credenzo 149, SkillSpector 111, Cisco 99 ([`landscape-2026-11.md`](landscape-2026-11.md)).
+- **Most of Credenzo's lead on MCPTox is the wrapper.** 877 of the 1,312 cases put the payload in an "important" tag or an "ignore previous" wrapper, and Credenzo finds all of those. On the 435 cases with no wrapper Credenzo finds 128. A separate measurement gives the three scanners on text with no wrapper: on 485 distinct descriptions (MCPTox `pure_tool.json`, another file than the 1,312 cases) Credenzo finds 149, SkillSpector 111 and Cisco 99 ([`landscape-2026-11.md`](landscape-2026-11.md)).
 - **Each scanner reads part of the corpus outside its own format.** SkillSpector is a skill scanner: it got each MCPTox tool description as a `SKILL.md`. Cisco's scanner reads tool lists: it got each skill as the description of one tool. A scanner can do worse on a format that it was not written for.
 - **The three small sets have 8, 9 and 4 files.** One file moves a rate by 11 to 25 points. Read them as cases, not as rates.
 - **Severity scales differ.** Cisco's YARA verdict has one level here, so its two numbers are equal.
