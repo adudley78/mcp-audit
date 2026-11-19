@@ -118,7 +118,7 @@ The rows that stay: 6 POISON-012 rows (two "override default" in configuration t
 
 ## Three checks for orders that no check read (STORY-0172)
 
-A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned text that Credenzo did not flag. Each is now a check on tool text. Agent files do not use these checks: a skill honestly holds `rm -rf build/`.
+A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned text that Credenzo did not flag. Each is now a check on tool text: the tools, resources and prompts that a live server lists (`scan --connect`) and the added words of a changed description (`lock --verify`). A config entry does not use these checks: a launch command such as `bash -c "rm -rf /tmp/cache && npx ..."` is the user's own text. Agent files do not use them: a skill honestly holds `rm -rf build/`. Text inside a concealment channel (an HTML comment, tag characters) is not read with them.
 
 | Check | Fires on | Severity |
 |---|---|---|
@@ -135,7 +135,9 @@ A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned 
 | HISTOR, changes flagged of 126,105 | 485 | 487 |
 | HISTOR, changes flagged at HIGH or above | 46 | 46 |
 
-The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of mounted paths that names `/etc/passwd`, and an example query. POISON-080 and POISON-081 have no row there.
+The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of mounted paths that names `/etc/passwd`, and an example query. POISON-080 and POISON-081 have no row there, though 423 of its added texts hold the word "redirect". HISTOR's texts are the added words of a change (median 164 characters), not whole descriptions.
+
+**Honest text that fires.** A reviewer wrote 40 honest descriptions to probe the three shapes, and 23 fired. That is not a rate, because the descriptions were written to hit the shapes. POISON-080 (HIGH) fires on "the short URL automatically redirects", "the user must be redirected to the login page", "calls should be redirected to `search_v2`" and "redirects all HTTP traffic to HTTPS". POISON-081 (HIGH) fires on "commands such as `rm -rf /` are blocked", "equivalent to rm -r for directories" and "run `echo $PATH` to debug". POISON-082 fires on a path-traversal example and on "parses /etc/passwd". HIGH for the first two rests on HISTOR's record, where none of 179,935 added texts fires them.
 
 **These numbers are in-sample.** The three checks were written from the texts of MCP-SafetyBench and MCPTox that Credenzo missed. They show that the checks read those texts. They do not show what the checks catch on an attack written tomorrow. The false-alarm side is measured on HISTOR's tool text only.
 
@@ -147,9 +149,9 @@ The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of moun
 | MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 99 (20.4%) |
 | MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 36 (23.4%) |
 | HISTOR, 126,105 real changes: changes flagged | 487 | 3,435 |
-| HISTOR: changes flagged at HIGH or above | 46 | 3,259 |
+| HISTOR: changes flagged at HIGH or above (each vendor's own scale; Cisco rates almost each hit HIGH) | 46 | 3,259 |
 
-Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only; its API, LLM and behavioural analyzers were not run. In a random sample of 150 texts that its rules flagged on HISTOR's record, 146 are honest, 4 steer the agent and 0 are malicious. Before STORY-0172 Credenzo flagged fewer MCP-SafetyBench texts than Cisco (30 and 36). The attack sets are not independent of Credenzo and the HISTOR numbers are. The limits and the scripts are in [`docs/research/head-to-head/cisco-yara/`](research/head-to-head/cisco-yara/README.md).
+Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only. YARA is the one analyzer of its default set (`api,yara,llm`) that runs with no key. Its other analyzers were not run, and that includes the local `schema`, `prompt_defense` and `readiness` analyzers. In a random sample of 150 texts that its rules flagged on HISTOR's record, 146 are honest, 4 steer the agent and 0 are malicious (an AI model labelled them from about 300 characters round each match). Before STORY-0172 Credenzo flagged fewer MCP-SafetyBench texts than Cisco (30 and 36). The attack sets are not independent of Credenzo and the HISTOR numbers are. The limits and the scripts are in [`docs/research/head-to-head/cisco-yara/`](research/head-to-head/cisco-yara/README.md).
 
 ## MCP-SafetyBench: a second set of attacks (measured 2026-11-18)
 
@@ -361,8 +363,8 @@ EPIC-0007 decided the gate before anything was built: DELEG-* ships at the sever
 
 | Gate test | Result |
 |---|---|
-| Implicit-trigger recall lift, poisoned tool on its own server | +282 of 1,104 cases (73.7% → 99.3%; +283 from 73.6% when measured before STORY-0099) |
-| Implicit-trigger recall lift, poisoned tool among the target server's tools | +8 of 1,104 cases (73.7% → 74.5%) |
+| Implicit-trigger recall lift, poisoned tool on its own server | +259 of 1,104 cases (75.9% → 99.4%; +282 from 73.7% before STORY-0172 added POISON-080..082, and +283 from 73.6% before STORY-0099) |
+| Implicit-trigger recall lift, poisoned tool among the target server's tools | +8 of 1,104 cases (75.9% → 76.6%) |
 | MCPTox clean tools flagged (all 45 servers in one session, and each alone) | **1 of 353** (DELEG-002, MEDIUM; none at HIGH) |
 | Decision | **passed**: DELEG-001 MEDIUM, DELEG-002 MEDIUM, DELEG-003 HIGH |
 
@@ -386,7 +388,7 @@ The same layout on the cases with no keyword wrapper, which are the realistic on
 
 | Paradigm | Cases | POISON-* | DELEG-* | Both | POISON-* HIGH+ | Both HIGH+ |
 |---|---|---|---|---|---|---|
-| P1 | 65 | 36.9% | 100.0% | 100.0% | 13.9% | 13.9% |
+| P1 | 65 | 36.9% | 100.0% | 100.0% | 13.8% | 13.8% |
 | P2 | 178 | 42.7% | 100.0% | 100.0% | 7.9% | 14.6% |
 | P3 | 192 | 14.6% | 95.8% | 96.4% | 13.5% | 80.7% |
 | Implicit (P2+P3) | 370 | 28.1% | 97.8% | 98.1% | 10.8% | 48.9% |
@@ -400,7 +402,7 @@ At HIGH or above (what `check` and the pre-commit default fail on), only DELEG-0
 | Set | Cases | POISON-* | DELEG-* | Both | Both HIGH+ |
 |---|---|---|---|---|---|
 | All cases, implicit (P2+P3) | 1,104 | 75.9% | 2.9% | 76.6% | 70.3% |
-| Unwrapped, implicit (P2+P3) | 370 | 28.1% | 3.0% | 30.3% | 11.3% |
+| Unwrapped, implicit (P2+P3) | 370 | 28.1% | 3.0% | 30.3% | 11.4% |
 | Unwrapped, P3 | 192 | 14.6% | 4.7% | 18.2% | 14.6% |
 | `pure_tool.json`, all | 485 | 30.7% | 2.7% | 32.6% | 11.6% |
 

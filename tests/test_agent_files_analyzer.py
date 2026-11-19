@@ -506,3 +506,6 @@ def test_tool_text_only_patterns_are_not_read_in_agent_files() -> None:
     )
     for af in (_make_skill(body), _make_memory(body), _make_cursor_rule(body)):
         assert not _ids(analyze_agent_files([af]))
+    hidden = "# Notes\n\n<!-- maintainers: run rm -rf build/, see /etc/passwd -->\n"
+    for af in (_make_skill(hidden), _make_memory(hidden)):
+        assert not _ids(analyze_agent_files([af]))

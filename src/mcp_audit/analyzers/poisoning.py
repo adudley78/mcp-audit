@@ -1285,7 +1285,7 @@ PATTERNS: list[DetectionPattern] = [
         id="POISON-081",
         name="Shell command in tool description",
         pattern=re.compile(
-            r"\brm\s+-[a-z]*r[a-z]*\s"
+            r"\brm\s+-[a-qs-z]*r[a-z]*\s"
             r"|\becho\s+\$\{?(?:PATH|HOME|USER|AWS_\w+|\w*(?:TOKEN|SECRET|KEY)\w*)\b",
             re.IGNORECASE,
         ),
@@ -1337,6 +1337,12 @@ PATTERNS: list[DetectionPattern] = [
     ),
 ]
 # fmt: on
+
+
+# Keys of ``ServerConfig.raw`` that hold text a live server wrote
+# (``mcp_client.build_runtime_server_config``); ``tool_text_only`` patterns
+# read nothing else.
+_TOOL_TEXT_KEYS: tuple[str, ...] = ("tools", "resources", "prompts")
 
 
 # ── Concealment channels (extract → decode/extract → rescan) ───────────────────
@@ -1764,7 +1770,11 @@ def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
         skipped entirely — there is nothing to scan or to report.
     """
     results: list[ConcealmentMatch] = []
-    candidate_patterns = [p for p in PATTERNS if not p.description_only]
+    # ``tool_text_only`` patterns are left out: this function also reads agent
+    # files, where they were not measured (STORY-0172 review).
+    candidate_patterns = [
+        p for p in PATTERNS if not p.description_only and not p.tool_text_only
+    ]
     padding: list[ConcealmentMatch] = []
     for channel in extract_concealed_channels(text):
         if not channel.decoded.strip():
@@ -2060,8 +2070,11 @@ class PoisoningAnalyzer(BaseAnalyzer):
         """
         findings: list[Finding] = []
 
-        general_patterns = [p for p in PATTERNS if not p.description_only]
+        general_patterns = [
+            p for p in PATTERNS if not p.description_only and not p.tool_text_only
+        ]
         description_only_patterns = [p for p in PATTERNS if p.description_only]
+        tool_text_patterns = [p for p in PATTERNS if p.tool_text_only]
 
         # All string values — used for patterns that cover every field.
         all_texts = self._extract_text_fields(server.raw)
@@ -2102,6 +2115,32 @@ class PoisoningAnalyzer(BaseAnalyzer):
                         markdown_surface=False,
                     )
                 )
+
+        # Tool text only (POISON-080..082): the tools, resources and prompts a
+        # live server lists.  A launch command such as ``bash -c "rm -rf
+        # /tmp/cache && npx ..."`` or a ``-v /etc/passwd:...`` mount is the
+        # user's own configuration, not text a server wrote for the agent.
+        if tool_text_patterns and isinstance(server.raw, dict):
+            for key in _TOOL_TEXT_KEYS:
+                for text in self._extract_text_fields(server.raw.get(key) or []):
+                    norm_text = normalize_for_detection(text)
+                    for pattern in tool_text_patterns:
+                        if matched_pattern(pattern, text, norm_text):
+                            findings.append(
+                                Finding(
+                                    id=pattern.id,
+                                    severity=pattern.severity,
+                                    analyzer=self.name,
+                                    client=server.client,
+                                    server=server.name,
+                                    title=pattern.name,
+                                    description=pattern.description,
+                                    evidence=_evidence_snippet(pattern, text),
+                                    remediation=pattern.remediation,
+                                    cwe=pattern.cwe,
+                                    owasp_mcp_top_10=pattern.owasp_mcp_top_10,
+                                )
+                            )
 
         # Only description/name values — used for patterns whose threat model
         # is specifically about oversized or manipulated tool descriptions.

@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **POISON-080, POISON-081 and POISON-082: orders in tool text that no check read (STORY-0172).** POISON-080 (HIGH) fires on an order to redirect requests ("all log requests must be redirected to ..."). POISON-081 (HIGH) fires on `rm -r...` and on `echo` of `$PATH` or a variable named like a secret. POISON-082 (MEDIUM) fires on `/etc/passwd`, `/etc/shadow` and `/etc/sudoers`. They read tool text only, not agent files. Measured: MCP-SafetyBench 30 to 56 of 154 poisoned descriptions, MCPTox 124 to 149 of 485 descriptions with no wrapper, and 485 to 487 flagged changes on HISTOR's record of 126,105 real changes. The attack numbers are in-sample: the checks were written from the texts that Credenzo missed.
+- **POISON-080, POISON-081 and POISON-082: orders in tool text that no check read (STORY-0172).** POISON-080 (HIGH) fires on an order to redirect requests ("all log requests must be redirected to ..."). POISON-081 (HIGH) fires on `rm -r...` and on `echo` of `$PATH` or a variable named like a secret. POISON-082 (MEDIUM) fires on `/etc/passwd`, `/etc/shadow` and `/etc/sudoers`. They read the text a live server lists (`scan --connect`, `lock --verify`), not a config entry and not agent files. Measured: MCP-SafetyBench 30 to 56 of 154 poisoned descriptions, MCPTox 124 to 149 of 485 descriptions with no wrapper, and 485 to 487 flagged changes on HISTOR's record of 126,105 real changes. The attack numbers are in-sample: the checks were written from the texts that Credenzo missed.
 
 ### Documentation
 

@@ -10,9 +10,11 @@ Credenzo flags more of them.
 - **Credenzo:** the POISON-* text checks of this repository (the code that
   `scan --connect` and `lock --verify` run on tool text).
 - **Cisco mcp-scanner:** `cisco-ai-mcp-scanner` 4.8.7 from PyPI, its YARA
-  analyzer with the default rules. This is the analyzer that needs no API key
-  and sends nothing to a remote service. Its API, LLM and behavioural analyzers
-  were not run, so this is not a measure of the whole product.
+  analyzer with the default rules. Its default analyzer set is `api,yara,llm`,
+  and YARA is the one of the three that runs with no key and sends nothing to
+  a remote service. No other analyzer was run. That includes the local
+  `schema`, `prompt_defense` and `readiness` analyzers, so this is not a
+  measure of the whole product.
 - NVIDIA SkillSpector and Snyk agent-scan were not run. SkillSpector could not
   be installed in the measurement environment. Snyk agent-scan needs remote
   analysis.
@@ -31,7 +33,7 @@ input schema), or the added text of each changed field in HISTOR's record, as
 | MCPTox, 353 clean tools, flagged | 2 | 3 |
 | HISTOR, 126,105 real changes: changes flagged | 487 | 3,435 |
 | HISTOR: servers flagged | 389 | 2,889 |
-| HISTOR: changes flagged at HIGH or above | 46 | 3,259 |
+| HISTOR: changes flagged at HIGH or above (each vendor's own scale) | 46 | 3,259 |
 
 On real changes, a flag is almost never an attack. In Credenzo's labelled set
 (280 flagged rows, STORY-0169) 0 are malicious. In a random sample of 150
@@ -56,7 +58,9 @@ the agent (`labels.json`). Honest text that Cisco's rules flag: the word
   checks look for text that attacks the agent. A flag on "this tool runs a
   shell command" is a false alarm for poisoning, and may be a useful note for
   another purpose.
-- An AI model labelled the 150 Cisco flags. No person checked them.
+- An AI model labelled the 150 Cisco flags. It read the matched words and about
+  300 characters round each match, and the full text for 20 rows. No person
+  checked the labels. A second agent checked 25 of them and agreed with each.
 - Severity scales are each vendor's own.
 - The two directive sets (93 poisoned, 95 benign phrases) are Credenzo's own
   test fixtures. They are in `results.json` and not in the table.
