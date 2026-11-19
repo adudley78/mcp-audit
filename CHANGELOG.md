@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-19
+
 ### Added
 
 - **`credenzo guard`: a tool that is not in the lock cannot be called (STORY-0176).** `guard` is a Claude Code `PreToolUse` hook. Before each MCP tool call it reads `mcp-lock.json` and denies the call when the server is not in the lock (LOCK-002), its config entry changed (LOCK-001), the lock holds no tool record for it (RUN-003), the tool is not in the record (LOCK-006) or the lock cannot be trusted (RUN-002). It never approves a call. It uses the source that Claude Code gives for each server (`mcp_server.source`, Claude Code 2.1.274 and later): project and locked user servers are decided from the lock; other sources pass by default and are denied with `--strict` (`--allow-source`, `--allow-server` for exceptions, which never apply to a project server that is not in the lock). `--print-hook` prints the settings block. No network, no server start; about 80 ms a call for an entry the lock holds as written (standard library only), about 0.4 to 0.5 s for an entry with a credential or a rewritten URL. Checked in a live Claude Code 2.1.328 session. With STORY-0174, a copy of an approved tool that `lock --connect` did not record cannot be called. Limits: it compares names and the config entry, not tool text; an agent with a shell can change the lock; Claude Code only. See `docs/guard.md`.

@@ -29,7 +29,7 @@ brew install pre-commit
 ```yaml
 repos:
   - repo: https://github.com/adudley78/credenzo
-    rev: v0.33.0
+    rev: v0.34.0
     hooks:
       - id: credenzo
 ```
@@ -51,7 +51,7 @@ The default hook args run `scan --severity-threshold high`, blocking only on HIG
 ```yaml
 repos:
   - repo: https://github.com/adudley78/credenzo
-    rev: v0.33.0
+    rev: v0.34.0
     hooks:
       - id: credenzo
         args: [scan, --severity-threshold, medium]
@@ -107,7 +107,7 @@ If you've adopted [`credenzo lock`](lock.md), a second hook enforces it:
 ```yaml
 repos:
   - repo: https://github.com/adudley78/credenzo
-    rev: v0.33.0  # the credenzo hook ids need v0.33.0 or later
+    rev: v0.34.0  # the credenzo hook ids need v0.33.0 or later
     hooks:
       - id: credenzo
       - id: credenzo-lock-verify

@@ -341,7 +341,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/credenzo@v0.33.0
+      - uses: adudley78/credenzo@v0.34.0
         with:
           severity-threshold: high
           # policy auto-discovered from repo root
