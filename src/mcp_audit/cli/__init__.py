@@ -159,6 +159,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     extensions,
     fix,
     fleet,
+    guard,
     killchain,
     lock,
     plugins,

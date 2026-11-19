@@ -1948,6 +1948,47 @@ trust"). Recorded limits:
   frontmatter split by `agent_files/discovery.py` and the subagent reader;
   if it ever is not, lines count from the start of the body.
 
+## Tool-call guard (`credenzo guard`, STORY-0176)
+
+- **Names, not text.** The hook input holds the tool's name, not its
+  description or schema. A server that changes the text of an approved tool
+  is not stopped by the guard. `credenzo run --mode enforce` stops it for a
+  local server; `lock --verify --connect` reports it for any server.
+- **The lock on disk is trusted.** An agent that can run shell commands can
+  rewrite `mcp-lock.json` (the `tools` checksum has no key). The guard
+  protects an honest agent from a tool nobody approved; it does not contain
+  an agent that works against the user. The committed lock and
+  `lock --verify` in CI are the anchor. A check of the lock against the
+  commit at `HEAD` is not built.
+- **A lock that came with a repository** approves that repository's servers.
+  The guard cannot tell a lock that the user wrote from one that the user
+  cloned.
+- **Slow path.** A server whose entry holds a credential or a URL that `lock`
+  rewrote costs about 0.4 to 0.5 s a call.
+- **Default scope.** Only servers from the project's `.mcp.json` and, when
+  the lock holds user-level entries, from `~/.claude.json` are decided.
+  Local-scope, plugin, claude.ai, managed, subagent and SDK servers pass
+  unless `--strict` is set. A repository can define a server in a subagent
+  file (source `agent`).
+- **Local-scope servers cannot be approved.** `lock` does not record them,
+  so under `--strict` they need `--allow-server` or `--allow-source local`.
+- **A remote server that `lock --connect` cannot reach** (for example one
+  that needs an OAuth login) has no tool record. The guard denies each call
+  (RUN-003) until `--allow-server` names it.
+- **Claude Code before 2.1.274** sends no `mcp_server`. The guard reads the
+  server from the tool name and cannot see a local-scope server with the name
+  of a project server.
+- **No home directory** (a stripped hook environment): user-level servers are
+  not covered; project servers are decided as usual.
+- **Hooks fail open in Claude Code** unless the hook has `onFailure: block`
+  (2.1.295 and later). `--print-hook` writes it.
+- **Claude Code only.** Cursor, Codex, Gemini CLI and Copilot hooks are not
+  written.
+- **Live check.** One Claude Code 2.1.328 session (project source, a local
+  stdio server). Other sources follow the vendor's documented input.
+- **No install command.** The person merges the printed block into
+  `~/.claude/settings.json`.
+
 ## Wrapped entries and the lock (STORY-0178)
 
 - **Wrapper trust.** `lock --verify` reads a wrapped entry (`credenzo run --

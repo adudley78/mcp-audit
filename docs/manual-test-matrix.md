@@ -2328,6 +2328,32 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol
 array, and stderr has one line, `withheld: LOCK-008 server 'fx': tool(s) 'echo': description or title changed …`.
 Without `--mode enforce` the answer lists `echo` and stderr says `monitor: LOCK-008 …`.
 
+## guard (STORY-0176)
+
+`credenzo guard` is a Claude Code hook. These commands give it the hook input by hand.
+
+```bash
+mkdir -p "$HOME/guard-demo" && cd "$HOME/guard-demo" && git init -q .
+printf '{"mcpServers":{"t":{"command":"python3","args":["-c","pass"]}}}' > .mcp.json
+credenzo lock . --offline >/dev/null
+ev() { printf '{"hook_event_name":"PreToolUse","tool_name":"%s","cwd":"%s","mcp_server":{"name":"%s","source":"%s"}}' "$1" "$PWD" "$2" "$3"; }
+ev mcp__t__x t project | CLAUDE_PROJECT_DIR="$PWD" credenzo guard; echo "exit: $?"
+ev mcp__new__x new project | CLAUDE_PROJECT_DIR="$PWD" credenzo guard; echo "exit: $?"
+ev mcp__p__x p plugin | CLAUDE_PROJECT_DIR="$PWD" credenzo guard; echo "exit: $?"
+ev mcp__p__x p plugin | CLAUDE_PROJECT_DIR="$PWD" credenzo guard --strict; echo "exit: $?"
+echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | credenzo guard; echo "exit: $?"
+echo 'not json' | credenzo guard; echo "exit: $?"
+credenzo guard --print-hook
+```
+
+**Expected:** (1) JSON with `"permissionDecision": "deny"` and `RUN-003` (the lock was written without `--connect`),
+`exit: 0`; (2) a deny with `LOCK-002`; (3) no output, `exit: 0`; (4) a deny with `RUN-001` and `source: 'plugin'`;
+(5) no output, `exit: 0`; (6) `Credenzo guard: could not decide (JSONDecodeError). The call was stopped.` and `exit: 2`;
+(7) a settings block with the matcher `mcp__.*`, `"args": ["guard"]` and `"onFailure": "block"`. No output ever holds
+`"permissionDecision": "allow"`.
+
+---
+
 ## wrap / unwrap (EPIC-0009 Story 1.2)
 
 ```bash

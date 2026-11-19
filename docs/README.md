@@ -23,6 +23,7 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | [fix.md](fix.md) | `fix`: safe remediations |
 | [lock.md](lock.md) | `lock`: the committable record of approved servers |
 | [run.md](run.md) | `run`, `wrap`, `unwrap`: the launch gate |
+| [guard.md](guard.md) | `guard`: a Claude Code hook that denies a call to a tool the lock does not approve |
 | [reach.md](reach.md) · [secret-reach.md](secret-reach.md) | `reach`: what the agents on this machine can touch; REACH-001..003 |
 | [diff.md](diff.md) | `diff`: MCP-aware diff for pull requests |
 | [killchain.md](killchain.md) | `killchain`: the changes that cut the most attack paths |

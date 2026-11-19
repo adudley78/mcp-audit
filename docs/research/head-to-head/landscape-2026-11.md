@@ -80,7 +80,7 @@ servers 8 findings 75
 | Works offline by default, no account | Yes | SkillSpector static, Cisco YARA, MCP-Shield, Pipelock, heldfast: yes. Snyk `scan`, Tencent skill scan: no |
 | Reads config files without starting a server | Yes (default scan) | Cisco `static`, SkillSpector: yes. MCP-Shield connects to the servers |
 | Finds a tool that copies another server's tool | Yes: same name, another spelling, copied description | Snyk: "cross reference analysis" with fuzzy similarity, on its service. MCP-Shield: tool shadowing and cross-origin rules. Cisco: not documented |
-| Keeps a copied or changed tool away from the agent | Yes for local servers: `lock` + `run --mode enforce` | Snyk: Agent Guard hooks and a proxy. Pipelock: proxy. heldfast: guard for changed tools |
+| Keeps a copied or changed tool away from the agent | Local servers: `lock` + `run --mode enforce` (names and definitions). Claude Code sessions: `guard`, a hook that denies a call to a tool that is not in the lock (names only; project servers and locked user servers by default, every server with `--strict`) | Snyk: Agent Guard hooks and a proxy. Pipelock: proxy. heldfast: guard for changed tools |
 | Asks a server under the agent's own name, so the server cannot show a scanner other tools by name | Yes for Claude Code servers (the identity a live Claude Code session sent); `--identify-as` for others. It does not copy capabilities and does not connect two times to compare | MCP-Shield: `--identify-as`. Others: not documented |
 | Lock file and drift of tool definitions | Yes (`mcp-lock.json`, tool digests, saved text) | heldfast: yes. Snyk: partial (documented by a third party). Cisco, SkillSpector, MCP-Shield: not documented |
 | Agent files: skills, memory, hooks, subagents, plugins | Yes | SkillSpector, Snyk, Tencent: skills. Cisco: not documented |
@@ -101,8 +101,8 @@ servers 8 findings 75
   Credenzo's `run` checks the tool list of a local server and does not read
   tool results. Three attack types of MCP Security Bench act in tool results.
 - **Agent hooks.** Snyk has hooks for Claude Code, Cursor, Codex and Copilot.
-  Credenzo wraps local servers; it has no hook, so it does not stop a call
-  to a remote server.
+  Credenzo has a hook for Claude Code only (`guard`). Its hook compares names
+  with the lock; it does not read tool text or tool results.
 - **A hosted service.** Credenzo has no dashboard and no policy server.
 
 ## Sources
