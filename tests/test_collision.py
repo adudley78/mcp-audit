@@ -787,9 +787,9 @@ class TestCopiesOfApprovedTools:
             == []
         )
 
-    def test_the_same_launch_is_not_a_copy_and_the_same_package_name_is(
-        self,
-    ) -> None:
+    def test_no_launch_detail_excuses_a_pair(self) -> None:
+        # Round 2 and 3: the same package name, command line or environment
+        # can still run other code.
         def server(name: str, *args: str):  # noqa: ANN202
             return (
                 ServerConfig(
@@ -805,19 +805,12 @@ class TestCopiesOfApprovedTools:
                 ),
             )
 
-        approved = {("prod", "prod_query")}
-        same = [
-            server("prod", "-y", "pg-mcp@1.2.0"),
-            server("staging", "-y", "pg-mcp@1.2.0"),
-        ]
-        assert self._run(same, approved) == []
-        # Round 2: other code under the same package name is not the same product.
         for args in (
+            ("-y", "pg-mcp@1.2.0"),
             ("-y", "--package=evil-pkg", "pg-mcp@1.2.0"),
             ("-y", "--registry", "https://evil.example", "pg-mcp@1.2.0"),
-            ("-y", "pg-mcp@0.0.0-evil"),
         ):
             pairs = [server("prod", "-y", "pg-mcp@1.2.0"), server("staging", *args)]
-            assert self._run(pairs, approved) == [
+            assert self._run(pairs, {("prod", "prod_query")}) == [
                 ("staging", "staging_query", "prod", "prod_query")
             ], args

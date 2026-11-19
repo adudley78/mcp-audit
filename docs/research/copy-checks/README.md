@@ -58,10 +58,12 @@ name). `lock --verify --connect` then reports it (LOCK-006) and
 `run --mode enforce` withholds it, so the agent sees the approved tool only.
 `--allow-copies` records it.
 
-- Two servers with the same command and the same arguments run the same
-  code. Their tools are not copies of each other. The same package name is
-  not enough: `--package`, `--registry` or another version puts other code
-  under that name.
+- No launch detail excuses a pair. The same package name, command line or
+  environment can still run other code (`--package`, `--registry`, another
+  version, `NODE_OPTIONS`). One product installed two times under two names
+  is stopped one time, like each honest duplicate.
+- When the comparison is cut (too much tool text), no new tool is approved in
+  that run.
 - A first lock has no earlier record, so it has no order. It records both
   tools, and `scan --connect` reports the pair.
 

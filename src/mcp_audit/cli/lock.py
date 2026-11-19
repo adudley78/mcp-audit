@@ -157,6 +157,8 @@ def _withhold_copies(
     reports it (LOCK-006) and ``run --mode enforce`` withholds it.
 
     With no earlier tool record there is no order, so nothing is taken out.
+    When a bound of the comparison left something out, no new tool is
+    approved (the original tool of those rows is ``""``).
 
     Returns:
         ``(server key, tool, original server key, original tool)`` for each
@@ -178,6 +180,16 @@ def _withhold_copies(
     notes: list[str] = []
     copies = copies_of_approved_tools(pairs, is_approved, notes)
     drop = {(id(server), tool) for server, tool, _, _ in copies}
+    if notes and any(recorded.values()):
+        # A bound left comparisons out, and a server chooses how much text it
+        # lists.  Fail closed: no new tool is approved in this run.
+        for server, enumeration in pairs:
+            for tool in enumeration.tools:
+                if (id(server), tool.name) not in drop and not is_approved(
+                    server, tool.name
+                ):
+                    drop.add((id(server), tool.name))
+                    copies.append((server, tool.name, server, ""))
     for server, enumeration in pairs:
         kept = [t for t in enumeration.tools if (id(server), t.name) not in drop]
         if len(kept) != len(enumeration.tools):
@@ -533,6 +545,14 @@ def _run_write(
             f"{len(servers)} server(s)."
         )
         for key, tool, original_key, original_tool in withheld_copies:
+            if not original_tool:
+                console.print(
+                    f"[red]NOT APPROVED[/red] {key}: new tool '{escape(tool)}' "
+                    "could not be compared with the tools that the lock holds "
+                    "(too much tool text). It is not in the lock. Lock again "
+                    "with --allow-copies if you expect it."
+                )
+                continue
             console.print(
                 f"[red]NOT APPROVED[/red] {key}: tool '{escape(tool)}' is new and "
                 f"carries the description of '{escape(original_tool)}' "

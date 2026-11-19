@@ -753,10 +753,10 @@ def copies_of_approved_tools(
     the copy.  A hostile server cannot
     change that order by the names it picks.
 
-    Two servers with the same command and the same arguments run the same
-    code; their tools are not copies of each other.  A package name alone
-    does not show that: ``--package``, ``--registry`` or another version puts
-    other code under the same name.
+    No launch detail excuses a pair.  A package name, a command line or an
+    environment that looks like the approved server's can still run other
+    code (``--package``, ``--registry``, another version, ``NODE_OPTIONS``).
+    The user allows an honest duplicate one time (``lock --allow-copies``).
 
     Args:
         pairs: ``(ServerConfig, ServerEnumeration)`` of the servers to lock.
@@ -772,13 +772,6 @@ def copies_of_approved_tools(
         for new, old in ((copy.holder, copy.held), (copy.held, copy.holder)):
             if is_approved(new.server, new.name) or not is_approved(
                 old.server, old.name
-            ):
-                continue
-            if (
-                new.server.command
-                and new.server.command == old.server.command
-                and list(new.server.args) == list(old.server.args)
-                and (new.server.url or "") == (old.server.url or "")
             ):
                 continue
             key = (id(new.server), new.name)

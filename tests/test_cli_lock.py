@@ -646,6 +646,24 @@ class TestLockDoesNotApproveACopy(TestLockConnect):
             "format_text",
         }
 
+    def test_when_the_comparison_is_cut_no_new_tool_is_approved(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        from mcp_audit.analyzers import collision
+
+        self._serve(monkeypatch, self._enumeration)
+        self._config(tmp_path, "terminal")
+        assert runner.invoke(app, ["lock", str(tmp_path), "--connect"]).exit_code == 0
+        self._config(tmp_path, "terminal", "helper")
+        monkeypatch.setattr(collision, "_COPY_WORK_BUDGET", 0)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert result.exit_code == 0, result.output
+        assert "could not be compared" in unwrapped(result.output)
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
     def test_allow_copies_needs_connect(self, tmp_path: Path) -> None:
         self._config(tmp_path, "terminal")
         result = runner.invoke(app, ["lock", str(tmp_path), "--allow-copies"])
