@@ -1,34 +1,166 @@
 {
- "measured": "2026-11-18",
+ "measured": "2026-11-19",
  "source": "https://github.com/xjzzzzzzzz/MCPSafety",
  "source_commit": "7872437b6369aac1150e3a19e350a981dc554f81",
  "paper": "https://arxiv.org/abs/2512.15163",
- "before_story_0171": {"credenzo_commit": "1411c1c", "flagged_any_severity": 26, "flagged_high_or_above": 13},
- "before_story_0172": {"credenzo_commit": "1cc6ca1", "flagged_any_severity": 30, "flagged_high_or_above": 17},
- "measure_py_output":
-{
- "distinct_poisoned_descriptions": 154,
- "sha256_of_sorted_text_sha256_lines": "e7040a8dad88106b955785eada08a14654e08578bab4ce098462c6c84354b21f",
- "flagged_any_severity": 56,
- "flagged_high_or_above": 40,
- "descriptions_by_check": {
-  "POISON-001": 4,
-  "POISON-030": 13,
-  "POISON-070": 13,
-  "POISON-080": 17,
-  "POISON-081": 12,
-  "POISON-082": 3
+ "before_story_0171": {
+  "credenzo_commit": "1411c1c",
+  "flagged_any_severity": 26,
+  "flagged_high_or_above": 13
  },
- "flagged_of_total_by_attack_category": {
-  "Function Overlapping": "0/20",
-  "Preference Manipulation": "0/20",
-  "Tool Poisoning-Command Injection": "16/29",
-  "Tool Poisoning-FileSystem Poisoning": "1/7",
-  "Tool Poisoning-Function Dependency Injection": "10/23",
-  "Tool Poisoning-Network Request Poisoning": "0/6",
-  "Tool Poisoning-Parameter Poisoning": "12/18",
-  "Tool Poisoning-Tool Redirection": "6/10",
-  "Tool Shadowing": "11/21"
+ "before_story_0172": {
+  "credenzo_commit": "1cc6ca1",
+  "flagged_any_severity": 30,
+  "flagged_high_or_above": 17
+ },
+ "measure_py_output": {
+  "distinct_poisoned_descriptions": 154,
+  "sha256_of_sorted_text_sha256_lines": "e7040a8dad88106b955785eada08a14654e08578bab4ce098462c6c84354b21f",
+  "flagged_any_severity": 89,
+  "flagged_high_or_above": 40,
+  "descriptions_by_check": {
+   "POISON-001": 4,
+   "POISON-030": 13,
+   "POISON-070": 13,
+   "POISON-080": 17,
+   "POISON-081": 12,
+   "POISON-082": 3,
+   "POISON-083": 33
+  },
+  "flagged_of_total_by_attack_category": {
+   "Function Overlapping": "15/20",
+   "Preference Manipulation": "18/20",
+   "Tool Poisoning-Command Injection": "16/29",
+   "Tool Poisoning-FileSystem Poisoning": "1/7",
+   "Tool Poisoning-Function Dependency Injection": "10/23",
+   "Tool Poisoning-Network Request Poisoning": "0/6",
+   "Tool Poisoning-Parameter Poisoning": "12/18",
+   "Tool Poisoning-Tool Redirection": "6/10",
+   "Tool Shadowing": "11/21"
+  }
+ },
+ "before_story_0173": {
+  "credenzo_commit": "fc84ee0",
+  "flagged_any_severity": 56,
+  "flagged_high_or_above": 40
+ },
+ "measure_session_py_output": {
+  "distinct_poisoned_tools": 154,
+  "domain_servers": {
+   "browser_automation": {
+    "date": 5,
+    "playwright": 9,
+    "terminal": 1,
+    "url_fetch": 2
+   },
+   "financial_analysis": {
+    "terminal": 1,
+    "url_fetch": 2,
+    "yahoo_finance": 10
+   },
+   "location_navigation": {
+    "google_maps": 7,
+    "terminal": 1,
+    "url_fetch": 2
+   },
+   "repository_management": {
+    "github": 93,
+    "terminal": 1,
+    "url_fetch": 2
+   },
+   "web_search": {
+    "chroma": 12,
+    "google_search": 1,
+    "terminal": 1,
+    "url_fetch": 2
+   }
+  },
+  "modified_tool_owner_unknown": 0,
+  "sessions_without_an_attack": {
+   "browser_automation": 0,
+   "financial_analysis": 0,
+   "location_navigation": 0,
+   "repository_management": 0,
+   "web_search": 0
+  },
+  "added": {
+   "n": 61,
+   "text_checks": 44,
+   "session_checks": 29,
+   "either": 56,
+   "either_high_or_above": 14,
+   "session_checks_by_id": {
+    "COLLIDE-002": 13,
+    "DELEG-001": 17,
+    "DELEG-002": 4
+   },
+   "either_by_attack_category": {
+    "Function Overlapping": "17/20",
+    "Preference Manipulation": "20/20",
+    "Tool Shadowing": "19/21"
+   }
+  },
+  "modified": {
+   "n": 93,
+   "text_checks": 45,
+   "session_checks": 10,
+   "either": 52,
+   "either_high_or_above": 40,
+   "session_checks_by_id": {
+    "DELEG-002": 2,
+    "DELEG-003": 8
+   },
+   "either_by_attack_category": {
+    "Tool Poisoning-Command Injection": "16/29",
+    "Tool Poisoning-FileSystem Poisoning": "1/7",
+    "Tool Poisoning-Function Dependency Injection": "10/23",
+    "Tool Poisoning-Network Request Poisoning": "1/6",
+    "Tool Poisoning-Parameter Poisoning": "18/18",
+    "Tool Poisoning-Tool Redirection": "6/10"
+   }
+  },
+  "all": {
+   "n": 154,
+   "text_checks": 89,
+   "session_checks": 39,
+   "either": 108,
+   "either_high_or_above": 54,
+   "session_checks_by_id": {
+    "COLLIDE-002": 13,
+    "DELEG-001": 17,
+    "DELEG-002": 6,
+    "DELEG-003": 8
+   },
+   "either_by_attack_category": {
+    "Function Overlapping": "17/20",
+    "Preference Manipulation": "20/20",
+    "Tool Poisoning-Command Injection": "16/29",
+    "Tool Poisoning-FileSystem Poisoning": "1/7",
+    "Tool Poisoning-Function Dependency Injection": "10/23",
+    "Tool Poisoning-Network Request Poisoning": "1/6",
+    "Tool Poisoning-Parameter Poisoning": "18/18",
+    "Tool Poisoning-Tool Redirection": "6/10",
+    "Tool Shadowing": "19/21"
+   }
+  }
+ },
+ "name_copy_controls_py_output": {
+  "mcptox_clean_one_session": {
+   "servers": 45,
+   "tools": 353,
+   "findings": 1,
+   "by_severity": {
+    "MEDIUM": 1
+   }
+  },
+  "histor_random_sessions": {
+   "servers_with_3_or_more_names": 14706,
+   "sessions": 5000,
+   "sessions_with_a_finding": 21,
+   "sessions_with_a_high_finding": 0,
+   "findings_by_severity": {
+    "MEDIUM": 24
+   }
+  }
  }
-}
 }

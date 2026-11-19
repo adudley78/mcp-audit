@@ -181,6 +181,27 @@ def measure(root: Path) -> dict[str, Any]:
         )
         rows.append((case, bp.poison_findings(poisoned), deleg))
     out["modified_tool_owner_unknown"] = unknown_owner
+    # Control: each domain's session with no poisoned tool.  Names only (the
+    # benchmark's own tool text is not read here), so it tests COLLIDE-002.
+    out["sessions_without_an_attack"] = {
+        domain: len(
+            collision.detect_tool_name_squats(
+                [
+                    (
+                        bp._bench_server(server),
+                        bp.ServerEnumeration(
+                            tools=[
+                                bp._tool_info(bp.ToolDef(n, "", {}))
+                                for n in tools[server]
+                            ]
+                        ),
+                    )
+                    for server in servers
+                ]
+            )
+        )
+        for domain, servers in domains.items()
+    }
     for kind in ("added", "modified", "all"):
         sub = [r for r in rows if kind in ("all", r[0]["kind"])]
         by_id: collections.Counter[str] = collections.Counter()

@@ -9,7 +9,8 @@ Dev tool, never run in CI.  Two controls, names only:
 
 Usage::
 
-    uv run python docs/research/mcp-safetybench/name_copy_controls.py MCPTOX_DIR CHANGES_GZ
+    uv run python docs/research/mcp-safetybench/name_copy_controls.py \\
+        MCPTOX_DIR CHANGES_GZ
 """
 
 from __future__ import annotations

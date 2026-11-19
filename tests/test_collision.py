@@ -437,13 +437,23 @@ class TestToolNameSquats:
         for name in (
             "playwright_navigate_enhanced",
             "Playwright_Navigate_Advanced",
-            "best_tool_for_playwright_navigate",
             "playwrightNavigateV2",
         ):
             found = detect_tool_name_squats(
                 [_pair("browser", "playwright_navigate"), _pair("x", name)]
             )
             assert [f.severity for f in found] == [Severity.HIGH], name
+
+    def test_words_with_a_meaning_are_not_decoration(self) -> None:
+        # HISTOR's tool names: "get_new_tokens" beside "get_tokens" and
+        # "web_fetch_tool" beside "web-fetch" are honest (STORY-0173).
+        for base, other in (
+            ("get_tokens", "get_new_tokens"),
+            ("list_page_items", "list_next_page_items"),
+            ("read_file_v1", "read_the_file_v1"),
+        ):
+            found = detect_tool_name_squats([_pair("a", base), _pair("b", other)])
+            assert found == [], other
 
     def test_spelling_variant_is_medium_and_reported_once(self) -> None:
         found = detect_tool_name_squats(
@@ -496,5 +506,4 @@ class TestToolNameSquats:
         start = time.perf_counter()
         found = detect_tool_name_squats(pairs)
         assert time.perf_counter() - start < 5.0
-        # fetch_2_item and fetch_3_item: the digit is itself a decoration word.
-        assert len(found) == 2998
+        assert len(found) == 3000

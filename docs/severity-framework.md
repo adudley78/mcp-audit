@@ -57,6 +57,7 @@ MCP-specific). See the reference tables at the bottom of this document.
 | POISON-076  | HIGH     | ASI01, ASI03 | MCP03, MCP06 | Oversight bypass directive (STORY-0141): an order to skip, bypass, disable, turn off, suppress, ignore or auto-approve permission, approval or confirmation prompts or dialogs, or to run with `--dangerously-skip-permissions` / `bypassPermissions` / `--yolo`. A negation earlier in the clause, a flag's purpose clause, a gerund subject or a safe-place scope vetoes it. HIGH, unlike POISON-071's LOW ("proceed without asking"): it names the control being switched off. Sandbox, hooks, monitoring and guardrails are not matched (ordinary project text disables them). Also SKILL-001 HIGH. CWE-862. 0 of MCPTox's 353 clean tools. CVSS: 7.5 |
 | POISON-080  | HIGH     | ASI01 | MCP03, MCP06 | Tool redirection order (STORY-0172): tool text orders that requests are redirected ("must be redirected to", "automatically redirects", "redirecting all ... requests"). Tool text only. CVSS: 7.1 |
 | POISON-081  | HIGH     | ASI01, ASI05 | MCP03, MCP05 | Shell command in a tool description (STORY-0172): `rm -r...`, or `echo` of `$PATH`, `$HOME` or a variable named like a secret. Tool text only. CVSS: 7.3 |
+| POISON-083  | MEDIUM   | ASI01 | MCP03 | Tool promotes itself over other tools (STORY-0173): "the premium version", "world's best", "used by 99% of professionals", "industry-leading". Tool text only. MEDIUM because marketing text is not an order; 2 honest rows on HISTOR's record. CVSS: 5.3 |
 | POISON-082  | MEDIUM   | ASI01 | MCP03 | System account file in a tool description (STORY-0172): `/etc/passwd`, `/etc/shadow` or `/etc/sudoers`. Tool text only. A list of mounted paths fires too. CVSS: 5.3 |
 
 ### Credentials analyzer (`analyzers/credentials.py`)
@@ -645,6 +646,8 @@ declare tool names.
 |--------------|----------|------------------|-----------|
 | COLLIDE-001  | MEDIUM   | MCP01 + MCP09 | Two or more distinct servers expose the same tool name. Agent tie-break is undocumented/order-dependent; attacker can register a colliding name to intercept calls. NSA CSI item 5. CWE-694. |
 | COLLIDE-001  | HIGH     | MCP01 + MCP09 | Same collision, AND one claimant is registry-verified while at least one is not. Unknown server shadowing a trusted tool name is the strongest indicator of a namespace-shadowing attack. |
+| COLLIDE-002  | HIGH     | MCP03 + MCP09 | A tool name is another server's tool name of two or more words plus only words such as "premium", "enhanced", "pro", "v2" (STORY-0173). An agent that sees `search_repositories` and `search_repositories_premium` can pick the copy. The finding is on the copy. 0 of 5,000 random five-server sessions of HISTOR's tool names get this finding. |
+| COLLIDE-002  | MEDIUM   | MCP03 + MCP09 | Two servers list the same words in another spelling (`searchEmails` and `search-emails`). Honest servers do this too: 21 of the 5,000 sessions. Words with a meaning ("new", "next", "tool") are not decoration. One-word names are not compared. |
 
 **Severity escalation logic:**
 

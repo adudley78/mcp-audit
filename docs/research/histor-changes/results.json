@@ -259,5 +259,54 @@
     "Cyr+Lat": 1
    }
   }
+ },
+ "after_story_0173": {
+  "note": "measure.py output with POISON-083",
+  "measure_py_output": {
+   "changes": 126105,
+   "changes_with_modified_tool": 112155,
+   "changes_flagged": 489,
+   "servers_flagged": 390,
+   "changes_flagged_in_title_or_description": 256,
+   "servers_flagged_in_title_or_description": 231,
+   "distinct_rows": 604,
+   "distinct_rows_by_check": {
+    "POISON-030": 538,
+    "POISON-020": 23,
+    "POISON-003": 9,
+    "POISON-012": 6,
+    "POISON-071": 6,
+    "POISON-070": 5,
+    "POISON-076": 3,
+    "POISON-082": 3,
+    "POISON-060": 2,
+    "POISON-083": 2,
+    "POISON-045": 2,
+    "POISON-001": 2,
+    "POISON-040": 2,
+    "POISON-072": 1
+   },
+   "distinct_rows_in_schema_fields": 306,
+   "distinct_added_texts_by_check": {
+    "POISON-030": 581,
+    "POISON-020": 23,
+    "POISON-012": 10,
+    "POISON-003": 10,
+    "POISON-082": 9,
+    "POISON-071": 6,
+    "POISON-070": 5,
+    "POISON-076": 3,
+    "POISON-060": 2,
+    "POISON-083": 2,
+    "POISON-045": 2,
+    "POISON-001": 2,
+    "POISON-040": 2,
+    "POISON-072": 1
+   },
+   "poison_060_rows_by_script_of_matched_word": {
+    "Grk+Lat": 1,
+    "Cyr+Lat": 1
+   }
+  }
  }
 }

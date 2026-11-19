@@ -192,6 +192,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "COMM-031": "missing-authentication",
     "COMM-033": "untrusted-config-origin",
     "COLLIDE-001": "tool-collision",
+    "COLLIDE-002": "tool-collision",
     "TRUST-001": "untrusted-config-origin",
     "TRUST-002": "untrusted-config-origin",
     "TRUST-006": "hook-execution",  # git config runs a command (STORY-0089)

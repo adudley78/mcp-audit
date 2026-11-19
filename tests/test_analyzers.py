@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -1717,6 +1718,36 @@ class TestPoison083SelfPromotion:
             raw={"args": ["--banner", "the premium version of the world's best tool"]},
         )
         assert "POISON-083" not in {f.id for f in PoisoningAnalyzer().analyze(server)}
+
+
+class TestPoison030BlindSets:
+    """Two blind sets for POISON-030 (STORY-0171).
+
+    Two narrower rules for the noun "first call" were measured and rejected:
+    they kept 21 of 29 and 28 of 40 blind orders, under the 90% bar
+    (docs/poisoning.md).  The sets stay as the test for a next attempt.
+    """
+
+    @staticmethod
+    def _texts(name: str) -> list[str]:
+        path = Path(__file__).parent / "fixtures" / "poison030" / name
+        rows = json.loads(path.read_text(encoding="utf-8"))["texts"]
+        return [r["text"] if isinstance(r, dict) else r for r in rows]
+
+    def test_every_blind_order_fires(self, tmp_path: Path) -> None:
+        texts = self._texts("blind_orders.json")
+        assert len(texts) == 40
+        fired = sum("POISON-030" in _poison_ids_for(t, tmp_path) for t in texts)
+        assert fired == 40
+
+    def test_known_false_alarms_every_blind_honest_text_fires(
+        self, tmp_path: Path
+    ) -> None:
+        """GAPS.md: 60 of 60 honest texts fire.  This is the cost of the check."""
+        texts = self._texts("blind_honest.json")
+        assert len(texts) == 60
+        fired = sum("POISON-030" in _poison_ids_for(t, tmp_path) for t in texts)
+        assert fired == 60
 
 
 class TestPoison080To082:
