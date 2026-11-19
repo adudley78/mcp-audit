@@ -40,10 +40,22 @@ jobs:
 
       - name: Install Playwright browsers
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        # A browser download stalled two times on 2026-11-18 and the step ran
+        # to the job limit (20 minutes) with no error.  Each try now stops
+        # after 4 minutes and the step tries three times, so a stalled
+        # download fails fast and says why.
+        timeout-minutes: 15
         run: |
           uv pip install playwright --system
-          python -m playwright install chromium firefox webkit
-          python -m playwright install-deps
+          for attempt in 1 2 3; do
+            if timeout 240 python -m playwright install chromium firefox webkit \
+              && timeout 240 python -m playwright install-deps; then
+              exit 0
+            fi
+            echo "::warning::Playwright install try ${attempt} failed or stalled"
+          done
+          echo "::error::Playwright install failed three times"
+          exit 1
 
       - name: Run tests
         run: pytest tests/ -x -q
