@@ -1,0 +1,81 @@
+{
+ "measured": "2026-11-18",
+ "credenzo": "this branch (STORY-0172): POISON-* text checks",
+ "cisco": "cisco-ai-mcp-scanner 4.8.7, YaraAnalyzer only, default rules",
+ "sets": {
+  "mcptox_poisoned_1312": {
+   "credenzo": 1005,
+   "credenzo_high": 926,
+   "cisco": 277,
+   "cisco_high": 277,
+   "either": 1042
+  },
+  "mcptox_unwrapped_485": {
+   "credenzo": 149,
+   "credenzo_high": 53,
+   "cisco": 99,
+   "cisco_high": 99,
+   "either": 186
+  },
+  "mcptox_clean_353": {
+   "credenzo": 2,
+   "credenzo_high": 0,
+   "cisco": 3,
+   "cisco_high": 3
+  },
+  "mcp_safetybench_154": {
+   "credenzo": 56,
+   "credenzo_high": 40,
+   "cisco": 36,
+   "cisco_high": 36,
+   "either": 60
+  },
+  "directive_poisoned_93": {
+   "credenzo": 63,
+   "credenzo_high": 17,
+   "cisco": 6,
+   "cisco_high": 6
+  },
+  "directive_benign_95": {
+   "credenzo": 0,
+   "credenzo_high": 0,
+   "cisco": 10,
+   "cisco_high": 10
+  }
+ },
+ "before_story_0172": {
+  "note": "Credenzo at 1cc6ca1, before POISON-080..082",
+  "mcptox_poisoned_1312": 980,
+  "mcptox_unwrapped_485": 124,
+  "mcp_safetybench_154": 30,
+  "histor_changes_flagged": 485
+ },
+ "histor_real_changes": {
+  "changes": 126105,
+  "changes_with_a_checked_text": 111544,
+  "distinct_added_texts": 179935,
+  "credenzo": {
+   "changes_flagged": 487,
+   "servers": 389,
+   "changes_flagged_high": 46,
+   "servers_high": 42,
+   "title_or_description_changes": 255,
+   "distinct_texts_flagged": 656
+  },
+  "cisco": {
+   "changes_flagged": 3435,
+   "servers": 2889,
+   "changes_flagged_high": 3259,
+   "servers_high": 2775,
+   "title_or_description_changes": 2555,
+   "distinct_texts_flagged": 2111
+  },
+  "texts_flagged_by_both": 55
+ },
+ "cisco_flags_labelled": {
+  "sample": 150,
+  "honest": 146,
+  "steers-agent": 4,
+  "malicious": 0
+ }
+}

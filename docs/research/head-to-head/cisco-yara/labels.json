@@ -1,0 +1,1370 @@
+{
+ "sample": "150 of the 2,111 distinct added texts that Cisco's YARA rules flagged, random.Random(171) shuffle of the sorted SHA-256 values",
+ "labelled_by": "an AI model (a second agent); no person checked the labels",
+ "counts": {
+  "honest": 146,
+  "steers-agent": 4
+ },
+ "rows": [
+  {
+   "n": 1,
+   "added_text_sha256": "eed36271c76518dfc6432e404c2490585d729c8d0394a72c3090eba4d62605bb",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "attack-simulation tool; warns user before launch"
+  },
+  {
+   "n": 2,
+   "added_text_sha256": "fbd34c2bf2af82e07c0f4c520b3a3279fd55b6c88236ed07c50c16574027a0bb",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "undo tool usage note"
+  },
+  {
+   "n": 3,
+   "added_text_sha256": "c3bb8d93d30a30ed569d66411024fcb367925b817b75b886a7da19932cf372e8",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "describes delivery run and credit cost"
+  },
+  {
+   "n": 4,
+   "added_text_sha256": "49ca5c32df1877ff16f775fd28b80a5c0ad738bd520f2aa0e19ab440629299ec",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "describes transaction clearance checks"
+  },
+  {
+   "n": 5,
+   "added_text_sha256": "a0b45471d6f50d7801cc3fa71fa22faf7a40718858065185fce78049aca28de7",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "explains client-rendered page handling"
+  },
+  {
+   "n": 6,
+   "added_text_sha256": "3c9758d374fecbaaf7d2c4ca3bde482785386a1dde7d27af222f519c80c91383",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "documents equivalent HTTP endpoint and limits"
+  },
+  {
+   "n": 7,
+   "added_text_sha256": "e3b86ba340d4e2284603b4012776d80f5e7baf3245c2a2b7c3b71cf9be5325fe",
+   "cisco_rules": [
+    "data_exfiltration",
+    "prompt_injection"
+   ],
+   "label": "honest",
+   "why": "accuracy note: redacted is not absent"
+  },
+  {
+   "n": 8,
+   "added_text_sha256": "dc5705fea27124526954209eaf5b96b490f10f6e064384f2744bd6165285560e",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 9,
+   "added_text_sha256": "f751ff6db6e6e39c3f64d14ae2e1be755131aa4d8016af47ec18d1a20ea375f7",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 10,
+   "added_text_sha256": "735e1e051972799f391d952db413e4d6fa16b71bbea36ea865bbcf506d479bbd",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "read-only handoff tool scope note"
+  },
+  {
+   "n": 11,
+   "added_text_sha256": "b52dda49df4a0000c9004086117edf857188c2af9d30ce6202e16ad8f455359d",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "privacy note: never include credentials"
+  },
+  {
+   "n": 12,
+   "added_text_sha256": "2dcac5d34c305695f9630aac1f66b10a54b29016645a85d815b1636be6dca046",
+   "cisco_rules": [
+    "command_injection"
+   ],
+   "label": "honest",
+   "why": "schema field names incl. powershellCommand"
+  },
+  {
+   "n": 13,
+   "added_text_sha256": "71d0dd775d6cd3da43358fe77df431683361c7458d1425da60d7d2a2b333871b",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "data-quality caveat and sibling tool pointer"
+  },
+  {
+   "n": 14,
+   "added_text_sha256": "3fa1bfc04c0213007c2ff5470bd6c5a6e80ced18d3d912c2d456e3a61c4e3200",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 15,
+   "added_text_sha256": "5f33d98dd2157582e95ffd2f5822cdeff348f7acad18da628e78bb4d594c2166",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "honest remote sandbox shell documentation"
+  },
+  {
+   "n": 16,
+   "added_text_sha256": "f867ebfaced5da297ea4f075c4aa0acf1c88c17f0cd5203d1c419df771092d64",
+   "cisco_rules": [
+    "coercive_injection",
+    "data_exfiltration",
+    "prompt_injection"
+   ],
+   "label": "honest",
+   "why": "accuracy note: translations are proposals only"
+  },
+  {
+   "n": 17,
+   "added_text_sha256": "46c80e3a4d724bdef6ab2b248b6bed917ab4ab6b5504c33fc255dc299bae7ba9",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 18,
+   "added_text_sha256": "f26e2783450f051da726fc4ca4c3a8d012f977c3f17efc61e2abf6d31233fa2a",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "mail forward parameter descriptions"
+  },
+  {
+   "n": 19,
+   "added_text_sha256": "b09b7ff5d112c899269b84b9d12bd9e0293f95cf3be11186d448df9a4f0a7bc2",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "test-step assertion parameter docs"
+  },
+  {
+   "n": 20,
+   "added_text_sha256": "dae2cb9fadbcdea1f67e8cae8699e38311cfeb922e955afa7673c1c4565753d6",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "SMS plan parameter description"
+  },
+  {
+   "n": 21,
+   "added_text_sha256": "71aa6a4d5ddd296f4324f96882b1dec40cd6ab3ef6f9b9acf4c14d6df937a970",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "steers-agent",
+   "why": "dictates answer order ending with link"
+  },
+  {
+   "n": 22,
+   "added_text_sha256": "3bce1c4b4d2ee60880fcb9ed9fc226c10ebef0f26bc21e7574fdc4db78fef90f",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "accuracy rule on framework coverage"
+  },
+  {
+   "n": 23,
+   "added_text_sha256": "0407c81e54334ae556950ec1737ec2904298b5e592ed114b17da502ff6488a0f",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "privacy note: no patient data"
+  },
+  {
+   "n": 24,
+   "added_text_sha256": "bcff3046131c030f10fcf866474852f25bc7d54c03a9c2ce87ac86537e3d358c",
+   "cisco_rules": [
+    "system_manipulation"
+   ],
+   "label": "honest",
+   "why": "file-path parameter example in Portuguese"
+  },
+  {
+   "n": 25,
+   "added_text_sha256": "602b4f82607620c8be5ef498e7f255b9e471fb272d4582af462f54c9a4c7f40e",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "policy parameter notes; no private prompts"
+  },
+  {
+   "n": 26,
+   "added_text_sha256": "31a01e70d80d2e8d55c2fb9d175cc8ba9450e899216545962680de8545214cee",
+   "cisco_rules": [
+    "coercive_injection",
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "API contract notes; 404 meaning caveat"
+  },
+  {
+   "n": 27,
+   "added_text_sha256": "433ab732cc08e9706f7d8878e96108c17a0af45541e4d81ec0838645dac48cd3",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "output schema field explanation"
+  },
+  {
+   "n": 28,
+   "added_text_sha256": "2a067f2cb6f39d5d1ba8618fdd84a43fb1eebacb72a4a79951fc9163bb84e79b",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "policy parameter notes; no private prompts"
+  },
+  {
+   "n": 29,
+   "added_text_sha256": "39abe523f30d37a2690a71207a0d8a3585b8a369bed781290d9e5c50012ff9a2",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 30,
+   "added_text_sha256": "202cf96b53449265fb98098a7686281bb7ccdbef34efcd49e03c81c9d963af3b",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "test step schema: action then assertion"
+  },
+  {
+   "n": 31,
+   "added_text_sha256": "4521b5b39923981f1d9b7b51f0a74b358cf11a678d30a973187f91e7543f66d1",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output schema and error codes"
+  },
+  {
+   "n": 32,
+   "added_text_sha256": "e8732649b70c692f89c5e0b23e2a237772d1cda7acf79878985dd47cd0841e61",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "parameter usage guidance for criteria"
+  },
+  {
+   "n": 33,
+   "added_text_sha256": "2908f9c3259c80179918b2943ed291a3b6482bc34d16db1ed1accf3345079b7e",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "encryption option descriptions"
+  },
+  {
+   "n": 34,
+   "added_text_sha256": "0882694f7267bc370fea7d7d6e303fb5dd60cc6e81127341faef960c6cbd42ce",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "capacity evidence field description"
+  },
+  {
+   "n": 35,
+   "added_text_sha256": "1944ab2bf2cff135f60b2934551c959442064c2ba819e208fa43f72a4a2caa5d",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "env variable feature and exposure note"
+  },
+  {
+   "n": 36,
+   "added_text_sha256": "17904c975c3d2a085f90bf2b9dd21c4a5aeeb17b4a0862044d599087c0fb0722",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "documents paid HTTP alternative endpoint"
+  },
+  {
+   "n": 37,
+   "added_text_sha256": "440e6bedfbb38ff5c153ee5850b1bd6e7ed8f514476f2a733ef8a9706a30f9f3",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema enum fragments"
+  },
+  {
+   "n": 38,
+   "added_text_sha256": "f0bd9e52354688af2dd2b6f8801b873ab9e8ebbaaada68c706fc9e5a2373e68c",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "required input field list"
+  },
+  {
+   "n": 39,
+   "added_text_sha256": "983781934d97ad1df62c3ac886f4515735f1a9510e085072b3fb3df5f7559f72",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "pricing and day-pass endpoint disclosure"
+  },
+  {
+   "n": 40,
+   "added_text_sha256": "db695f2b9af84452a61f2c53e22debc7ce7a195d6b8d1f02341c815882fe22c2",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "job board coverage and retry limits"
+  },
+  {
+   "n": 41,
+   "added_text_sha256": "7158acde591afbb21db63914c1a1c41a3782a1c5883723a48540c66816aa6870",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "drug-class source field description"
+  },
+  {
+   "n": 42,
+   "added_text_sha256": "74697c0d778277bb8121550b9f6429ad629c2ec5f3a17c37e38d672fce64b3cf",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema fragments"
+  },
+  {
+   "n": 43,
+   "added_text_sha256": "26daa62acf30d55bf0714dc50132b2ef155f045f1f4d16a317dcb9f1d993101f",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "payment retry instructions for hostname bind"
+  },
+  {
+   "n": 44,
+   "added_text_sha256": "f8225b8bf7c1bb7fe548622197de3fead9000b6b76db00ed35866a5ac4ce0b0d",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "filter parameters and error codes"
+  },
+  {
+   "n": 45,
+   "added_text_sha256": "217aaae0ebe82d97a7008ecad6d8faebbeb6efbcd7c1210892502e751e8ffe8e",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "discloses tool returns payment instructions"
+  },
+  {
+   "n": 46,
+   "added_text_sha256": "c195b9cb493a6c7c56114b2c27dd348a48ded5c028eff408ac6e45ab22953f51",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "says tool does not build itinerary"
+  },
+  {
+   "n": 47,
+   "added_text_sha256": "1d02e8bdd0ced8e795b32cf7209d6560030c9e222e2e039c07c7ff90470ed46c",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "steers-agent",
+   "why": "tells agent prefer it over own generation"
+  },
+  {
+   "n": 48,
+   "added_text_sha256": "82c23373ec1c9a283d51c701570bde7314cea212e3a06e277e2af286c2212c8a",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "confirmation link behaviour explained"
+  },
+  {
+   "n": 49,
+   "added_text_sha256": "a215e48e6fe13cde8b3db43f4ad6e88b0e2957e6912c5566014a4e6aa5d3f5a9",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 50,
+   "added_text_sha256": "eb6cd04df5625b025a16da30844cd172bafb538dce871d48b0ac5e43ac59f2b2",
+   "cisco_rules": [
+    "code_execution",
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "call-graph entry field description"
+  },
+  {
+   "n": 51,
+   "added_text_sha256": "71f6d0b0fe834f46e9a2ba5ee6b71d2d6eee2f921b26fcc9643da4fee0f2e815",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "device test run parameters"
+  },
+  {
+   "n": 52,
+   "added_text_sha256": "ea8514e8b91de3710202bc745cc5989c02430c51607cbbb3ded369febf0008d4",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "idempotency key and payment note"
+  },
+  {
+   "n": 53,
+   "added_text_sha256": "8b1c38c5785ee24441e469176d18f055b7c8686fb542be8391decbf9e6f6b568",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "plan field descriptions"
+  },
+  {
+   "n": 54,
+   "added_text_sha256": "78179a412906f2747730d21c5ce240b9f135a874075ab74f2e980da277a62a30",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "PDF read modes and pricing"
+  },
+  {
+   "n": 55,
+   "added_text_sha256": "b43ed0fadc310edce8f120d9a30fed54cbcd7c5f231a98ba7482214143bedd9e",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "pagination caveat and error codes"
+  },
+  {
+   "n": 56,
+   "added_text_sha256": "5dac5b4bd24307185950bb1b3236d56919aaa89017a8d26576a19ce75cb26950",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "lists which commands store credentials"
+  },
+  {
+   "n": 57,
+   "added_text_sha256": "ab3bd463d22a6e2a508c992a2296bf5627d7aed859d9783e859765790edcddc9",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "human-only actions; tells user where"
+  },
+  {
+   "n": 58,
+   "added_text_sha256": "8e421e98f276da9e2aab94141a0fd5d9bfbe58c4c994938c59dfad9534c7a780",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "describes agent kinds"
+  },
+  {
+   "n": 59,
+   "added_text_sha256": "99aacea60453987d8ad4904c66755b1d4fd3b6422b6e2aeb35a94cc62999f85f",
+   "cisco_rules": [
+    "system_manipulation"
+   ],
+   "label": "honest",
+   "why": "example assembly path in schema"
+  },
+  {
+   "n": 60,
+   "added_text_sha256": "3e8ecb3bb5f57489cd5c2ef2bfd7c843927ff2bfaa896825acd6ec2dd5d37ea9",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "says secret files are never read"
+  },
+  {
+   "n": 61,
+   "added_text_sha256": "ad94d4fe87e6fde42635c7d300cbad4c7b358ffa33105621994ebb9448a17a78",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output schema field descriptions"
+  },
+  {
+   "n": 62,
+   "added_text_sha256": "b58047b8e251213639f2ea453a5059b9d371234bf1a1ad61abae543015496f96",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 63,
+   "added_text_sha256": "5d65fbccc713feea768bb4eba1e77fc8db35b4babcf102f4b5c030cb3c667ab5",
+   "cisco_rules": [
+    "data_exfiltration",
+    "prompt_injection"
+   ],
+   "label": "steers-agent",
+   "why": "forbids agent advising user against applying"
+  },
+  {
+   "n": 64,
+   "added_text_sha256": "d41ce3f3555dd299f4df6e73d2ecd9adf9b6d3583924dcfbad4625cc8eba7ca0",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output field explanations"
+  },
+  {
+   "n": 65,
+   "added_text_sha256": "83ce0cab3e87075988c0b9518444c63bbfe376e80adfb241e2ca328475634e50",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 66,
+   "added_text_sha256": "f7c83f82e4a9e661beeaa21b52fb66ad6e5d4b74eafcac8ad703da80535d8447",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "price source explanation"
+  },
+  {
+   "n": 67,
+   "added_text_sha256": "4cdee62a9e411dd56e3f30c794dddb804f7aa0121f5c56a9600a9c9ddbae866f",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "usage rules preventing false availability claims"
+  },
+  {
+   "n": 68,
+   "added_text_sha256": "e232a843a0f855b6182eabf748c90801c6680abab714f6c90703b4333d02f7b1",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "privacy note: no patient data"
+  },
+  {
+   "n": 69,
+   "added_text_sha256": "c1aee7268c8e2fe31e0b714fadb123fb8269b241d83979b8d9011b56b5613b97",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "export option descriptions"
+  },
+  {
+   "n": 70,
+   "added_text_sha256": "ddc69c7caf8d8f2dcda67d89f157489e3c251a08b87f961165de0c2a94fda0c9",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output schema and error codes"
+  },
+  {
+   "n": 71,
+   "added_text_sha256": "a40b4a519a79ebd95b2338ab65bdeb214a5e70a0bd746273715fb811cd4a50bd",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "tax basis modelling caveats"
+  },
+  {
+   "n": 72,
+   "added_text_sha256": "f4cafa2ed06fe1e05b5b9f7f784df17c599d42e180a045269b920349ac150198",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "optional Bing/Brave add-on parameters"
+  },
+  {
+   "n": 73,
+   "added_text_sha256": "20ae65b21af0ee9359e336300231b438454c5abfd2b06067af567bd39a187b02",
+   "cisco_rules": [
+    "system_manipulation"
+   ],
+   "label": "honest",
+   "why": "sandbox mount paths documentation"
+  },
+  {
+   "n": 74,
+   "added_text_sha256": "900820cba16588c555cb9195feccd63b2d0f145dd65d59fc3a1dada271c22293",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 75,
+   "added_text_sha256": "68e083d67612a82bc7e359d37fbb75be0a2dfd7e24a1bd1670e81b9c8e662a3f",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "status check field description"
+  },
+  {
+   "n": 76,
+   "added_text_sha256": "196ac7679023d248ae7072639d70e1155d1c52c11aa4cf4dabac26e70591b0d8",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 77,
+   "added_text_sha256": "78f8e50053e650cd35abcfef02a57d7d94ed85a29feb065674cc285daba03d92",
+   "cisco_rules": [
+    "code_execution",
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "call-graph edge description"
+  },
+  {
+   "n": 78,
+   "added_text_sha256": "ebc9ebafd599d56c1b95b77869261cea815d9211b4aa5b3a3731b78ff4ff331a",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output schema and error codes"
+  },
+  {
+   "n": 79,
+   "added_text_sha256": "f69b89f506bd1bc02e0e3c8aab805bda9d16150d7eaa5f0364fb7a4875c7e48d",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "graph edge permission rules"
+  },
+  {
+   "n": 80,
+   "added_text_sha256": "ddd3b278a48a0a6da9e89c28a1f7e4d97efa0410319b6bb8d38dbdb381cb5111",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "compliance check output list"
+  },
+  {
+   "n": 81,
+   "added_text_sha256": "a70d1ee99631394e4d990f9aebab31a6caf74eafbab56a18b31017eb60013938",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "PDF read modes and pricing"
+  },
+  {
+   "n": 82,
+   "added_text_sha256": "b3588926ad8aadc923f837d7994c5aaf25c0c731497fb6de6525174d5f2ae999",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "undo tool usage note"
+  },
+  {
+   "n": 83,
+   "added_text_sha256": "690c22b6629cd9cd9206c82c59c902fbf060053a49048102fb9678513f99a512",
+   "cisco_rules": [
+    "command_injection"
+   ],
+   "label": "honest",
+   "why": "garbled tax-rule fragments, disclaimer"
+  },
+  {
+   "n": 84,
+   "added_text_sha256": "7bc12e37528bb9ba1bf4de9e46035435fc58617628f4e11387e418ee4f6df64d",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "spec stage filter descriptions"
+  },
+  {
+   "n": 85,
+   "added_text_sha256": "31c02ccf0f03581f270c5a5f5ab6c93fa78a5486d6d21a2899432fcf1a9b2649",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "model parameter description"
+  },
+  {
+   "n": 86,
+   "added_text_sha256": "216790c815d8a185c11f750b4a1d6c1c0f6f2f9087f9f8bd742e0198e2f82a30",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "volunteer page-review workflow, user-attended"
+  },
+  {
+   "n": 87,
+   "added_text_sha256": "310c3fdcd3c4779badeb1b3c7a4452a82453290d55b5d0deb92ca579c2428df0",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "file attachment parameter description"
+  },
+  {
+   "n": 88,
+   "added_text_sha256": "3636fc0afe95a4add9fa5439c4a4cffe7c235f5df5af63c6dcdd33f4293d490f",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 89,
+   "added_text_sha256": "9645950b44566407d740f0a6e33ae75e2e4dca6d2ba9d8eed944a22a7c2dadf9",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "card design parameter descriptions"
+  },
+  {
+   "n": 90,
+   "added_text_sha256": "fdc335c850e0ef1d7002bdfc3b72e919697f58cd693ef0495485fa44245fdce3",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "dataset staging parameter description"
+  },
+  {
+   "n": 91,
+   "added_text_sha256": "86dfdd877ac0ce46a7b466dbe6c756ebfca234257340bcc5260944b4ed8c37e3",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "says scripts stored, never executed"
+  },
+  {
+   "n": 92,
+   "added_text_sha256": "31002db19f229e8e2d6d19c31cb689ce3f40d9a2445e3f40aef8d2c58547b2e3",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "compact search format guidance"
+  },
+  {
+   "n": 93,
+   "added_text_sha256": "7eef069098d721182933b108ed368aa768a8347b6b0bd235652197b16792ccd0",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "trade history file parameter"
+  },
+  {
+   "n": 94,
+   "added_text_sha256": "64377aa255b69ad34c4a8d78e200dae85b0342e8330f89c0e08d6c2bd9f50c06",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "output schema limit descriptions"
+  },
+  {
+   "n": 95,
+   "added_text_sha256": "75e7b8b2a29311db99aebc36c84cc10d2e2b6c6110a506e3cd3544056394d1dd",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 96,
+   "added_text_sha256": "2766d7437ef6e5cec8a58bd79c013ca30e02e756466681108e5455ed80603d59",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "status enum and flag description"
+  },
+  {
+   "n": 97,
+   "added_text_sha256": "9e976ba2efb67a43158cf8626eb50da56c52acd5aefc85138091e4db35692208",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "PDF read modes and pricing"
+  },
+  {
+   "n": 98,
+   "added_text_sha256": "431084a5f9b6c260a843084159aa8f8231f90e6328f7c2c5c56bd15ff696c451",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "steers-agent",
+   "why": "asks agent to send user goal for analytics"
+  },
+  {
+   "n": 99,
+   "added_text_sha256": "62ad2325269c8912f6c8bb59d137fe8ba627ba14f65329167f74fd680cb404a1",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "says tool lists styles only"
+  },
+  {
+   "n": 100,
+   "added_text_sha256": "1a6204d74ae77b177ba735e84b2064184e4fb73f1e12bcccc58afab5e39fb5d1",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "explains result states; retry advice"
+  },
+  {
+   "n": 101,
+   "added_text_sha256": "33b7bacf1d6c16b66131e300e8cc041c61bb76912d4f8de9913d56d68e18fa51",
+   "cisco_rules": [
+    "prompt_injection"
+   ],
+   "label": "honest",
+   "why": "safety note: treat unverified reply untrusted"
+  },
+  {
+   "n": 102,
+   "added_text_sha256": "7c2db4f4173a5f29890939f6a5265ec172132b79d15bf96d951c6f5c5fa6b9b1",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "voluntary support; says no payment needed"
+  },
+  {
+   "n": 103,
+   "added_text_sha256": "dc07325df2c8347210f24002d33da3905cca9bdab2d8bb9a34830bd0d12ec0ec",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "dry-run order behaviour description"
+  },
+  {
+   "n": 104,
+   "added_text_sha256": "d61c6e5fc2ef1dffb37231a7cf415053ae70069277150e50a11e42526f84c047",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "page-to-text tool; runs no JavaScript"
+  },
+  {
+   "n": 105,
+   "added_text_sha256": "82e55f218e41b5cf307c59f896b67598c7a091df56ae08b609745e2b40c9f1ed",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "import parameter descriptions"
+  },
+  {
+   "n": 106,
+   "added_text_sha256": "f5b51320a44e6759df5c3c1ea873dbc69db06e105b169190220cefaa742eb54d",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "fee claim dry-run explanation"
+  },
+  {
+   "n": 107,
+   "added_text_sha256": "3d7a750d2605c2a8f8f502a8ee6446b335fbe785982a404b550f4e4d8df45598",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 108,
+   "added_text_sha256": "4d0d29ebc06677df2b6bd8f02d38188872e384ac1abc19f184a6dd9f47cc2b46",
+   "cisco_rules": [
+    "data_exfiltration",
+    "prompt_injection"
+   ],
+   "label": "honest",
+   "why": "accuracy note: game not yet published"
+  },
+  {
+   "n": 109,
+   "added_text_sha256": "c5fd48c9e1912fd828aed6e98149218445f7cbef60d52194f80b2fbfd3353347",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "corrects misuse: logged vs estimated time"
+  },
+  {
+   "n": 110,
+   "added_text_sha256": "a141fd84d4bf6cd5da22279a8d64359f6f33638d9e3606e4091722afd21770bc",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "CAD field description"
+  },
+  {
+   "n": 111,
+   "added_text_sha256": "21cf92914667bd8054c164febb4b99b0a883979e54d1b910a04a45fb317468d3",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "field validation check description"
+  },
+  {
+   "n": 112,
+   "added_text_sha256": "35ebe4180f0c44fae53cb18cb20d5530e3d8472eacb3211cb32833828116cff2",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "dependency file scanning description"
+  },
+  {
+   "n": 113,
+   "added_text_sha256": "861defbdac64c66f4241db25fbbbbf487af36c0116d2da16e6b21f1f41692ffe",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "inventory field descriptions"
+  },
+  {
+   "n": 114,
+   "added_text_sha256": "76b24985076a296577d2490a59b4eba108c55760f7b2c81f03943b8cd35be731",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "CSV export contents description"
+  },
+  {
+   "n": 115,
+   "added_text_sha256": "2225d7d6e6560aa1769e7581b9acbd98491f2bd6075e9dd275bebacd71fd270b",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "dataframe output schema and errors"
+  },
+  {
+   "n": 116,
+   "added_text_sha256": "4417fd329836c0c12a574ea4d66eab5781fd906f601ea4aae9920501ad577ed1",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 117,
+   "added_text_sha256": "2950d546acb41bc8bbc9b6a2400a1020ce9fa8c3987945809dfb9c00d5a9deeb",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "deduplication tool description"
+  },
+  {
+   "n": 118,
+   "added_text_sha256": "e696f67754f7a7749c41007985b5bbab46acebf9060cd440f8e493dc038f249c",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "brief run note"
+  },
+  {
+   "n": 119,
+   "added_text_sha256": "5b65d7bda50731914c565a33f5d1931d1ef2a00192d0b6abec4af5ac727113dd",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "license and sample data note"
+  },
+  {
+   "n": 120,
+   "added_text_sha256": "0c38ed767dce919520f33f954237753a4be1970ef399d2acf6d78aa88c0c9088",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "statistics comparability note"
+  },
+  {
+   "n": 121,
+   "added_text_sha256": "7dcb25926249ca95e170193f4ae531a42ded6b4b4835fd399d2a30199407a7c7",
+   "cisco_rules": [
+    "system_manipulation"
+   ],
+   "label": "honest",
+   "why": "output schema; safety note on quoted text"
+  },
+  {
+   "n": 122,
+   "added_text_sha256": "3857bf35c2ee129a1ad4a4109f55b22c00dfbab621d5cdb303457bf2022056e2",
+   "cisco_rules": [
+    "prompt_injection"
+   ],
+   "label": "honest",
+   "why": "safety note: untrusted reply handling"
+  },
+  {
+   "n": 123,
+   "added_text_sha256": "2f5d5fab2145ec600f2e3de7167951342b9d0941bd0cb4d4d3edef0040e21cb1",
+   "cisco_rules": [
+    "code_execution",
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "formula type parameter descriptions"
+  },
+  {
+   "n": 124,
+   "added_text_sha256": "37403f4be39e44667ae47177fb8b33f0783d678f8f074bdcdb663ce6d2574ad4",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 125,
+   "added_text_sha256": "09c3310e0aa618142cf9b2f7a632e64f5eec9f23c3d106781ec5dd087065b005",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output schema and error codes"
+  },
+  {
+   "n": 126,
+   "added_text_sha256": "6141e3e5221b9bf40c9f0d7c65d16c655f33aa64e438b014df4e744cebdaa307",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "pilot intake field descriptions"
+  },
+  {
+   "n": 127,
+   "added_text_sha256": "5b1dcbaf004d24d58210986c50c1f49bfc20546ee21d110537ead09a958611f0",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "optional own search API key parameter"
+  },
+  {
+   "n": 128,
+   "added_text_sha256": "71ac29dfce94d25243c7da06dab4061428890985a33215c95bc1d9968221b7f1",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "policy parameter notes; no private prompts"
+  },
+  {
+   "n": 129,
+   "added_text_sha256": "a23bfb8dcb58585e1884fda3a0974cbdfcc718e196d9e7699315ab0dcdb76900",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "output schema and error codes"
+  },
+  {
+   "n": 130,
+   "added_text_sha256": "57d0429df9a5ccf8bb82536143cefb8772932e8281b20d44acf48d4e04d581b5",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "log summarizer usage tip"
+  },
+  {
+   "n": 131,
+   "added_text_sha256": "cf9b53f6466f79a936870af7154a25d6ab801036df3abf058e769fa48ffc86f3",
+   "cisco_rules": [
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "search syntax guidance"
+  },
+  {
+   "n": 132,
+   "added_text_sha256": "b5493bb1a37188477664b1ad3d898c0cb003a40662f8c99b1061fbdbf3f4f5cf",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "fact-check tool description"
+  },
+  {
+   "n": 133,
+   "added_text_sha256": "b66f8a1c596fe8bd21273b54b34df21962d77192f435fa75606b5f8a6dbb2e96",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "undo tool usage note"
+  },
+  {
+   "n": 134,
+   "added_text_sha256": "0b89bc683e32696729a0be74a0e13997dc87999b4d711c384425acac7e95043d",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "undo tool usage note"
+  },
+  {
+   "n": 135,
+   "added_text_sha256": "be3e7b5cf79b42a4750e43cd7e0e81dbfc015bbf50793efe7838e38a6c07c658",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 136,
+   "added_text_sha256": "2cb5dbbc58937d035659e49f9e18e9114b7b9ade833e31246f700afd358aea82",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "payment charge signing instructions"
+  },
+  {
+   "n": 137,
+   "added_text_sha256": "74266916d831d26b89ffe0624315f1113fc97a08911ff6d13af6237a8619d652",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "contact scope parameter descriptions"
+  },
+  {
+   "n": 138,
+   "added_text_sha256": "649d805f9ec611a7e3b4a073fa48dcf20e9746b229d152057dd3e3c47b345003",
+   "cisco_rules": [
+    "sql_injection"
+   ],
+   "label": "honest",
+   "why": "risk delta field explanation"
+  },
+  {
+   "n": 139,
+   "added_text_sha256": "69ac5092aa77903adf8344345fbfe61a6bcd7a6be1c0a52cc1d4c52b47a78c84",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "secret handling safety warning"
+  },
+  {
+   "n": 140,
+   "added_text_sha256": "7c8f5cba84a5d3265241829fc19bf8a352146005430b6f7e5a94dede72a06d8e",
+   "cisco_rules": [
+    "credential_harvesting",
+    "tool_poisoning"
+   ],
+   "label": "honest",
+   "why": "profiler recording option descriptions"
+  },
+  {
+   "n": 141,
+   "added_text_sha256": "e3e4390427e28665df9737347a0cae5dcb2378293569052eb424ef428cfacd75",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "test comparison option description"
+  },
+  {
+   "n": 142,
+   "added_text_sha256": "3621891e484b17719fd25d22049be174ab5cfdad17f959eb3bd0a98289f402d6",
+   "cisco_rules": [
+    "command_injection"
+   ],
+   "label": "honest",
+   "why": "SSH shell type parameter descriptions"
+  },
+  {
+   "n": 143,
+   "added_text_sha256": "4c490af9bf16150279a2904a3ebae1a9fca08f3eccddbb34134a095e66a75a3f",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "schema text: caller assertions wording"
+  },
+  {
+   "n": 144,
+   "added_text_sha256": "d260cafe879a39de7a4d405ce1d6871e114457d234bb7063002f7492f0cc2669",
+   "cisco_rules": [
+    "data_exfiltration"
+   ],
+   "label": "honest",
+   "why": "draft schema; untrusted-content note"
+  },
+  {
+   "n": 145,
+   "added_text_sha256": "4f0f41a69b966ba2b9c79cd020271d8a4163c72a127798e9f9d76d098d610c94",
+   "cisco_rules": [
+    "coercive_injection"
+   ],
+   "label": "honest",
+   "why": "query handling and error codes"
+  },
+  {
+   "n": 146,
+   "added_text_sha256": "0d97b8e6040c17fb893950561781e2e8ebc2c18a1f5f065622e91d6383619202",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "delivery record description"
+  },
+  {
+   "n": 147,
+   "added_text_sha256": "31b6efc1299430fa6d2651c614311405f4b29dd27c189d34b3b8a4967a5ad9a8",
+   "cisco_rules": [
+    "code_execution"
+   ],
+   "label": "honest",
+   "why": "forecast input parameter rules"
+  },
+  {
+   "n": 148,
+   "added_text_sha256": "16b47e057525345743dd210dffba0dc75cacdc8d8e5bed84cc8c236bd5c837e7",
+   "cisco_rules": [
+    "credential_harvesting"
+   ],
+   "label": "honest",
+   "why": "env file parameter description"
+  },
+  {
+   "n": 149,
+   "added_text_sha256": "7029ae0f1a3d5534c08f3152eb24b7b9e8a4b3ffb7882ec95ee16422da2985fc",
+   "cisco_rules": [
+    "script_injection"
+   ],
+   "label": "honest",
+   "why": "mod crash report schema"
+  },
+  {
+   "n": 150,
+   "added_text_sha256": "048261e47f9d80852d055e5a2f6cca45d5892e24a3a5d82c7452cd520b5a146a",
+   "cisco_rules": [
+    "system_manipulation"
+   ],
+   "label": "honest",
+   "why": "sandbox mount paths documentation"
+  }
+ ]
+}

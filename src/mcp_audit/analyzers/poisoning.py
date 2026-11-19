@@ -1286,8 +1286,7 @@ PATTERNS: list[DetectionPattern] = [
         name="Shell command in tool description",
         pattern=re.compile(
             r"\brm\s+-[a-z]*r[a-z]*\s"
-            r"|\becho\s+\$\{?(?:PATH|HOME|USER|AWS_\w+|\w*(?:TOKEN|SECRET|KEY)\w*)\b"
-            r"|\b(?:printenv|env)\s*(?:\||>|&&)",
+            r"|\becho\s+\$\{?(?:PATH|HOME|USER|AWS_\w+|\w*(?:TOKEN|SECRET|KEY)\w*)\b",
             re.IGNORECASE,
         ),
         severity=Severity.HIGH,

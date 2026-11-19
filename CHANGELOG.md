@@ -8,7 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **POISON-080, POISON-081 and POISON-082: orders in tool text that no check read (STORY-0172).** POISON-080 (HIGH) fires on an order to redirect requests ("all log requests must be redirected to ..."). POISON-081 (HIGH) fires on `rm -r...` and on `echo` of `$PATH` or a variable named like a secret. POISON-082 (MEDIUM) fires on `/etc/passwd`, `/etc/shadow` and `/etc/sudoers`. They read tool text only, not agent files. Measured: MCP-SafetyBench 30 to 56 of 154 poisoned descriptions, MCPTox 124 to 149 of 485 descriptions with no wrapper, and 485 to 487 flagged changes on HISTOR's record of 126,105 real changes. The attack numbers are in-sample: the checks were written from the texts that Credenzo missed.
+
 ### Documentation
+
+- **Compared with Cisco mcp-scanner's YARA rules (STORY-0172).** On HISTOR's record of real changes Cisco's rules (4.8.7, YARA analyzer only) flag 3,435 changes and Credenzo flags 487. In a sample of 150 texts that Cisco's rules flagged, 146 are honest and 0 are malicious. On MCPTox descriptions with no wrapper Credenzo flags 30.7% and Cisco 20.4%; on MCP-SafetyBench 36.4% and 23.4%. Before the three new checks Credenzo flagged fewer MCP-SafetyBench texts than Cisco. `docs/research/head-to-head/cisco-yara/`.
 
 - **Measured on a second set of attacks (STORY-0171).** On the 154 distinct poisoned tool descriptions of MCP-SafetyBench (arXiv 2512.15163), the POISON-* text checks flag 30 (19.5%), 17 at HIGH or above (26 and 13 before the POISON-070 change above). Five of its nine attack categories get no finding. `docs/research/mcp-safetybench/`.
 - **Measured false alarms on real changes (STORY-0169).** On HISTOR's public record of 126,105 real changes to MCP tool definitions, the POISON-* text checks fired on 784 changes from 545 servers (448 changes in descriptions, the scope of `lock --verify`). In a labelled set of 280 flagged rows, 0 are malicious, 269 are honest text and 11 steer the agent. POISON-060 fires on every Cyrillic or Greek word, POISON-030 on a tool's own call sequence, POISON-012 on "do not say / tell / mention" in each sense, and POISON-040 on correct Persian spelling. The labels, the method and the limits are in `docs/research/histor-changes/`; `docs/poisoning.md` and `GAPS.md` have the numbers. No check changed.

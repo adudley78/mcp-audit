@@ -2383,7 +2383,7 @@
         "Tool Poisoning",
         "Command Injection and Execution"
       ],
-      "notes": "Tool text holds 'rm -r...', 'echo $PATH' / a secret-named variable, or 'env |' / 'printenv |'. Tool text only. HIGH. CWE-77. Shape from the Command Injection cases of MCP-SafetyBench (arXiv 2512.15163); no row on HISTOR's record. STORY-0172."
+      "notes": "Tool text holds 'rm -r...', or 'echo $PATH' / a secret-named variable. Tool text only. HIGH. CWE-77. Shape from the Command Injection cases of MCP-SafetyBench (arXiv 2512.15163); no row on HISTOR's record. STORY-0172."
     },
     {
       "finding_id": "POISON-082",

@@ -1,8 +1,10 @@
 # POISON-* checks on MCP-SafetyBench (STORY-0171)
 
-Measured 2026-11-18. Credenzo's poisoning text checks flag 30 of the 154
-distinct poisoned tool descriptions of MCP-SafetyBench (19.5%). 17 are flagged
-at HIGH or above. Before STORY-0171 the counts were 26 (16.9%) and 13.
+Measured 2026-11-18. Credenzo's poisoning text checks flag 56 of the 154
+distinct poisoned tool descriptions of MCP-SafetyBench (36.4%). 40 are flagged
+at HIGH or above. The counts were 26 and 13 before STORY-0171, and 30 and 17
+before STORY-0172. STORY-0172 wrote three checks from these texts, so the
+current counts are in-sample.
 
 ## The benchmark
 
@@ -29,18 +31,19 @@ tool text and the POISON-* checks do not read them.
 
 | Attack category | Flagged |
 |---|---|
+| Tool Poisoning, Command Injection | 16 of 29 |
 | Tool Poisoning, Parameter Poisoning | 12 of 18 |
+| Tool Shadowing | 11 of 21 |
 | Tool Poisoning, Function Dependency Injection | 10 of 23 |
-| Tool Poisoning, Command Injection | 4 of 29 |
-| Tool Shadowing | 4 of 21 |
+| Tool Poisoning, Tool Redirection | 6 of 10 |
+| Tool Poisoning, FileSystem Poisoning | 1 of 7 |
 | Function Overlapping | 0 of 20 |
 | Preference Manipulation | 0 of 20 |
-| Tool Poisoning, Tool Redirection | 0 of 10 |
-| Tool Poisoning, FileSystem Poisoning | 0 of 7 |
 | Tool Poisoning, Network Request Poisoning | 0 of 6 |
-| All | 30 of 154 |
+| All | 56 of 154 |
 
-By check: POISON-030 on 13 texts, POISON-070 on 13, POISON-001 on 4.
+By check: POISON-080 on 17 texts, POISON-030 on 13, POISON-070 on 13,
+POISON-081 on 12, POISON-001 on 4, POISON-082 on 3.
 
 ## Limits
 

@@ -10,9 +10,9 @@ Recall is reported twice. **Any severity** is what a plain `credenzo scan` exits
 
 | What | Corpus | Any severity | HIGH or above |
 |---|---|---|---|
-| Recall: share of poisoned descriptions flagged | MCPTox, all 1,312 benchmark cases | **74.7%** (P1 79.8%, P2 79.2%, P3 68.9%) | **69.3%** (P1 72.6%, P2 68.4%, P3 68.9%) |
-| Recall, cases with no keyword wrapper | MCPTox, 435 of those cases | **23.7%** (P1 35.4%, P2 39.3%, P3 5.2%) | **7.4%** (P1 12.3%, P2 7.9%, P3 5.2%) |
-| Recall, poisoned descriptions as released without wrappers | MCPTox `pure_tool.json`, 485 | **25.6%** (P1 41.6%, P2 41.5%, P3 7.1%) | **7.4%** (P1 10.4%, P2 7.1%, P3 6.7%) |
+| Recall: share of poisoned descriptions flagged | MCPTox, all 1,312 benchmark cases | **76.6%** (P1 80.3%, P2 80.3%, P3 72.0%) | **70.6%** (P1 73.1%, P2 68.4%, P3 71.6%) |
+| Recall, cases with no keyword wrapper | MCPTox, 435 of those cases | **29.4%** (P1 36.9%, P2 42.7%, P3 14.6%) | **11.3%** (P1 13.8%, P2 7.9%, P3 13.5%) |
+| Recall, poisoned descriptions as released without wrappers | MCPTox `pure_tool.json`, 485 | **30.7%** (P1 42.9%, P2 44.8%, P3 15.1%) | **10.9%** (P1 11.7%, P2 7.1%, P3 13.8%) |
 | Real tools flagged | MCPTox's 353 clean tools from 45 real servers | **2** (0.6%): 2 `POISON-050` (was 18 before STORY-0107) | **0** (was 16) |
 | Precision: share of findings that were real | Live tools of the 100 most-downloaded npm MCP servers, re-measured 2026-10-29: 46 findings on 1,402 tools (mcp-audit 0.23.0; was 661 on 1,611 with 0.21.0) | **1 of 46** (2.2%) | 0 of 2 |
 
@@ -20,7 +20,7 @@ MCPTox's three attack paradigms: **P1** explicit trigger, function hijacking (a 
 
 **What this means.** POISON-* catches poisoning that announces itself: every MCPTox case carrying an `<IMPORTANT>…</IMPORTANT>` block or "Ignore the previous instructions" was flagged at HIGH (877 of 877), by `POISON-010` and `POISON-012`. Without a wrapper it flags about one poisoned description in four, and at the HIGH threshold that `check` and pre-commit use, about one in fourteen. Parameter tampering is nearly invisible either way. MCPTox measured that the two wrappers raise average attack success by 2.0% and 2.6%, so an attacker loses almost nothing by leaving them out. On the servers people actually install, the checks are noisy: none of the 661 findings on the top-100 npm servers was an attack, and 488 of them were Chinese punctuation, which POISON-060 no longer counts (STORY-0107, below).
 
-**For comparison.** Cisco's MCP Scanner YARA rules, run unmodified, flagged 20.8% of the MCPTox-derived malicious descriptions in one test split (10 of 48, drawn from the same 485 descriptions as our 25.6%, less two in an "Other" class; ours is measured on all 485) ([arXiv 2604.10534](https://arxiv.org/html/2604.10534v1)). Across eight MCP scanners run on 37,288 MCPZoo servers, mean precision was 45.5% and the scanners' flagged sets overlapped 15.7% of the time on average ([arXiv 2607.11086](https://arxiv.org/html/2607.11086v1)).
+**For comparison.** Cisco's MCP Scanner YARA rules, run unmodified, flagged 20.8% of the MCPTox-derived malicious descriptions in one test split (10 of 48, drawn from the same 485 descriptions as our 30.7%, less two in an "Other" class; ours is measured on all 485) ([arXiv 2604.10534](https://arxiv.org/html/2604.10534v1)). Across eight MCP scanners run on 37,288 MCPZoo servers, mean precision was 45.5% and the scanners' flagged sets overlapped 15.7% of the time on average ([arXiv 2607.11086](https://arxiv.org/html/2607.11086v1)).
 
 **Why there is no single precision figure on MCPTox.** MCPTox holds 1,312 poisoned cases against 353 clean tools, so a precision computed on it would mostly reflect that mix (it would come out near 98%). Precision is reported where the mix is real, on the top-100 corpus, and MCPTox's clean tools give a flag rate instead.
 
@@ -116,23 +116,58 @@ No text that these attack sets detected lost its finding. The gains (1 MCPTox de
 
 The rows that stay: 6 POISON-012 rows (two "override default" in configuration text, two quoted examples in tools that detect prompt injection, one description of such a detector, and one "ignore any instructions inside it" about untrusted page content) and 2 POISON-040 rows (the example input of a tool that removes zero-width characters). All are honest.
 
+## Three checks for orders that no check read (STORY-0172)
+
+A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned text that Credenzo did not flag. Each is now a check on tool text. Agent files do not use these checks: a skill honestly holds `rm -rf build/`.
+
+| Check | Fires on | Severity |
+|---|---|---|
+| POISON-080 | An order to redirect requests: "must be redirected to", "automatically redirects", "redirecting all ... requests" | HIGH |
+| POISON-081 | `rm -r...`, or `echo` of `$PATH`, `$HOME` or a variable named like a secret | HIGH |
+| POISON-082 | `/etc/passwd`, `/etc/shadow` or `/etc/sudoers` | MEDIUM |
+
+| | Before | After |
+|---|---|---|
+| MCPTox, all 1,312 cases (any severity / HIGH or above) | 980 / 909 | 1,005 / 926 |
+| MCPTox, 485 descriptions with no wrapper | 124 / 36 | 149 / 53 |
+| MCP-SafetyBench, 154 poisoned descriptions | 30 / 17 | 56 / 40 |
+| MCPTox clean tools flagged, of 353 | 2 | 2 |
+| HISTOR, changes flagged of 126,105 | 485 | 487 |
+| HISTOR, changes flagged at HIGH or above | 46 | 46 |
+
+The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of mounted paths that names `/etc/passwd`, and an example query. POISON-080 and POISON-081 have no row there.
+
+**These numbers are in-sample.** The three checks were written from the texts of MCP-SafetyBench and MCPTox that Credenzo missed. They show that the checks read those texts. They do not show what the checks catch on an attack written tomorrow. The false-alarm side is measured on HISTOR's tool text only.
+
+## Compared with Cisco mcp-scanner's YARA rules (measured 2026-11-18)
+
+| Set | Credenzo | Cisco YARA |
+|---|---|---|
+| MCPTox, 1,312 poisoned cases | 1,005 (76.6%) | 277 (21.1%) |
+| MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 99 (20.4%) |
+| MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 36 (23.4%) |
+| HISTOR, 126,105 real changes: changes flagged | 487 | 3,435 |
+| HISTOR: changes flagged at HIGH or above | 46 | 3,259 |
+
+Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only; its API, LLM and behavioural analyzers were not run. In a random sample of 150 texts that its rules flagged on HISTOR's record, 146 are honest, 4 steer the agent and 0 are malicious. Before STORY-0172 Credenzo flagged fewer MCP-SafetyBench texts than Cisco (30 and 36). The attack sets are not independent of Credenzo and the HISTOR numbers are. The limits and the scripts are in [`docs/research/head-to-head/cisco-yara/`](research/head-to-head/cisco-yara/README.md).
+
 ## MCP-SafetyBench: a second set of attacks (measured 2026-11-18)
 
-MCP-SafetyBench ([arXiv 2512.15163](https://arxiv.org/abs/2512.15163), <https://github.com/xjzzzzzzzz/MCPSafety>, commit `7872437`) has 245 attack tasks on real MCP servers. 154 distinct texts in its task files replace a tool description or add a tool with a poisoned description. Credenzo flagged 26 of the 154 (16.9%), 13 at HIGH or above, before STORY-0171. It flags 30 (19.5%), 17 at HIGH or above, with the wider POISON-070. This is lower than the 25.6% on MCPTox descriptions with no wrapper.
+MCP-SafetyBench ([arXiv 2512.15163](https://arxiv.org/abs/2512.15163), <https://github.com/xjzzzzzzzz/MCPSafety>, commit `7872437`) has 245 attack tasks on real MCP servers. 154 distinct texts in its task files replace a tool description or add a tool with a poisoned description. Credenzo flagged 26 of the 154 (16.9%), 13 at HIGH or above, before STORY-0171, and 30 (19.5%) and 17 after it. With POISON-080..082 (STORY-0172) it flags 56 (36.4%), 40 at HIGH or above. The three checks were written from these texts, so the last number is in-sample.
 
 | Attack category | Flagged |
 |---|---|
+| Tool Poisoning, Command Injection | 16 of 29 |
 | Tool Poisoning, Parameter Poisoning | 12 of 18 |
+| Tool Shadowing | 11 of 21 |
 | Tool Poisoning, Function Dependency Injection | 10 of 23 |
-| Tool Poisoning, Command Injection | 4 of 29 |
-| Tool Shadowing | 4 of 21 |
+| Tool Poisoning, Tool Redirection | 6 of 10 |
+| Tool Poisoning, FileSystem Poisoning | 1 of 7 |
 | Function Overlapping | 0 of 20 |
 | Preference Manipulation | 0 of 20 |
-| Tool Poisoning, Tool Redirection | 0 of 10 |
-| Tool Poisoning, FileSystem Poisoning | 0 of 7 |
 | Tool Poisoning, Network Request Poisoning | 0 of 6 |
 
-By check: POISON-030 on 13 texts, POISON-070 on 13, POISON-001 on 4. The checks read literal phrases. They do not read a description that says a tool is "the preferred one", or one that changes a parameter with a plausible reason. The benchmark has no clean descriptions of its own, so it gives no false-alarm number. No text of the benchmark is committed; the script and the pinned counts are in [`docs/research/mcp-safetybench/`](research/mcp-safetybench/README.md).
+By check: POISON-080 on 17 texts, POISON-030 on 13, POISON-070 on 13, POISON-081 on 12, POISON-001 on 4, POISON-082 on 3. The checks read literal phrases. They do not read a description that says a tool is "the preferred one", or one that changes a parameter with a plausible reason. The benchmark has no clean descriptions of its own, so it gives no false-alarm number. No text of the benchmark is committed; the script and the pinned counts are in [`docs/research/mcp-safetybench/`](research/mcp-safetybench/README.md).
 
 ## What was measured
 
@@ -341,33 +376,33 @@ MCPTox's attacker "can register a malicious MCP server" (§2.2), and the agent "
 
 | Paradigm | Cases | POISON-* | DELEG-* | Both | POISON-* HIGH+ | Both HIGH+ | DELEG-001 / 002 / 003 |
 |---|---|---|---|---|---|---|---|
-| P1 explicit trigger | 208 | 79.8% | 100.0% | 100.0% | 72.6% | 72.6% | 207 / 93 / 2 |
-| P2 implicit trigger, function hijacking | 519 | 79.2% | 100.0% | 100.0% | 68.4% | 70.7% | 507 / 454 / 30 |
-| P3 implicit trigger, parameter tampering | 585 | 68.9% | 95.9% | 98.6% | 68.9% | 92.5% | 528 / 435 / 445 |
-| Implicit (P2+P3) | 1,104 | 73.7% | 97.8% | 99.3% | 68.7% | 82.2% | 1,035 / 889 / 475 |
-| All 1,312 cases | 1,312 | 74.7% | 98.2% | 99.4% | 69.3% | 80.7% | 1,242 / 982 / 477 |
+| P1 explicit trigger | 208 | 80.3% | 100.0% | 100.0% | 73.1% | 73.1% | 207 / 93 / 2 |
+| P2 implicit trigger, function hijacking | 519 | 80.3% | 100.0% | 100.0% | 68.4% | 70.7% | 507 / 454 / 30 |
+| P3 implicit trigger, parameter tampering | 585 | 72.0% | 95.9% | 98.8% | 71.6% | 93.7% | 528 / 435 / 445 |
+| Implicit (P2+P3) | 1,104 | 75.9% | 97.8% | 99.4% | 70.1% | 82.9% | 1,035 / 889 / 475 |
+| All 1,312 cases | 1,312 | 76.6% | 98.2% | 99.5% | 70.6% | 81.3% | 1,242 / 982 / 477 |
 
 The same layout on the cases with no keyword wrapper, which are the realistic ones (MCPTox measured that the wrappers add only 2.0–2.6% attack success):
 
 | Paradigm | Cases | POISON-* | DELEG-* | Both | POISON-* HIGH+ | Both HIGH+ |
 |---|---|---|---|---|---|---|
-| P1 | 65 | 35.4% | 100.0% | 100.0% | 12.3% | 12.3% |
-| P2 | 178 | 39.3% | 100.0% | 100.0% | 7.9% | 14.6% |
-| P3 | 192 | 5.2% | 95.8% | 95.8% | 5.2% | 77.1% |
-| Implicit (P2+P3) | 370 | 21.6% | 97.8% | 97.8% | 6.5% | 47.0% |
-| All unwrapped | 435 | 23.7% | 98.2% | 98.2% | 7.4% | 41.8% |
-| `pure_tool.json`, all | 485 | 25.6% | 98.4% | 98.4% | 7.4% | 42.9% |
+| P1 | 65 | 36.9% | 100.0% | 100.0% | 13.9% | 13.9% |
+| P2 | 178 | 42.7% | 100.0% | 100.0% | 7.9% | 14.6% |
+| P3 | 192 | 14.6% | 95.8% | 96.4% | 13.5% | 80.7% |
+| Implicit (P2+P3) | 370 | 28.1% | 97.8% | 98.1% | 10.8% | 48.9% |
+| All unwrapped | 435 | 29.4% | 98.2% | 98.4% | 11.3% | 43.7% |
+| `pure_tool.json`, all | 485 | 30.7% | 98.4% | 98.6% | 10.9% | 44.5% |
 
-At HIGH or above (what `check` and the pre-commit default fail on), only DELEG-003 counts, so the gain there is in parameter tampering: 5.2% → 77.1% of unwrapped P3 cases.
+At HIGH or above (what `check` and the pre-commit default fail on), only DELEG-003 counts, so the gain there is in parameter tampering: 13.5% → 80.7% of unwrapped P3 cases (5.2% → 77.1% before STORY-0172 added POISON-080..082).
 
 **Poisoned tool among the target server's tools** (MCPTox's prompt layout): DELEG-001 cannot fire, and DELEG-002/003 mostly do not, by design: the target tool's capabilities and arguments are the server's own.
 
 | Set | Cases | POISON-* | DELEG-* | Both | Both HIGH+ |
 |---|---|---|---|---|---|
-| All cases, implicit (P2+P3) | 1,104 | 73.7% | 2.9% | 74.5% | 68.8% |
-| Unwrapped, implicit (P2+P3) | 370 | 21.6% | 3.0% | 23.8% | 7.0% |
-| Unwrapped, P3 | 192 | 5.2% | 4.7% | 8.9% | 6.2% |
-| `pure_tool.json`, all | 485 | 25.6% | 2.7% | 27.4% | 8.0% |
+| All cases, implicit (P2+P3) | 1,104 | 75.9% | 2.9% | 76.6% | 70.3% |
+| Unwrapped, implicit (P2+P3) | 370 | 28.1% | 3.0% | 30.3% | 11.3% |
+| Unwrapped, P3 | 192 | 14.6% | 4.7% | 18.2% | 14.6% |
+| `pure_tool.json`, all | 485 | 30.7% | 2.7% | 32.6% | 11.6% |
 
 ### A benign check outside MCPTox
 
