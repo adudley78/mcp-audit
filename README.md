@@ -334,7 +334,7 @@ then post the diff as a PR comment via `github-script`:
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
 
-- uses: adudley78/credenzo/setup-action@v0.33.0
+- uses: adudley78/credenzo/setup-action@v0.34.0
 
 - run: git checkout ${{ github.event.pull_request.base.sha }}
         && credenzo scan --format json -o base.json || true
@@ -631,9 +631,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/credenzo@v0.33.0
+        uses: adudley78/credenzo@v0.34.0
         with:
-          version: v0.33.0
+          version: v0.34.0
           severity-threshold: high
           upload-sarif: 'true'
 ```
@@ -695,7 +695,7 @@ Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-c
 ```yaml
 repos:
   - repo: https://github.com/adudley78/credenzo
-    rev: v0.33.0
+    rev: v0.34.0
     hooks:
       - id: mcp-audit
 ```
