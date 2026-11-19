@@ -2,9 +2,7 @@
 
 A harness and a fixed corpus for comparing mcp-audit with other scanners that read agent skills and MCP tool descriptions, run the same way on every tool, with every number stating its basis. `scripts/bench_competitors.py` runs it; `results.json` pins the output.
 
-**Update (2026-11-18).** Cisco mcp-scanner 4.8.7 was run on tool text, with other scripts and other sets (MCPTox, MCP-SafetyBench and HISTOR's record of real changes): see [`cisco-yara/`](cisco-yara/README.md). NVIDIA SkillSpector v2.12.0 was run in its static mode on 2026-11-19: see [`skillspector/`](skillspector/README.md). The table below was not re-run and its mcp-audit column is from 0.29.0.
-
-**Status of the table below (2026-11-04; the two later runs are in the folders named above).** The mcp-audit column is the one measured in this table. SkillSpector, Cisco mcp-scanner and Snyk agent-scan were not installed or run when this was built, so their columns read "not run", not zero. Whoever fills them in runs the commands under [How to run it](#how-to-run-it).
+**Status (2026-11-19).** The table under [Current table](#current-table) is a run of three scanners on 2026-11-19: Credenzo, NVIDIA SkillSpector v2.12.0 (static mode) and Cisco mcp-scanner 4.8.7 (YARA only). Snyk agent-scan was not run, so its column reads "not run", not zero. Two earlier runs used other scripts and other sets (MCP-SafetyBench, HISTOR's record of real changes, 485 MCPTox descriptions with no wrapper): see [`cisco-yara/`](cisco-yara/README.md) and [`skillspector/`](skillspector/README.md).
 
 ## Why this exists
 
@@ -60,25 +58,35 @@ Severity scales differ between tools, so "any severity" is not a like-for-like n
 
 ## Current table
 
-Measured 2026-11-04 on mcp-audit 0.27.0 (commit `59cb49b`), re-run 2026-11-11 on 0.29.0 with STORY-0150 (`results.json` records the commit of the latest run). Competitor columns: not run.
+Measured 2026-11-19 on commit `6d48ab9` (the code that is released as 0.34.0; the release commit changes the version only, so `results.json` says 0.33.0). SkillSpector v2.12.0 in static mode (`--no-llm`), Cisco mcp-scanner 4.8.7 with the YARA analyzer only. Every scanner ran on this machine and sent nothing away. No input gave an error for any scanner. Earlier runs of this table (2026-11-04 on 0.27.0, 2026-11-11 on 0.29.0) had Credenzo only.
 
-| Corpus (basis) | mcp-audit, any severity | mcp-audit, HIGH or above | SkillSpector | Cisco mcp-scanner | Snyk agent-scan |
-|---|---|---|---|---|---|
-| MCPTox poisoned: recall (1,312 cases) | 74.7% (980/1312) | 69.3% (909/1312) | not run | not run | not run: needs remote analysis |
-| MCPTox clean: flag rate (353 tools) | 0.6% (2/353) | 0.0% (0/353) | not run | not run | not run: needs remote analysis |
-| Hiding techniques: recall (8 skills) | 100% (8/8) | 100% (8/8) | not run | not run | not run: needs remote analysis |
-| Hiding twins: flag rate (9 skills) | 55.6% (5/9) | 0.0% (0/9) | not run | not run | not run: needs remote analysis |
-| Benign checklists: flag rate (4 skills) | 50.0% (2/4) | 0.0% (0/4) | not run | not run | not run: needs remote analysis |
+Each cell is "any severity / HIGH or above".
 
-The MCPTox rows reproduce `docs/research/poisoning-benchmark/results.json` (980/1312, 909/1312, 2/353), which is a check that this harness measures what `bench_poisoning.py` does.
+| Corpus (basis) | Credenzo | SkillSpector static | Cisco YARA | Snyk agent-scan |
+|---|---|---|---|---|
+| MCPTox poisoned: recall (1,312 cases) | 76.6% (1005) / 70.6% (926) | 22.5% (295) / 11.7% (154) | 21.1% (277) / 21.1% (277) | not run: needs remote analysis |
+| MCPTox clean: flag rate (353 tools) | 0.6% (2) / 0.0% (0) | 1.7% (6) / 0.6% (2) | 0.9% (3) / 0.9% (3) | not run: needs remote analysis |
+| Hiding techniques: recall (8 skills) | 8 / 8 | 7 / 6 | 6 / 6 | not run: needs remote analysis |
+| Hiding twins: flag rate (9 skills) | 5 / 0 | 5 / 3 | 0 / 0 | not run: needs remote analysis |
+| Benign checklists: flag rate (4 skills) | 2 / 0 | 1 / 1 | 2 / 2 | not run: needs remote analysis |
 
-### What the mcp-audit numbers say, including where it is wrong
+The Credenzo MCPTox rows reproduce `docs/research/poisoning-benchmark/results.json` (1005/1312, 926/1312, 2/353), which is a check that this harness measures what `bench_poisoning.py` does.
 
-- All eight payloads are found at HIGH, in every hiding technique, on this corpus of eight.
-- **Padding twins are flagged.** POISON-045 reports text after 78 or more blank lines (or 200 or more spaces) at MEDIUM even when that text is harmless, so all three blank-line twins and the spaces twin are flagged at MEDIUM. That is by design (hidden text is worth a look) and it is a false alarm on these twins.
-- **The Scotland flag emoji is flagged** (POISON-042, LOW): its tag characters are decoded as a hidden channel.
-- **Two of four benign checklists are listed at INFO, none at HIGH.** On 0.27.0 `ssh-key-hygiene-review` (a checklist line "removed from authorized_keys") and `secrets-in-ci-checklist` (a checklist line naming `~/.aws/credentials`) were SKILL-001 HIGH: a false alarm this benchmark found. STORY-0150 reads a checklist item that states a condition about a credential file as described, so both are now SKILL-001 INFO "described, not directed" (still counted under "any severity").
-- The MCPTox rates are on tool descriptions; mcp-audit's weak spot there is poisoning with no wrapper (see `docs/poisoning.md`).
+### How to read this table
+
+- **MCPTox is in-sample for Credenzo.** Credenzo's text checks were measured on MCPTox while they were written. The two other scanners did not have that advantage. The row shows that Credenzo reads these texts; it does not show what Credenzo finds in a new attack. On a set that nobody had looked at (MCP Security Bench), Credenzo's word lists found 0 of 42 tools ([`../copy-checks/`](../copy-checks/README.md)).
+- **Most of Credenzo's lead on MCPTox is the wrapper.** 877 of the 1,312 cases put the payload in an "important" tag or an "ignore previous" wrapper, and Credenzo finds all of those. On the 435 cases with no wrapper Credenzo finds 128. A separate measurement gives the three scanners on text with no wrapper: on 485 distinct descriptions (MCPTox `pure_tool.json`, another file than the 1,312 cases) Credenzo finds 149, SkillSpector 111 and Cisco 99 ([`landscape-2026-11.md`](landscape-2026-11.md)).
+- **Each scanner reads part of the corpus outside its own format.** SkillSpector is a skill scanner: it got each MCPTox tool description as a `SKILL.md`. Cisco's scanner reads tool lists: it got each skill as the description of one tool. A scanner can do worse on a format that it was not written for.
+- **The three small sets have 8, 9 and 4 files.** One file moves a rate by 11 to 25 points. Read them as cases, not as rates.
+- **Severity scales differ.** Cisco's YARA verdict has one level here, so its two numbers are equal.
+
+### What the numbers say for each scanner
+
+- **Hiding techniques.** Credenzo finds all 8 payloads at HIGH. SkillSpector finds the 7 hidden ones and gives no finding for the same payload in plain sight (`visible-payload`); the 250-spaces case is below HIGH. Cisco's YARA rules miss the Unicode TAG and the zero-width cases.
+- **Hiding twins (harmless files).** Credenzo flags 5 of 9, none at HIGH: the three blank-line twins and the spaces twin at MEDIUM (POISON-045 reports hidden text even when it is harmless; that is by design and it is a false alarm on these twins) and the Scotland flag emoji at LOW (POISON-042). SkillSpector flags the same 5, and the three blank-line twins at HIGH. Cisco flags none.
+- **Benign checklists.** Credenzo lists 2 of 4 at INFO ("described, not directed", STORY-0150) and none at HIGH. SkillSpector flags `secrets-in-ci-checklist` at HIGH. Cisco flags `ssh-key-hygiene-review` and `secrets-in-ci-checklist` at HIGH.
+- **MCPTox clean tools.** Credenzo flags 2 of 353 (POISON-050, none at HIGH), Cisco 3, SkillSpector 6 (2 at HIGH).
+- Credenzo's weak spot on MCPTox is poisoning with no wrapper (see `docs/poisoning.md`).
 
 ## How to run it
 

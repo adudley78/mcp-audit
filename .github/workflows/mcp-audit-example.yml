@@ -26,7 +26,7 @@ jobs:
         # Pin to a published release tag.  Switch to `@v1` once a major v1.x
         # release exists on GitHub Marketplace (the `v1` ref will then track
         # the latest 1.x release automatically).
-        uses: adudley78/credenzo@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
+        uses: adudley78/credenzo@12b4c086218cfbb218fa5f5159b4a81113110316 # v0.34.0
         with:
           severity-threshold: high
           upload-sarif: 'true'

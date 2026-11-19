@@ -48,7 +48,7 @@ jobs:
 
       # Install the Credenzo binary from GitHub Releases (cached by version+OS).
       - name: Install Credenzo
-        uses: adudley78/credenzo/setup-action@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
+        uses: adudley78/credenzo/setup-action@12b4c086218cfbb218fa5f5159b4a81113110316 # v0.34.0
         with:
           version: 'latest'
           github-token: ${{ secrets.GITHUB_TOKEN }}
