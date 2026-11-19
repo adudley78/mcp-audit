@@ -11,7 +11,10 @@ the honest server and one more server that holds the tool, and runs:
 
 - the POISON-* text checks on the tool,
 - the checks that read the session: COLLIDE-001, COLLIDE-002, COLLIDE-003 and
-  DELEG-001..003.
+  DELEG-001..003.  A finding counts when it names the tool.  COLLIDE-001 and
+  COLLIDE-003 name two tools and do not say which one is the copy;
+- the lock guard (``collision.copies_of_approved_tools``) with the honest
+  server approved first.
 
 Controls for COLLIDE-003 (it needs real descriptions):
 
@@ -144,9 +147,16 @@ def measure_attacks(msb: dict[str, dict[str, Any]]) -> dict[str, Any]:
                         {server: honest, "attacker": [(name, text)]}
                     )
                     if (f.tool == name and f.server == "attacker")
-                    or (f.id == "COLLIDE-001" and f"'{name}'" in f.title)
+                    or (f.id.startswith("COLLIDE-") and f"'{name}'" in f.title)
                 ]
                 texts = bp.poison_findings(bp.ToolDef(name, text, {}))
+                # The guard: the honest server was locked first, then the
+                # attack server arrived.  Is the attack tool left out?
+                withheld = collision.copies_of_approved_tools(
+                    _pairs({server: honest, "attacker": [(name, text)]}),
+                    lambda srv, _tool: srv.name != "attacker",
+                )
+                row["withheld_by_the_lock_guard"] += bool(withheld)
                 row["tools"] += 1
                 row["text_checks"] += bool(texts)
                 row["session_checks"] += bool(found)

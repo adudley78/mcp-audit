@@ -30,6 +30,7 @@ Research basis:
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from mcp_audit.models import Finding, ServerConfig, ServerEnumeration, Severity
 from mcp_audit.registry.loader import KnownServerRegistry
@@ -432,8 +433,10 @@ MAX_DESCRIPTION_COPY_FINDINGS = 100
 #: A description is read to this many characters and this many sentences.
 _MAX_DESCRIPTION_CHARS = 20_000
 _MAX_SENTENCES = 64
-#: Tools that may share one first sentence in the index.
-_MAX_OWNERS_PER_SENTENCE = 8
+#: Tools of one server, and servers, that may share one sentence in the index.
+#: The cap is per server: a server cannot fill the index for another server.
+_MAX_OWNERS_PER_SERVER = 4
+_MAX_SERVERS_PER_SENTENCE = 32
 #: Sentence comparisons one scan may make.  A hostile server chooses its text.
 _COPY_WORK_BUDGET = 2_000_000
 #: A sentence of this many words or more is a "long" sentence.
@@ -474,176 +477,253 @@ def _is_name_plus_words(longer: str, shorter: str) -> bool:
 class _Described:
     """One tool with the parts of its description that the check compares."""
 
-    __slots__ = ("identity", "name", "all", "long", "long_words", "words")
+    __slots__ = ("server", "identity", "name", "all", "long", "long_words", "words")
 
-    def __init__(self, identity: tuple, name: str, description: str | None) -> None:
-        self.identity = identity
+    def __init__(self, server: ServerConfig, name: str, text: str | None) -> None:
+        self.server = server
+        self.identity = _server_identity(server)
         self.name = name
-        self.all = _sentences(description)
+        self.all = _sentences(text)
         self.long = [s for s in self.all if s.count(" ") + 1 >= _LONG_SENTENCE_WORDS]
         self.long_words = sum(s.count(" ") + 1 for s in self.long)
         self.words = sum(s.count(" ") + 1 for s in self.all)
 
 
-def detect_description_copies(
+class DescriptionCopy:
+    """*holder*'s description holds the description of *held* (another server)."""
+
+    __slots__ = ("holder", "held", "added_text", "names_differ_by_words")
+
+    def __init__(self, holder: _Described, held: _Described) -> None:
+        self.holder = holder
+        self.held = held
+        #: The holder has text that the held tool does not have.
+        self.added_text = holder.words - held.words >= _ADDED_WORDS
+        #: One name is the other name plus one or two words.
+        self.names_differ_by_words = _is_name_plus_words(
+            holder.name, held.name
+        ) or _is_name_plus_words(held.name, holder.name)
+
+
+def find_description_copies(
     pairs: list[tuple[ServerConfig, ServerEnumeration]],
     errors: list[str] | None = None,
-) -> list[Finding]:
-    """Report a tool that carries another server's tool description (COLLIDE-003).
+    *,
+    same_names: bool = False,
+) -> list[DescriptionCopy]:
+    """Return each pair of tools on two servers where one text holds the other.
 
-    Tool A on one server copies tool B on another server when the two names
-    differ and each long sentence of B's description is a sentence of A's
-    description (B's long sentences hold ten words or more).  When A's name is
-    also B's name plus one or two words, four words of description are enough
-    and each sentence of B must be in A.
+    Tool A holds tool B's description when the names differ and each long
+    sentence of B (five words or more, ten or more in all) is a sentence of
+    A.  When one name is the other name plus one or two words, four words of
+    description are enough and each sentence of B must be in A.
 
-    - **HIGH**: the description is copied and the name is the other name plus
-      one or two words (``execute_command_v1`` beside ``execute_command``).
-    - **MEDIUM**: the description is copied under a name of its own, with or
-      without added text.  Servers of one vendor share tools this way.
+    The result says that two tools carry one description.  It cannot say
+    which tool was first: a hostile server can take the short name and copy
+    the text of an honest tool with a longer name.  Callers that need a
+    direction use a fact from outside the text (which tool was approved
+    before, which server the registry knows).
 
-    The same name on two servers is COLLIDE-001 and is not reported here.
-    Reads names and descriptions only.  The copied text itself is not put in
-    the finding.
+    With *same_names*, two tools with one name are compared too (COLLIDE-001
+    reports those in a scan; the lock guard needs them).
 
-    Args:
-        pairs: ``(ServerConfig, ServerEnumeration)`` from the ``--connect`` loop.
-        errors: When given, gets one line if the scan left comparisons out.
-
-    Returns:
-        ``COLLIDE-003`` findings, one per copying tool at most,
-        ``MAX_DESCRIPTION_COPY_FINDINGS`` in all, HIGH first.
+    Work is bounded: ``_COPY_WORK_BUDGET`` sentence comparisons, and
+    ``_MAX_OWNERS_PER_SERVER`` tools of one server under one sentence.  When a
+    bound leaves something out, *errors* gets one line.
     """
     live = [(s, e) for s, e in pairs if not e.error]
     if len(live) < 2:
         return []
-    by_identity: dict[tuple, ServerConfig] = {}
-    tools: list[_Described] = []
-    for server, enum in live:
-        identity = _server_identity(server)
-        by_identity.setdefault(identity, server)
-        tools.extend(_Described(identity, t.name, t.description) for t in enum.tools)
+    tools = [
+        _Described(server, t.name, t.description)
+        for server, enum in live
+        for t in enum.tools
+    ]
+    by_long: dict[str, dict[tuple, list[_Described]]] = {}
+    by_first: dict[str, dict[tuple, list[_Described]]] = {}
+    dropped = False
 
-    by_long: dict[str, list[_Described]] = {}
-    by_first: dict[str, list[_Described]] = {}
+    def add(
+        index: dict[str, dict[tuple, list[_Described]]], key: str, tool: _Described
+    ) -> bool:
+        servers = index.setdefault(key, {})
+        owners = servers.get(tool.identity)
+        if owners is None:
+            if len(servers) >= _MAX_SERVERS_PER_SENTENCE:
+                return False
+            owners = servers[tool.identity] = []
+        if len(owners) >= _MAX_OWNERS_PER_SERVER:
+            return False
+        owners.append(tool)
+        return True
+
     for tool in tools:
         if tool.long and tool.long_words >= _MIN_COPIED_WORDS:
             # The longest sentence says most about which tool this is.
-            owners = by_long.setdefault(max(tool.long, key=len), [])
-            if len(owners) < _MAX_OWNERS_PER_SENTENCE:
-                owners.append(tool)
+            dropped |= not add(by_long, max(tool.long, key=len), tool)
         if tool.all and tool.words >= _MIN_COPIED_WORDS_WITH_NAME:
-            owners = by_first.setdefault(tool.all[0], [])
-            if len(owners) < _MAX_OWNERS_PER_SENTENCE:
-                owners.append(tool)
+            dropped |= not add(by_first, tool.all[0], tool)
 
     budget = _COPY_WORK_BUDGET
-    high: list[tuple[_Described, _Described, str]] = []
-    medium: list[tuple[_Described, _Described, str]] = []
-    reported: set[tuple[tuple, str]] = set()
+    found: list[DescriptionCopy] = []
+    seen: set[frozenset[int]] = set()
 
-    def record(a: _Described, b: _Described, long_copy: bool) -> None:
-        """Add the pair once, on the tool that is the copy."""
-        if b.words - a.words >= _ADDED_WORDS:
-            return  # b holds a's text and more: seen with the roles the other way
-        added = a.words - b.words >= _ADDED_WORDS
-        if _is_name_plus_words(a.name, b.name):
-            copy, original, bucket = a, b, high
-            kind = "added text, name" if added else "name"
-        elif not added and long_copy and _is_name_plus_words(b.name, a.name):
-            copy, original, bucket, kind = b, a, high, "name"
-        elif long_copy:
-            copy, original, bucket = a, b, medium
-            kind = "added text" if added else "same text"
-        else:
-            return
-        key = (copy.identity, copy.name)
-        mirror = (original.identity, original.name)
-        if key in reported or (kind == "same text" and mirror in reported):
-            return
-        reported.add(key)
-        bucket.append((copy, original, kind))
+    def candidates(
+        index: dict[str, dict[tuple, list[_Described]]], a: _Described, key: str
+    ):  # noqa: ANN202
+        for identity, owners in index.get(key, {}).items():
+            if identity != a.identity:
+                yield from owners
 
     for a in tools:
         if budget <= 0:
             break
         sentences = set(a.all)
         for sentence in a.all:
-            for b in by_long.get(sentence, ()):
+            for b in candidates(by_long, a, sentence):
                 budget -= len(b.long)
                 if (
-                    b.identity != a.identity
-                    and b.name != a.name
+                    (same_names or b.name != a.name)
+                    and a.words >= b.words
                     and all(s in sentences for s in b.long)
                 ):
-                    record(a, b, True)
-            for b in by_first.get(sentence, ()):
+                    pair = frozenset((id(a), id(b)))
+                    if pair not in seen:
+                        seen.add(pair)
+                        found.append(DescriptionCopy(a, b))
+            for b in candidates(by_first, a, sentence):
                 budget -= len(b.all)
                 if (
-                    b.identity != a.identity
-                    and b.name != a.name
+                    (same_names or b.name != a.name)
+                    and a.words >= b.words
+                    and (
+                        (same_names and a.name == b.name)
+                        or _is_name_plus_words(a.name, b.name)
+                        or _is_name_plus_words(b.name, a.name)
+                    )
                     and all(s in sentences for s in b.all)
                 ):
-                    record(a, b, False)
-    if budget <= 0 and errors is not None:
-        errors.append(
-            "COLLIDE-003: too many tool descriptions to compare; some were left out"
-        )
+                    pair = frozenset((id(a), id(b)))
+                    if pair not in seen:
+                        seen.add(pair)
+                        found.append(DescriptionCopy(a, b))
+    if errors is not None:
+        if budget <= 0:
+            errors.append(
+                "COLLIDE-003: too many tool descriptions to compare; some were left out"
+            )
+        if dropped:
+            errors.append(
+                "COLLIDE-003: one server lists many tools with the same"
+                " sentence; some of its tools were not compared"
+            )
+    return found
 
-    findings: list[Finding] = []
-    chosen = [(c, o, k, Severity.HIGH) for c, o, k in high]
-    chosen += [(c, o, k, Severity.MEDIUM) for c, o, k in medium]
-    if len(chosen) > MAX_DESCRIPTION_COPY_FINDINGS and errors is not None:
+
+def detect_description_copies(
+    pairs: list[tuple[ServerConfig, ServerEnumeration]],
+    errors: list[str] | None = None,
+    registry: KnownServerRegistry | None = None,
+) -> list[Finding]:
+    """Report two tools on two servers that carry one description (COLLIDE-003).
+
+    The agent cannot tell such tools apart by what they say.  A server that
+    wants its tool called in the place of a trusted one copies the trusted
+    tool's description; the copied text is honest, so a check of one
+    description does not see it.
+
+    - **MEDIUM**: the fact alone.  It is the same for an attack and for an
+      honest duplicate (two servers of one vendor, a gateway beside the
+      server that it fronts, a fork).  The text does not say which tool was
+      first, so the finding names both.
+    - **HIGH**: the registry knows one of the two servers and not the other.
+      The finding is on the tool of the unknown server.
+
+    The same name on two servers is COLLIDE-001 and is not reported here.
+    The copied text is not put in the finding.
+
+    Args:
+        pairs: ``(ServerConfig, ServerEnumeration)`` from the ``--connect`` loop.
+        errors: When given, gets one line if the scan left comparisons out.
+        registry: When given, decides the HIGH case.
+
+    Returns:
+        ``COLLIDE-003`` findings, one per pair of tools,
+        ``MAX_DESCRIPTION_COPY_FINDINGS`` in all, HIGH first.
+    """
+    rows: list[tuple[Severity, _Described, _Described, DescriptionCopy]] = []
+    for copy in find_description_copies(pairs, errors):
+        first, second = copy.holder, copy.held
+        severity = Severity.MEDIUM
+        if registry is not None:
+            known_first = _is_registry_known(first.server, registry)
+            known_second = _is_registry_known(second.server, registry)
+            if known_first != known_second:
+                severity = Severity.HIGH
+                if known_first:
+                    first, second = second, first
+        rows.append((severity, first, second, copy))
+    rows.sort(key=lambda row: row[0] != Severity.HIGH)
+    if len(rows) > MAX_DESCRIPTION_COPY_FINDINGS and errors is not None:
         errors.append(
             "COLLIDE-003: more description copies than"
             f" {MAX_DESCRIPTION_COPY_FINDINGS}; the rest are not listed"
         )
-    for copy, original, kind, severity in chosen[:MAX_DESCRIPTION_COPY_FINDINGS]:
-        sa, sb = by_identity[copy.identity], by_identity[original.identity]
-        named = severity == Severity.HIGH
+    findings: list[Finding] = []
+    for severity, first, second, copy in rows[:MAX_DESCRIPTION_COPY_FINDINGS]:
+        sa, sb = first.server, second.server
+        high = severity == Severity.HIGH
+        how = (
+            f"'{copy.holder.name}' holds the {copy.held.words}-word description"
+            f" of '{copy.held.name}' and {copy.holder.words - copy.held.words}"
+            " more words"
+            if copy.added_text
+            else f"the two descriptions are the same {copy.held.words} words"
+        )
+        names = (
+            "  One name is the other name plus one or two words."
+            if copy.names_differ_by_words
+            else ""
+        )
         findings.append(
             Finding(
                 id="COLLIDE-003",
                 severity=severity,
                 analyzer="collision",
                 client=sa.client if sa.client == sb.client else "multiple",
-                server=sa.name,
-                tool=copy.name,
+                server=sa.name if high else f"{sa.name} + {sb.name}",
+                tool=first.name,
                 title=(
-                    f"Tool '{copy.name}' carries the description of"
-                    f" '{original.name}' on another server"
+                    f"Tool '{first.name}' carries the description of"
+                    f" '{second.name}', a tool of a known server"
+                    if high
+                    else f"Tools '{first.name}' and '{second.name}' on two"
+                    " servers carry one description"
                 ),
                 description=(
-                    f"Server '{sa.name}' lists the tool '{copy.name}'.  Its"
-                    f" description holds the description of '{original.name}'"
-                    f" on server '{sb.name}'"
-                    + (" with more text added.  " if "added" in kind else ".  ")
+                    f"Server '{sa.name}' lists '{first.name}' and server"
+                    f" '{sb.name}' lists '{second.name}': {how}.{names}  The"
+                    " agent cannot tell the two tools apart by what they say."
                     + (
-                        "Its name is also the other name plus one or two"
-                        " words.  A server that wants the agent to call its"
-                        " tool in the place of a trusted one copies the tool"
-                        " this way.  The copied text is honest, so a check of"
-                        " one description does not see it."
-                        if named
-                        else "The agent sees two tools that say they do the"
-                        " same job.  Servers of one vendor can share a tool;"
-                        " a server you did not expect to copy another one"
-                        " should not."
+                        f"  The registry knows '{sb.name}' and does not know"
+                        f" '{sa.name}'."
+                        if high
+                        else "  The text does not show which tool was first."
+                        "  Two servers of one vendor, a gateway and the server"
+                        " that it fronts, or a fork can share a tool this way;"
+                        " so can a server that copies a trusted tool."
                     )
                 ),
                 evidence=(
-                    f"'{copy.name}' ({sa.name}) holds the {original.words}-word"
-                    f" description of '{original.name}' ({sb.name});"
-                    f" its own description has {copy.words} words"
+                    f"'{first.name}' ({sa.name}) and '{second.name}'"
+                    f" ({sb.name}): {how}"
                     " (detected via --connect live enumeration)"
                 ),
                 remediation=(
-                    f"Check that you installed '{sa.name}' on purpose and"
-                    f" compare what '{copy.name}' and '{original.name}' do."
-                    "  Remove the server that you did not expect."
-                    if named
-                    else "Check that both servers are the ones you expect."
-                    "  If they are from one vendor, no action is needed."
+                    "Check that you installed both servers on purpose and that"
+                    " you expect both tools.  Remove the server that you did"
+                    " not expect.  `credenzo lock --connect` does not approve"
+                    " a new tool that copies a tool you approved before."
                 ),
                 cwe="CWE-694",
                 owasp_mcp_top_10=["MCP03", "MCP09"],
@@ -651,3 +731,47 @@ def detect_description_copies(
             )
         )
     return findings
+
+
+def copies_of_approved_tools(
+    pairs: list[tuple[ServerConfig, ServerEnumeration]],
+    is_approved: Callable[[ServerConfig, str], bool],
+    errors: list[str] | None = None,
+) -> list[tuple[ServerConfig, str, ServerConfig, str]]:
+    """Return each tool that is not approved and copies an approved tool.
+
+    The text of two tools does not show which was first.  The lock does: a
+    tool that the user approved before is the original, and a tool that is
+    new and carries its description (under the same name or another name) is
+    the copy.  A hostile server cannot
+    change that order by the names it picks.
+
+    Two servers that launch the same package are one product installed two
+    times; their tools are not copies of each other.
+
+    Args:
+        pairs: ``(ServerConfig, ServerEnumeration)`` of the servers to lock.
+        is_approved: Whether the lock already holds this tool of this server.
+        errors: Gets one line when a bound left comparisons out.
+
+    Returns:
+        ``(server, tool, original server, original tool)`` for each copy.
+    """
+    from mcp_audit.analyzers.supply_chain import launch_package  # noqa: PLC0415
+
+    out: list[tuple[ServerConfig, str, ServerConfig, str]] = []
+    done: set[tuple[int, str]] = set()
+    for copy in find_description_copies(pairs, errors, same_names=True):
+        for new, old in ((copy.holder, copy.held), (copy.held, copy.holder)):
+            if is_approved(new.server, new.name) or not is_approved(
+                old.server, old.name
+            ):
+                continue
+            package = launch_package(new.server)
+            if package is not None and package == launch_package(old.server):
+                continue
+            key = (id(new.server), new.name)
+            if key not in done:
+                done.add(key)
+                out.append((new.server, new.name, old.server, old.name))
+    return out

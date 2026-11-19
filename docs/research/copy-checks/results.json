@@ -28,44 +28,49 @@
     "name_overlap": {
      "by_id:COLLIDE-003": 24,
      "either": 24,
-     "either_high_or_above": 24,
+     "either_high_or_above": 0,
      "session_checks": 24,
      "text_checks": 0,
-     "tools": 24
+     "tools": 24,
+     "withheld_by_the_lock_guard": 24
     },
     "out_of_scope_parameter": {
      "by_id:COLLIDE-001": 12,
      "by_id:COLLIDE-003": 6,
      "either": 18,
-     "either_high_or_above": 6,
+     "either_high_or_above": 0,
      "session_checks": 18,
      "text_checks": 0,
-     "tools": 18
+     "tools": 18,
+     "withheld_by_the_lock_guard": 18
     },
     "preference_manipulation": {
      "by_id:COLLIDE-001": 1,
      "by_id:COLLIDE-003": 17,
      "either": 18,
-     "either_high_or_above": 12,
+     "either_high_or_above": 0,
      "session_checks": 18,
      "text_checks": 0,
-     "tools": 18
+     "tools": 18,
+     "withheld_by_the_lock_guard": 18
     },
     "preference_manipulation-out_of_scope_parameter": {
      "by_id:COLLIDE-003": 18,
      "either": 18,
-     "either_high_or_above": 13,
+     "either_high_or_above": 0,
      "session_checks": 18,
      "text_checks": 0,
-     "tools": 18
+     "tools": 18,
+     "withheld_by_the_lock_guard": 18
     },
     "tool_transfer": {
-     "by_id:COLLIDE-003": 13,
-     "either": 13,
-     "either_high_or_above": 13,
-     "session_checks": 13,
+     "by_id:COLLIDE-003": 18,
+     "either": 18,
+     "either_high_or_above": 0,
+     "session_checks": 18,
      "text_checks": 0,
-     "tools": 18
+     "tools": 18,
+     "withheld_by_the_lock_guard": 18
     }
    },
    "msb_honest_one_session": {
@@ -85,7 +90,7 @@
     "random_sessions_with_collide_003_high": 0,
     "every_server_in_one_session": {
      "findings_capped_at": 100,
-     "findings": 100
+     "findings": 47
     }
    }
   },
@@ -163,115 +168,206 @@
    "attack_sessions": {
     "sessions": 40,
     "session_checks": 33,
-    "session_checks_high": 7,
-    "text_checks": 2
+    "found_by_collide_001_only": 11,
+    "found_by_collide_003": 20,
+    "found_only_by_collide_003": 15,
+    "session_checks_high": 0,
+    "text_checks": 2,
+    "withheld_by_the_lock_guard": 27,
+    "guard_withheld_another_tool": 0
    },
    "attack_sessions_by_strategy": {
     "abbreviated or singular/plural name, verbatim description": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 2,
+     "found_only_by_collide_003": 2,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     },
     "casing or separator changed in name, verbatim description": {
      "sessions": 3,
      "session_checks": 3,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 3,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 3,
+     "guard_withheld_another_tool": 0
     },
     "different name, description says it replaces the original tool": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 0,
+     "guard_withheld_another_tool": 0
     },
     "different name, fresh description of the same function": {
      "sessions": 3,
      "session_checks": 0,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 0,
+     "guard_withheld_another_tool": 0
     },
     "exact name, description copied with small edits": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 2,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 0,
+     "guard_withheld_another_tool": 0
     },
     "exact name, preference text prepended to copied description": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 2,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     },
     "exact name, shortened copy of description": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 2,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 0,
+     "guard_withheld_another_tool": 0
     },
     "exact name, verbatim description (duplicate)": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 2,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     },
     "exact name, verbatim description plus promotional text appended": {
      "sessions": 3,
      "session_checks": 3,
+     "found_by_collide_001_only": 3,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 3,
+     "guard_withheld_another_tool": 0
     },
     "homoglyph letters in name, verbatim description": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 2,
+     "found_only_by_collide_003": 2,
      "session_checks_high": 0,
-     "text_checks": 2
+     "text_checks": 2,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     },
     "misspelled name (typo), verbatim description": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 2,
+     "found_only_by_collide_003": 2,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     },
     "name and description claim official vendor status": {
      "sessions": 2,
      "session_checks": 1,
-     "session_checks_high": 1,
-     "text_checks": 0
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 1,
+     "found_only_by_collide_003": 1,
+     "session_checks_high": 0,
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 1,
+     "guard_withheld_another_tool": 0
     },
     "qualifier word added to name, verbatim description": {
      "sessions": 2,
      "session_checks": 2,
-     "session_checks_high": 2,
-     "text_checks": 0
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 2,
+     "found_only_by_collide_003": 1,
+     "session_checks_high": 0,
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     },
     "service prefix added to name, verbatim description": {
      "sessions": 3,
      "session_checks": 3,
-     "session_checks_high": 3,
-     "text_checks": 0
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 3,
+     "found_only_by_collide_003": 3,
+     "session_checks_high": 0,
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 3,
+     "guard_withheld_another_tool": 0
     },
     "synonym name, paraphrased description": {
      "sessions": 3,
      "session_checks": 0,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 0,
+     "found_only_by_collide_003": 0,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 0,
+     "guard_withheld_another_tool": 0
     },
     "version suffix on name, verbatim description": {
      "sessions": 3,
      "session_checks": 3,
-     "session_checks_high": 1,
-     "text_checks": 0
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 3,
+     "found_only_by_collide_003": 2,
+     "session_checks_high": 0,
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 3,
+     "guard_withheld_another_tool": 0
     },
     "word order swapped in name, verbatim description": {
      "sessions": 2,
      "session_checks": 2,
+     "found_by_collide_001_only": 0,
+     "found_by_collide_003": 2,
+     "found_only_by_collide_003": 2,
      "session_checks_high": 0,
-     "text_checks": 0
+     "text_checks": 0,
+     "withheld_by_the_lock_guard": 2,
+     "guard_withheld_another_tool": 0
     }
    },
    "honest_sessions": {
     "sessions": 40,
+    "sessions_where_the_guard_withholds_a_tool": 6,
     "sessions_with:COLLIDE-001": 16,
     "sessions_with:COLLIDE-002": 1,
     "sessions_with:COLLIDE-003": 1,

@@ -416,7 +416,7 @@ lock time) — never confirmed against the registry
 | `--accept` | off | Re-write the lock from the current state, preserving each surviving entry's `first_locked` — the explicit "I reviewed the drift" step after a failed `--verify` |
 | `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'credenzo[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
 | `--save-tool-text` | off | With `--connect`: also write the tool definitions to `mcp-lock.tools.json` beside the lock. `mcp-lock.json` is unchanged. See [Saved tool text](#saved-tool-text---save-tool-text). |
-| `--allow-copies` | off | With `--connect`: also record a tool that copies another server's tool (a HIGH COLLIDE-002 or COLLIDE-003 finding). See [A copy is not approved](#a-copy-is-not-approved-story-0174). |
+| `--allow-copies` | off | With `--connect`: also record a new tool that carries the description of a tool of another server that the lock held before. See [A copy is not approved](#a-copy-is-not-approved-story-0174). |
 | `--tool-text-path` | `<lock dir>/mcp-lock.tools.json` | Where the tool-text file is written (with `--save-tool-text`) or read (with `--verify --connect`) |
 | `--connect-token` | none | Bearer token sent to remote (SSE/HTTP) servers during `--connect`. Never stored or logged. |
 | `--include-user` | off | Also lock user-global configs (for dotfiles repositories) |
@@ -538,14 +538,23 @@ your own workflow step.
 
 ## A copy is not approved (STORY-0174)
 
-`lock --connect` compares the tools of each server that it locks. A tool is a copy when its name is another server's tool name plus one or two words and it carries the other tool's description (`execute_command_v1` beside `execute_command`), or when its name is the other name plus words that only praise (`search_repositories_premium`). These are the HIGH findings COLLIDE-003 and COLLIDE-002 of `scan --connect`.
+Two tools on two servers can carry one description. The agent cannot tell them apart by what they say, and the text does not show which one was first. The lock does: it holds the tools that you approved before.
 
-A copy is left out of the lock. The command prints one `NOT APPROVED` line for it. After that:
+`lock --connect` leaves a tool out when all of these are true:
+
+- The lock does not hold the tool yet.
+- Its description holds the description of a tool of another server (under the same name or another name).
+- The lock holds that other tool.
+- The two servers do not launch the same package.
+
+The command prints one `NOT APPROVED` line for the tool. After that:
 
 - `lock --verify --connect` reports the tool as LOCK-006 (a tool that the lock does not hold) and exits 1.
-- `credenzo run --mode enforce` withholds the tool. The agent's tool list holds the original only, so the agent cannot pick the copy.
+- `credenzo run --mode enforce` withholds the tool. The agent's tool list holds the tool that you approved before.
 
-If you expect the tool, lock again with `--allow-copies`. The check reads names and descriptions; it does not judge what the tool does. A copy with a description in new words is recorded like each other tool. The measurements are in [research/copy-checks/](research/copy-checks/README.md).
+If you expect the tool (a fork, a gateway beside the server that it fronts), lock again with `--allow-copies`.
+
+Limits: a first lock has no earlier record, so it records both tools; `scan --connect` reports the pair as COLLIDE-003. A server that you locked first counts as the original, whoever wrote it. A copy with a description in new words is recorded like each other tool. The measurements are in [research/copy-checks/](research/copy-checks/README.md).
 
 ## Saved tool text (`--save-tool-text`)
 
