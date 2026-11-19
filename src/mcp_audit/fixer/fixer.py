@@ -169,6 +169,18 @@ def run_fix(
         id_ for ft in active_types for id_ in _FIX_TYPE_IDS[ft]
     )
     fixable = [f for f in findings if f.id in active_ids]
+    # A Claude Code local-scope server (STORY-0175) sits under
+    # ``projects.<path>.mcpServers``; the strategies edit the top-level server
+    # map only, where the same name can be another server.  Never edit by name.
+    local_scope = [f for f in fixable if f.client == "claude-code-local"]
+    if local_scope:
+        fixable = [f for f in fixable if f.client != "claude-code-local"]
+        for finding in local_scope:
+            result.skipped.append(
+                f"Skipped {finding.id} on {finding.server!r}: a Claude Code "
+                "local-scope server is not edited by fix; change it with "
+                "`claude mcp remove` and `claude mcp add`"
+            )
 
     if not fixable:
         result.no_fixable = True

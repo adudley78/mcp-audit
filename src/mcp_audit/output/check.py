@@ -523,9 +523,13 @@ _HINTS: dict[str, str] = {
 
 #: Clients whose configs ``fix`` never edits.
 #: MCP gateway upstreams (STORY-0111) live in the gateway's own file and
-#: format, which ``fix`` does not write.
+#: format, which ``fix`` does not write.  A Claude Code local-scope server
+#: (STORY-0175) sits under ``projects.<path>`` in ``~/.claude.json``, which
+#: ``fix`` does not edit.
 _NOT_FIXED_CLIENTS = (
-    frozenset({"claude-code-skill", "opencode", "opencode-project"})
+    frozenset(
+        {"claude-code-skill", "claude-code-local", "opencode", "opencode-project"}
+    )
     | GATEWAY_UPSTREAM_CLIENTS
 )
 

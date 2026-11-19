@@ -12,7 +12,7 @@ and the like) and reports every server it finds there as TRUST-001.
 | Cursor | `~/.cursor/mcp.json` | `.cursor/mcp.json`, `.cursor/settings.json` | `mcpServers` | JSON |
 | VS Code | – | `.vscode/mcp.json` | `servers` | JSON |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` | – | `mcpServers` | JSON |
-| Claude Code | `~/.claude.json`, `~/.claude/settings.json` | `.mcp.json`, `.claude/settings.json`, `.claude/settings.local.json` | `mcpServers` | JSON |
+| Claude Code | `~/.claude.json` (top-level `mcpServers`, and the working directory's `projects.<path>.mcpServers`), `~/.claude/settings.json` | `.mcp.json`, `.claude/settings.json`, `.claude/settings.local.json` | `mcpServers` | JSON |
 | GitHub Copilot CLI | `~/.copilot/mcp-config.json` | – | `mcpServers` | JSON |
 | Augment Code | `~/.augment/settings.json` | – | `mcpServers` | JSON |
 | Amazon Q Developer | – | `.amazonq/mcp.json` (`--project` only) | `mcpServers` | JSON |
@@ -27,6 +27,30 @@ working directory's project file in a default scan carries `<client>-project`
 `claude-code-project`), so a
 repository server never shares a rug-pull identity with a user server of the
 same name. `scan --project` and `lock` use the plain client name.
+
+## Claude Code local-scope servers (STORY-0175)
+
+`claude mcp add` writes to the **local** scope by default. Claude Code stores
+such a server "in `~/.claude.json` under that project's path"
+([code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp), read
+2026-11-19): `projects.<project path>.mcpServers`, not the file's top-level
+`mcpServers`. Before STORY-0175 a default scan read only the top-level map, so it
+did not see these servers.
+
+- **What a scan reads.** A scan with no explicit path reads the local-scope
+  servers of the working directory's project. The docs do not say whether the
+  project path is the directory Claude Code started in or the repository
+  root, so both count: the working directory, then each parent up to the git
+  root. Outside a git repository only the working directory counts.
+- **Label.** The servers carry the client `claude-code-local`. A local-scope
+  server has precedence over a project or user server of the same name; each
+  is checked.
+- **One name in two of those directories.** Each is kept; the later ones are
+  named `name#2`...
+- **Not read:** the local-scope servers of another project (run the scan in
+  that project; `credenzo reach` lists every project's). `scan --path`,
+  `scan --project`, `lock`, `wrap`, `fix` and `affected --fix` do not read or edit local-scope
+  servers. See [GAPS.md](../GAPS.md).
 
 ## Codex (STORY-0110)
 

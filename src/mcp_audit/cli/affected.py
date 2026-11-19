@@ -183,6 +183,22 @@ def _run_fix(
     for server, row in pairs:
         if row.status is not Status.AFFECTED or not row.package:
             continue
+        if server.client == "claude-code-local":
+            # A Claude Code local-scope server (STORY-0175) sits under
+            # ``projects.<path>`` in ``~/.claude.json``.  The pin code edits
+            # the top-level server map, where the same name is another server.
+            skipped.append(
+                Pin(
+                    row.subject,
+                    str(server.config_path),
+                    server.name,
+                    row.package,
+                    row.version,
+                    skipped="a Claude Code local-scope server is not edited; "
+                    "change it with `claude mcp remove` and `claude mcp add`",
+                )
+            )
+            continue
         if row.dependency is not None:
             skipped.append(
                 Pin(

@@ -6,11 +6,13 @@ import datetime
 import json
 import os
 import tomllib
+from dataclasses import replace
 from pathlib import Path
 
 from mcp_audit.discovery import (
     AGENT_DEFINITION_CLIENT,
     CODEX_ROOT_KEY,
+    LOCAL_SCOPE_CLIENT,
     DiscoveredConfig,
 )
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS, read_gateway_servers
@@ -141,10 +143,96 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
         alt_key = "servers" if config.root_key == "mcpServers" else "mcpServers"
         servers_dict = data.get(alt_key)
 
-    if servers_dict is None or not isinstance(servers_dict, dict):
-        return []
+    servers: list[ServerConfig] = []
+    if isinstance(servers_dict, dict):
+        servers = _servers_from_dict(servers_dict, config)
+    if config.local_project_dirs:
+        servers += _local_scope_servers(data, config)
+    return servers
 
-    return _servers_from_dict(servers_dict, config)
+
+#: Most ``projects`` keys of ``~/.claude.json`` compared with the scan's
+#: directories; a file with more is hostile or broken, and the rest is noted.
+_MAX_LOCAL_PROJECT_KEYS = 50_000
+
+
+def _same_directory(key: str, directory: Path) -> bool:
+    """Whether a ``projects`` key of ``~/.claude.json`` names *directory*.
+
+    Compared as text first (case and separators as the platform compares
+    them).  A key with the same last component is also resolved, so a path
+    written through a symlink still matches.
+    """
+    if not key or "\x00" in key:
+        return False
+    try:
+        left = os.path.normcase(os.path.normpath(key))
+        right = os.path.normcase(os.path.normpath(str(directory)))
+    except (OSError, ValueError):
+        return False
+    if left == right:
+        return True
+    if os.path.basename(left) != os.path.basename(right):
+        return False
+    try:
+        return Path(key).resolve() == directory
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
+def _local_scope_servers(data: dict, config: DiscoveredConfig) -> list[ServerConfig]:
+    """Claude Code local-scope servers of the scan's project (STORY-0175).
+
+    ``claude mcp add`` writes to the local scope by default: the entry goes to
+    ``projects.<project path>.mcpServers`` in ``~/.claude.json``, not to the
+    file's top-level ``mcpServers``.  Each entry whose project path is one of
+    ``config.local_project_dirs`` becomes a server of client
+    ``claude-code-local``, nearest directory first.  A name that two of those
+    directories both define is kept once per directory, the later ones as
+    ``name#2``..., so none is dropped.
+
+    Only the scan's own project is read: the local servers of another project
+    are not part of a Claude Code session here.
+    """
+    projects = data.get("projects")
+    if not isinstance(projects, dict):
+        return []
+    if len(projects) > _MAX_LOCAL_PROJECT_KEYS:
+        config.parse_warnings.append(
+            f"{config.path.name}: more than {_MAX_LOCAL_PROJECT_KEYS} projects; "
+            "local-scope servers were not read"
+        )
+        return []
+    local = replace(config, client_name=LOCAL_SCOPE_CLIENT)
+    servers: list[ServerConfig] = []
+    seen: dict[str, int] = {}
+    read: set[Path] = set()
+    for directory in config.local_project_dirs:
+        for key, entry in projects.items():
+            if not isinstance(key, str) or not isinstance(entry, dict):
+                continue
+            entries = entry.get("mcpServers")
+            if not isinstance(entries, dict) or not entries:
+                continue
+            if not _same_directory(key, directory):
+                continue
+            if directory in read:
+                # A second spelling of one directory (a trailing separator, a
+                # symlink).  Claude Code loads one entry; the first is read.
+                config.parse_warnings.append(
+                    f"{config.path.name}: more than one projects entry names "
+                    "the scan's directory; only the first was read"
+                )
+                continue
+            read.add(directory)
+            for server in _servers_from_dict(entries, local):
+                count = seen.get(server.name, 0) + 1
+                seen[server.name] = count
+                server.local_project = str(directory)
+                if count > 1:
+                    server.name = f"{server.name}#{count}"
+                servers.append(server)
+    return servers
 
 
 def _parse_agent_definition(config: DiscoveredConfig) -> list[ServerConfig]:

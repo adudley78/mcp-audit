@@ -209,7 +209,11 @@ def build_machine_reach(
 
     by_agent: dict[str, list[ServerConfig]] = {}
     for server in result.servers:
-        by_agent.setdefault(agent_of_client(server.client), []).append(server)
+        group = by_agent.setdefault(agent_of_client(server.client), [])
+        # The scan's own project's local-scope servers (STORY-0175) are left
+        # to claude.extra_servers(), which lists every project's once.
+        if server.client != "claude-code-local":
+            group.append(server)
     for agent_id in _present_without_servers(env):
         by_agent.setdefault(agent_id, [])
 

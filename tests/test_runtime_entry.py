@@ -28,9 +28,10 @@ HEAVY = (
 
 def test_run_path_imports_nothing_heavy() -> None:
     probe = (
-        "import json, sys\n"
+        "import json, os, sys\n"
         "sys.argv = ['mcp-audit', 'run', '--', sys.executable, '-c', 'pass']\n"
         "from mcp_audit import _entry\n"
+        "os._exit = sys.exit\n"  # `run` leaves with os._exit; keep the probe alive
         "try:\n"
         "    _entry.main()\n"
         "except SystemExit:\n"
@@ -119,3 +120,42 @@ def test_version_still_resolves_lazily() -> None:
     assert __version__ != ""
     with pytest.raises(AttributeError):
         _ = mcp_audit.no_such_attribute  # type: ignore[attr-defined]
+
+
+def test_run_leaves_without_tearing_the_interpreter_down(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A server that exits at once must not crash the wrapper at exit.
+
+    ``run`` loads the poisoning check on a daemon thread; a normal exit while
+    that thread still imports extension modules died with SIGABRT or SIGSEGV
+    (4 of 200 launches on a loaded machine).  The entry point leaves with
+    ``os._exit`` and the server's own exit code.
+    """
+    from mcp_audit import _entry
+
+    left: list[int] = []
+
+    def fake_exit(code: int) -> None:
+        left.append(code)
+        raise SystemExit(code)
+
+    monkeypatch.setattr("os._exit", fake_exit)
+    monkeypatch.setattr("mcp_audit.runtime.cli.main", lambda argv: 7)
+    monkeypatch.setattr(sys, "argv", ["credenzo", "run", "--", "server"])
+    with pytest.raises(SystemExit):
+        _entry.main()
+    assert left == [7]
+
+
+def test_other_commands_exit_the_normal_way(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mcp_audit import _entry
+
+    def fail(code: int) -> None:  # pragma: no cover - must not be called
+        raise AssertionError("os._exit called for a non-run command")
+
+    monkeypatch.setattr("os._exit", fail)
+    monkeypatch.setattr(sys, "argv", ["credenzo", "version"])
+    with pytest.raises(SystemExit) as stop:
+        _entry.main()
+    assert stop.value.code in (0, None)

@@ -2345,3 +2345,28 @@ def test_r6_3_inert_list_has_no_command_or_destination_keys() -> None:
     for key in INERT_KEYS:
         low = key.lower()
         assert not any(w in low for w in ("helper", "command", "url", "proxy")), key
+
+
+def test_a_local_scope_server_is_counted_once(box: Box) -> None:
+    """STORY-0175: the scan's copy is left to ``claude.extra_servers``."""
+    box.write(
+        ".claude.json",
+        {
+            "mcpServers": {"usr": {"command": "uvx", "args": ["a"]}},
+            "projects": {
+                str(box.cwd): {"mcpServers": {"loc": {"command": "npx", "args": ["b"]}}}
+            },
+        },
+    )
+    result = ScanResult(
+        servers=[
+            _server("usr", "claude-code", box.home),
+            _server("loc", "claude-code-local", box.home),
+        ]
+    )
+    report = build_machine_reach(result, env=box.env)
+    assert agent(report, "claude-code").servers == 2
+    only_local = ScanResult(servers=[_server("loc", "claude-code-local", box.home)])
+    assert (
+        agent(build_machine_reach(only_local, env=box.env), "claude-code").servers == 1
+    )
