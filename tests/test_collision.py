@@ -787,6 +787,44 @@ class TestCopiesOfApprovedTools:
             == []
         )
 
+    def test_shared_boilerplate_on_an_honest_server_stops_nothing(self) -> None:
+        # Round 3: more than 4 tools of one honest server shared a sentence,
+        # the scan index dropped one, and the guard then stopped every new tool.
+        boiler = "Requires a valid API key in the environment of the server."
+        honest = {
+            f"tool_{i}": f"Does thing number {i} for the caller. {boiler}"
+            for i in range(9)
+        }
+        pairs = [
+            _described(
+                "honest", **honest, added_later=f"A new honest tool here. {boiler}"
+            ),
+            _described("other", fresh_tool="Something else entirely in other words."),
+        ]
+        errors: list[str] = []
+        found = copies_of_approved_tools(
+            pairs, lambda server, tool: tool in honest, errors
+        )
+        assert found == [] and errors == []
+
+    def test_a_tool_that_was_not_compared_is_not_approved(self, monkeypatch) -> None:  # noqa: ANN001
+        from mcp_audit.analyzers import collision
+
+        monkeypatch.setattr(collision, "_COPY_WORK_BUDGET", 0)
+        errors: list[str] = []
+        found = copies_of_approved_tools(
+            [
+                _described("honest", read_file=_RUN),
+                _described("hostile", read_file_v1=_RUN),
+            ],
+            lambda server, tool: server.name == "honest",
+            errors,
+        )
+        assert [(s.name, t, o) for s, t, _, o in found] == [
+            ("hostile", "read_file_v1", "")
+        ]
+        assert errors
+
     def test_no_launch_detail_excuses_a_pair(self) -> None:
         # Round 2 and 3: the same package name, command line or environment
         # can still run other code.

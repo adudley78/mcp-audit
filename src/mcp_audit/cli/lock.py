@@ -147,6 +147,8 @@ def _withhold_copies(
     servers: list[ServerConfig],
     enumerations: dict[tuple[str, str], ServerEnumeration],
     existing_doc: dict | None,
+    *,
+    withhold: bool = True,
 ) -> tuple[list[tuple[str, str, str, str]], list[str]]:
     """Take each new tool that copies an approved tool out of *enumerations*.
 
@@ -157,8 +159,10 @@ def _withhold_copies(
     reports it (LOCK-006) and ``run --mode enforce`` withholds it.
 
     With no earlier tool record there is no order, so nothing is taken out.
-    When a bound of the comparison left something out, no new tool is
-    approved (the original tool of those rows is ``""``).
+    With ``withhold=False`` (``--allow-copies``) the copies are returned and
+    stay in *enumerations*, so the command can list what it allowed.
+    When the work budget ran out, a new tool that was not compared is not
+    approved either (the original tool of those rows is ``""``).
 
     Returns:
         ``(server key, tool, original server key, original tool)`` for each
@@ -179,17 +183,7 @@ def _withhold_copies(
     pairs = [(s, enumerations[tool_digests.enumeration_key(s)]) for s in servers]
     notes: list[str] = []
     copies = copies_of_approved_tools(pairs, is_approved, notes)
-    drop = {(id(server), tool) for server, tool, _, _ in copies}
-    if notes and any(recorded.values()):
-        # A bound left comparisons out, and a server chooses how much text it
-        # lists.  Fail closed: no new tool is approved in this run.
-        for server, enumeration in pairs:
-            for tool in enumeration.tools:
-                if (id(server), tool.name) not in drop and not is_approved(
-                    server, tool.name
-                ):
-                    drop.add((id(server), tool.name))
-                    copies.append((server, tool.name, server, ""))
+    drop = {(id(server), tool) for server, tool, _, _ in copies} if withhold else set()
     for server, enumeration in pairs:
         kept = [t for t in enumeration.tools if (id(server), t.name) not in drop]
         if len(kept) != len(enumeration.tools):
@@ -462,10 +456,9 @@ def _run_write(
             raise typer.Exit(2) from None
         discarded = tools_tampered(existing_doc)
         enumerations = _enumerate_tools(servers, connect_token)
-        if not allow_copies:
-            withheld_copies, copy_notes = _withhold_copies(
-                servers, enumerations, existing_doc
-            )
+        withheld_copies, copy_notes = _withhold_copies(
+            servers, enumerations, existing_doc, withhold=not allow_copies
+        )
         tool_records = {}
         for server in servers:
             enumeration = enumerations[tool_digests.enumeration_key(server)]
@@ -545,12 +538,25 @@ def _run_write(
             f"{len(servers)} server(s)."
         )
         for key, tool, original_key, original_tool in withheld_copies:
+            if allow_copies:
+                console.print(
+                    f"[yellow]COPY ALLOWED[/yellow] {key}: new tool "
+                    f"'{escape(tool)}'"
+                    + (
+                        f" carries the description of '{escape(original_tool)}' "
+                        f"({original_key}). "
+                        if original_tool
+                        else " was not compared with the approved tools. "
+                    )
+                    + "It is recorded because of --allow-copies."
+                )
+                continue
             if not original_tool:
                 console.print(
                     f"[red]NOT APPROVED[/red] {key}: new tool '{escape(tool)}' "
-                    "could not be compared with the tools that the lock holds "
-                    "(too much tool text). It is not in the lock. Lock again "
-                    "with --allow-copies if you expect it."
+                    "was not compared with the tools that the lock holds (the "
+                    "servers list too much tool text). It is not in the lock. "
+                    "Lock again with --allow-copies if you expect it."
                 )
                 continue
             console.print(

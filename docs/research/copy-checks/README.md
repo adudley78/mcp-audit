@@ -62,8 +62,9 @@ name). `lock --verify --connect` then reports it (LOCK-006) and
   environment can still run other code (`--package`, `--registry`, another
   version, `NODE_OPTIONS`). One product installed two times under two names
   is stopped one time, like each honest duplicate.
-- When the comparison is cut (too much tool text), no new tool is approved in
-  that run.
+- The guard compares each new tool with the approved tools only, so text
+  that honest servers share among their own tools stops nothing. When its
+  work budget runs out, a new tool that was not compared is not approved.
 - A first lock has no earlier record, so it has no order. It records both
   tools, and `scan --connect` reports the pair.
 
@@ -132,6 +133,18 @@ For the 40 honest sessions:
 The agent wrote the honest sessions to be hard for a scanner, so these are
 not rates for real sessions.
 
+On real descriptions the guard stops more than that. In 5,000 random
+sessions of five servers from HISTOR's record, with the first server
+approved and the four others added after it, the guard withholds a tool in
+495 sessions (`random.Random(175)`). Each of the 1,167 withheld tools has the
+same name and the same description as an approved tool. A few vendors in
+that record publish hundreds of servers that each carry the vendor's shared
+tools (`company_register_search` with one 450-word description), so two of
+five random servers are often from one vendor. The guard cannot tell a
+vendor's second server from a copy: a name, a package or a host can be
+another party's. The user allows it one time, and `--allow-copies` lists
+each tool that it allows.
+
 ## False alarms of COLLIDE-003 on real descriptions
 
 HISTOR's record of changes (Artamokhov, A., 2026,
@@ -168,8 +181,9 @@ servers alone get no finding.
   text ties it to the original.
 - The guard needs an earlier lock. A copy that is there at the first lock is
   recorded like each other tool.
-- The guard also stops an honest duplicate one time (6 of 40 hard honest
-  sessions), until the user allows it.
+- The guard also stops an honest duplicate one time, until the user allows
+  it: 6 of 40 hard honest sessions, and 495 of 5,000 random sessions of real
+  servers, where most cases are two servers of one vendor with a shared tool.
 - A hostile server that is locked before the honest one is the "original"
   for the guard. The order of approval is the user's, not the truth.
 - SkillSpector was not run on the blind set.

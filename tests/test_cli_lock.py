@@ -627,6 +627,8 @@ class TestLockDoesNotApproveACopy(TestLockConnect):
         )
         assert allowed.exit_code == 0, allowed.output
         assert "NOT APPROVED" not in allowed.output
+        # The flag does not hide what it allowed.
+        assert "COPY ALLOWED" in unwrapped(allowed.output)
         assert "execute_command" in self._recorded(tmp_path)
 
     def test_a_first_lock_has_no_order_and_records_both(
@@ -661,7 +663,7 @@ class TestLockDoesNotApproveACopy(TestLockConnect):
         monkeypatch.setattr(collision, "_COPY_WORK_BUDGET", 0)
         result = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
         assert result.exit_code == 0, result.output
-        assert "could not be compared" in unwrapped(result.output)
+        assert "was not compared" in unwrapped(result.output)
         assert self._recorded(tmp_path) == {"execute_command_safely"}
 
     def test_allow_copies_needs_connect(self, tmp_path: Path) -> None:

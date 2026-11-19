@@ -551,7 +551,7 @@ The command prints one `NOT APPROVED` line for the tool. After that:
 - `lock --verify --connect` reports the tool as LOCK-006 (a tool that the lock does not hold) and exits 1.
 - `credenzo run --mode enforce` withholds the tool. The agent's tool list holds the tool that you approved before.
 
-If you expect the tool (a fork, a gateway beside the server that it fronts, one product installed two times under two names), lock again with `--allow-copies`. No launch detail excuses a pair: the same package name or command line can still run other code. When the comparison is cut because the servers list too much tool text, no new tool is approved in that run, and the command says so.
+If you expect the tool (a fork, a gateway beside the server that it fronts, one product installed two times under two names), lock again with `--allow-copies`. That run prints one `COPY ALLOWED` line for each such tool, so the flag does not hide what it allowed. No launch detail excuses a pair: the same package name or command line can still run other code. The guard compares each new tool with the approved tools only. When the servers list so much tool text that its work budget runs out, a new tool that was not compared is not approved, and the command says so.
 
 Limits: a first lock has no earlier record, so it records both tools; `scan --connect` reports the pair as COLLIDE-003. A server that you locked first counts as the original, whoever wrote it. A copy with a description in new words is recorded like each other tool. When the server of the approved tool does not answer, or lists only part of its tools, the copy has no partner and is recorded. The measurements are in [research/copy-checks/](research/copy-checks/README.md).
 

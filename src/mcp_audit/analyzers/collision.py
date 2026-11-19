@@ -437,6 +437,8 @@ _MAX_SENTENCES = 64
 #: The cap is per server: a server cannot fill the index for another server.
 _MAX_OWNERS_PER_SERVER = 4
 _MAX_SERVERS_PER_SENTENCE = 32
+#: Sentences one scan keeps in its index (memory).
+_MAX_INDEX_ENTRIES = 400_000
 #: Sentence comparisons one scan may make.  A hostile server chooses its text.
 _COPY_WORK_BUDGET = 2_000_000
 #: A sentence of this many words or more is a "long" sentence.
@@ -552,10 +554,15 @@ def find_description_copies(
     by_long: dict[str, dict[tuple, list[_Described]]] = {}
     by_first: dict[str, dict[tuple, list[_Described]]] = {}
     dropped = False
+    entries = 0
 
     def add(
         index: dict[str, dict[tuple, list[_Described]]], key: str, tool: _Described
     ) -> bool:
+        nonlocal entries
+        if entries >= _MAX_INDEX_ENTRIES:
+            return False
+        entries += 1
         servers = index.setdefault(key, {})
         owners = servers.get(tool.identity)
         if owners is None:
@@ -643,8 +650,8 @@ def find_description_copies(
             )
         if dropped:
             errors.append(
-                "COLLIDE-003: many tools or servers share one sentence;"
-                " some tools were not compared"
+                "COLLIDE-003: many tools share one sentence, or the servers"
+                " list very much tool text; some pairs were not compared"
             )
     return found
 
@@ -750,8 +757,14 @@ def copies_of_approved_tools(
     The text of two tools does not show which was first.  The lock does: a
     tool that the user approved before is the original, and a tool that is
     new and carries its description (under the same name or another name) is
-    the copy.  A hostile server cannot
-    change that order by the names it picks.
+    the copy.  A hostile server cannot change that order by the names it
+    picks.
+
+    Only the approved tools are indexed, each under each of its long
+    sentences and with no cap: the user's lock bounds them, and a new server
+    cannot fill an approved tool's place.  Each new tool is then tested
+    against the approved tools that share a sentence with it, in both
+    directions (the copy can hold more text or less).
 
     No launch detail excuses a pair.  A package name, a command line or an
     environment that looks like the approved server's can still run other
@@ -761,21 +774,79 @@ def copies_of_approved_tools(
     Args:
         pairs: ``(ServerConfig, ServerEnumeration)`` of the servers to lock.
         is_approved: Whether the lock already holds this tool of this server.
-        errors: Gets one line when a bound left comparisons out.
+        errors: Gets one line when the work budget ran out.
 
     Returns:
         ``(server, tool, original server, original tool)`` for each copy.
+        When the work budget ran out, each new tool that was not tested is
+        returned too, with ``""`` as the original tool: a tool that could not
+        be compared is not approved.
     """
+    approved: list[_Described] = []
+    new: list[_Described] = []
+    for server, enum in pairs:
+        if enum.error:
+            continue
+        for tool in enum.tools:
+            described = _Described(server, tool.name, tool.description)
+            (approved if is_approved(server, tool.name) else new).append(described)
+    if not approved or not new:
+        return []
+    by_long: dict[str, list[_Described]] = {}
+    by_first: dict[str, list[_Described]] = {}
+    for tool in approved:
+        if tool.long_words >= _MIN_COPIED_WORDS:
+            for sentence in dict.fromkeys(tool.long):
+                by_long.setdefault(sentence, []).append(tool)
+        if tool.all and tool.words >= _MIN_COPIED_WORDS_WITH_NAME:
+            by_first.setdefault(tool.all[0], []).append(tool)
+
+    def holds(holder: _Described, parts: list[str]) -> bool:
+        return all(s in holder.known for s in parts)
+
+    budget = _COPY_WORK_BUDGET
     out: list[tuple[ServerConfig, str, ServerConfig, str]] = []
-    done: set[tuple[int, str]] = set()
-    for copy in find_description_copies(pairs, errors, same_names=True):
-        for new, old in ((copy.holder, copy.held), (copy.held, copy.holder)):
-            if is_approved(new.server, new.name) or not is_approved(
-                old.server, old.name
-            ):
-                continue
-            key = (id(new.server), new.name)
-            if key not in done:
-                done.add(key)
-                out.append((new.server, new.name, old.server, old.name))
+    untested = 0
+    for tool in new:
+        if budget <= 0:
+            untested += 1
+            out.append((tool.server, tool.name, tool.server, ""))
+            continue
+        original: _Described | None = None
+        tested: set[int] = set()
+        for sentence in dict.fromkeys(tool.all):
+            for other in by_long.get(sentence, ()):
+                if other.identity == tool.identity or id(other) in tested:
+                    continue
+                tested.add(id(other))
+                budget -= len(other.long) + len(tool.long)
+                if holds(tool, other.long) or (
+                    tool.long_words >= _MIN_COPIED_WORDS and holds(other, tool.long)
+                ):
+                    original = other
+                    break
+            if original is not None:
+                break
+            for other in by_first.get(sentence, ()):
+                if other.identity == tool.identity or not (
+                    other.name == tool.name
+                    or _is_name_plus_words(tool.name, other.name)
+                    or _is_name_plus_words(other.name, tool.name)
+                ):
+                    continue
+                budget -= len(other.all) + len(tool.all)
+                if holds(tool, other.all) or (
+                    tool.words >= _MIN_COPIED_WORDS_WITH_NAME and holds(other, tool.all)
+                ):
+                    original = other
+                    break
+            if original is not None:
+                break
+        if original is not None:
+            out.append((tool.server, tool.name, original.server, original.name))
+    if untested and errors is not None:
+        errors.append(
+            f"COLLIDE-003: too much tool text to compare; {untested} new"
+            " tool(s) were not compared with the approved tools"
+        )
     return out
