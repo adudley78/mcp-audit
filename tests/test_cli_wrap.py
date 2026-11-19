@@ -202,3 +202,81 @@ def test_check_reports_wrapped_servers(repo: Path, exe: str) -> None:
     assert "Launch gate: 1 of 2 local servers wrapped (1 monitor)" in " ".join(
         result.output.split()
     )
+
+
+class TestAFileNamedLikeCredenzo:
+    """``lock --verify`` no longer takes any file named ``credenzo`` for the wrapper."""
+
+    def test_a_planted_wrapper_inside_the_repository_is_drift(self, repo: Path) -> None:
+        config = _config(repo, {"srv": SERVER})
+        _cli("lock", str(repo), "--offline")
+        planted = repo / "tools" / "credenzo"
+        planted.parent.mkdir()
+        planted.write_text("#!/bin/sh\nexec evil\n")
+        doc = json.loads(config.read_text())
+        entry = doc["mcpServers"]["srv"]
+        entry["args"] = ["run", "--", entry["command"], *entry["args"]]
+        entry["command"] = str(planted)
+        config.write_text(json.dumps(doc))
+        result = runner.invoke(app, ["lock", str(repo), "--verify"])
+        assert result.exit_code == 1, result.output
+        assert "LOCK-001" in result.output
+        assert "wrapper" in " ".join(result.output.split())
+
+    def test_lock_records_a_wrapper_inside_the_repository_and_verify_accepts_it(
+        self, repo: Path
+    ) -> None:
+        config = _config(repo, {"srv": SERVER})
+        local = repo / ".venv" / "bin" / "credenzo"
+        local.parent.mkdir(parents=True)
+        local.write_text("#!/bin/sh\n")
+        doc = json.loads(config.read_text())
+        entry = doc["mcpServers"]["srv"]
+        entry["args"] = ["run", "--", entry["command"], *entry["args"]]
+        entry["command"] = str(local)
+        config.write_text(json.dumps(doc))
+        _cli("lock", str(repo), "--offline")
+        lock = json.loads((repo / "mcp-lock.json").read_text())
+        (locked,) = lock["servers"].values()
+        assert locked["wrapper"].startswith("sha256:")
+        assert str(repo) not in (repo / "mcp-lock.json").read_text()
+        assert locked["identity"]["command"] == SERVER["command"]
+        result = runner.invoke(app, ["lock", str(repo), "--verify"])
+        assert result.exit_code == 0, result.output
+        # Another file at another path is not the recorded wrapper.
+        other = repo / "x" / "credenzo"
+        other.parent.mkdir()
+        other.write_text("#!/bin/sh\n")
+        entry["command"] = str(other)
+        config.write_text(json.dumps(doc))
+        result = runner.invoke(app, ["lock", str(repo), "--verify"])
+        assert result.exit_code == 1 and "LOCK-001" in result.output
+
+    def test_an_entry_that_is_not_wrapped_gets_no_wrapper_field(
+        self, repo: Path
+    ) -> None:
+        _config(repo, {"srv": SERVER})
+        _cli("lock", str(repo), "--offline")
+        lock = json.loads((repo / "mcp-lock.json").read_text())
+        assert all("wrapper" not in e for e in lock["servers"].values())
+
+    def test_a_planted_wrapper_beside_a_lock_in_a_subdirectory_is_drift(
+        self, repo: Path
+    ) -> None:
+        """The boundary is the repository, not the lock root."""
+        sub = repo / "sub"
+        sub.mkdir()
+        config = sub / ".mcp.json"
+        config.write_text(json.dumps({"mcpServers": {"srv": SERVER}}))
+        _cli("lock", str(sub), "--offline")
+        assert (sub / "mcp-lock.json").exists()
+        planted = repo / "tools" / "credenzo"
+        planted.parent.mkdir()
+        planted.write_text("#!/bin/sh\nexec evil\n")
+        entry = dict(SERVER)
+        entry["args"] = ["run", "--", SERVER["command"], *SERVER["args"]]
+        entry["command"] = str(planted)
+        config.write_text(json.dumps({"mcpServers": {"srv": entry}}))
+        result = runner.invoke(app, ["lock", str(sub), "--verify"])
+        assert result.exit_code == 1, result.output
+        assert "LOCK-001" in result.output

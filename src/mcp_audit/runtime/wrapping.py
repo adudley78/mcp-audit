@@ -21,9 +21,12 @@ Stdlib-only (plus :mod:`mcp_audit._jcs`).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import re
-from pathlib import PurePath
+import shutil
+import sys
+from pathlib import Path, PurePath
 
 from mcp_audit._jcs import canonicalize
 
@@ -71,6 +74,131 @@ def is_wrapper_command(command: object) -> bool:
     is_bare = command == name
     is_absolute = command.startswith("/") or bool(re.match(r"^[A-Za-z]:[\\/]", command))
     return is_bare or is_absolute
+
+
+def wrapper_digest(command: str) -> str:
+    """Return ``"sha256:<hex>"`` of a wrapper's path as the config writes it.
+
+    The lock records this, never the path: a lock holds no absolute path.
+    """
+    return "sha256:" + hashlib.sha256(command.encode("utf-8")).hexdigest()
+
+
+def _this_install() -> list[Path]:
+    """Paths of the Credenzo executables that belong to the running install."""
+    found: list[Path] = []
+    candidates = [Path(sys.argv[0])] if sys.argv and sys.argv[0] else []
+    bin_dir = Path(sys.executable).parent if sys.executable else None
+    if bin_dir is not None:
+        candidates.append(Path(sys.executable))
+        for name in ("credenzo", "mcp-audit", "credenzo.exe", "mcp-audit.exe"):
+            candidates.append(bin_dir / name)
+    for candidate in candidates:
+        try:
+            if _WRAPPER_NAME.match(candidate.name.lower()) and candidate.is_file():
+                found.append(candidate.resolve())
+        except OSError:
+            continue
+    return found
+
+
+def _is_this_install(path: Path) -> bool:
+    try:
+        resolved = path.resolve()
+    except OSError:
+        return False
+    return resolved in _this_install()
+
+
+def _inside(path: Path, root: Path) -> bool:
+    """Whether *path* is under *root*, as written or once links are resolved."""
+    forms = [(path, root)]
+    with contextlib.suppress(OSError):
+        forms.append((path.resolve(), root.resolve()))
+    for candidate, base in forms:
+        try:
+            candidate.relative_to(base)
+        except ValueError:
+            continue
+        return True
+    return False
+
+
+def wrapper_trusted(command: object, *, root: Path | None, recorded: object) -> bool:
+    """Whether a wrapped entry's wrapper may stand for the server it runs.
+
+    ``lock --verify`` compares a wrapped entry by its
+    inner launch.  That is only right when the wrapper is Credenzo.  A file
+    that is merely *named* ``credenzo`` can be anything, and a repository can
+    hold one at a path that is known in advance (a CI checkout, a dev
+    container), so:
+
+    - a wrapper inside the repository (the git root above *root*, or *root*
+      itself when there is none) is trusted only when it is the running
+      install or its digest is in the lock entry (``wrapper``, written by
+      ``lock`` when a person locks the wrapped entry);
+    - when the lock entry records a wrapper, any other wrapper path is not
+      trusted unless it is the running install;
+    - a bare name resolves on ``PATH``; it is trusted unless ``PATH`` leads to
+      a file inside the repository that is not the running install.
+
+    An absolute path outside the repository with nothing recorded stays
+    trusted: a change to a repository cannot put a file there.  The recorded
+    digest is of the path, not of the file: it says that a person approved
+    that path.
+
+    Args:
+        command: The entry's ``command`` as written.
+        root: The lock root, or ``None`` when there is none to compare with.
+        recorded: The lock entry's ``wrapper`` value, if any.
+    """
+    if not is_wrapper_command(command):
+        return False
+    assert isinstance(command, str)  # noqa: S101 - is_wrapper_command checked it
+    boundary = _repository_of(root)
+    name = PurePath(command.replace("\\", "/")).name
+    if command == name:
+        if isinstance(recorded, str) and recorded == wrapper_digest(command):
+            return True  # a person locked the entry with this bare name
+        located = shutil.which(command)
+        if located is None or boundary is None:
+            return True
+        path = Path(located)
+        return _is_this_install(path) or not _inside(path, boundary)
+    path = Path(command)
+    if _is_this_install(path):
+        return True
+    if isinstance(recorded, str) and recorded:
+        return recorded == wrapper_digest(command)
+    return boundary is None or not _inside(path, boundary)
+
+
+def _repository_of(root: Path | None) -> Path | None:
+    """Return the directory a change to the repository can put a file under.
+
+    The lock root can be a subdirectory (a monorepo with a lock per package).
+    A commit can add a file anywhere in the repository, so the boundary is
+    the git root above the lock root, or the lock root when there is none.
+    """
+    if root is None:
+        return None
+    from mcp_audit._paths import find_git_root
+
+    try:
+        found = find_git_root(root)
+        # A `.git` *file* marks a submodule or a linked worktree.  The
+        # superproject above a submodule can hold files too, so keep going
+        # up to the first directory whose `.git` is a directory.
+        boundary = found
+        while found is not None and not (found / ".git").is_dir():
+            if found.parent == found:
+                break
+            found = find_git_root(found.parent)
+            if found is not None:
+                boundary = found
+        return boundary or root
+    except OSError:
+        return root
 
 
 def inner_launch(command: object, args: object) -> tuple[str, list[str]] | None:

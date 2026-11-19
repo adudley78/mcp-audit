@@ -40,6 +40,7 @@ from mcp_audit.lock.model import (
 from mcp_audit.lock.resolve import resolve_package
 from mcp_audit.models import ServerConfig
 from mcp_audit.registry.loader import KnownServerRegistry
+from mcp_audit.runtime.wrapping import wrapper_digest
 
 
 class LockWriteError(Exception):
@@ -138,7 +139,7 @@ def build_entry(
         if registry_entry is not None:
             capabilities = registry_entry.capabilities
 
-    return {
+    entry = {
         "client": server.client,
         "name": server.name,
         "config": _relative_config_path(server.config_path, root),
@@ -150,6 +151,16 @@ def build_entry(
         "first_locked": (existing or {}).get("first_locked", now),
         "hashes": compute_hashes(server),
     }
+    wrapper = server.raw.get("command") if server.wrapped else None
+    if isinstance(wrapper, str) and wrapper:
+        # The entry launches through `credenzo run`.  The person who locks it
+        # approves the wrapper as written (a path, or a bare name that PATH
+        # resolves); its digest (never the path) lets `lock --verify` on
+        # another machine tell it from a file that is only named like
+        # Credenzo (STORY-0178).  An entry that is not wrapped is written
+        # exactly as before.
+        entry["wrapper"] = wrapper_digest(wrapper)
+    return entry
 
 
 def regenerate(

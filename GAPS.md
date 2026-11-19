@@ -1948,6 +1948,25 @@ trust"). Recorded limits:
   frontmatter split by `agent_files/discovery.py` and the subagent reader;
   if it ever is not, lines count from the start of the body.
 
+## Wrapped entries and the lock (STORY-0178)
+
+- **Wrapper trust.** `lock --verify` reads a wrapped entry (`credenzo run --
+  ...`) as the server it runs only when the wrapper is the Credenzo that runs
+  the check, or `lock` recorded it, or it is at an absolute path outside the
+  git repository with nothing recorded. That last case is trusted by its file
+  name: a change to a repository cannot put a file there, but a program that
+  already writes to the user's machine can. A bare name is trusted when
+  `PATH` cannot be resolved on the machine that runs the check.
+- **A recorded wrapper is a recorded path.** The lock holds the digest of the
+  wrapper as written, not of the file. A commit that replaces the file at a
+  recorded path inside the repository is not seen by `lock --verify`.
+- **Environment values are not locked.** The lock records the names of an
+  entry's environment variables, never the values. A new value of a variable
+  that the entry already had (`PATH`, `NODE_OPTIONS`) is not drift, for a
+  wrapped entry and for any other.
+- **An entry with both a `url` and a `command`** is LOCK-001 for as long as it
+  holds both. `lock --accept` cannot clear it; remove one of the two keys.
+
 ## Claude Code local-scope servers (STORY-0175)
 
 Before STORY-0175 a default scan did not read the servers that `claude mcp add` writes
