@@ -345,17 +345,18 @@ class TestWrapperTrust:
         planted.write_text("#!/bin/sh\n")
         assert not wrapper_trusted(str(planted), root=sub, recorded=None)
 
-    def test_a_recorded_bare_name_is_trusted_wherever_path_leads(
+    def test_a_record_never_excuses_a_bare_name_that_path_leads_into_the_repository(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """PR #340 review: the digest of a bare name is the same in every lock."""
         from mcp_audit.runtime import wrapping
 
         repo = self._repo(tmp_path)
-        inside = repo / "bin" / "credenzo"
-        inside.parent.mkdir()
+        inside = repo / "node_modules" / ".bin" / "credenzo"
+        inside.parent.mkdir(parents=True)
         inside.write_text("#!/bin/sh\n")
         monkeypatch.setattr(wrapping.shutil, "which", lambda name: str(inside))
         assert not wrapping.wrapper_trusted("credenzo", root=repo, recorded=None)
-        assert wrapping.wrapper_trusted(
+        assert not wrapping.wrapper_trusted(
             "credenzo", root=repo, recorded=wrapping.wrapper_digest("credenzo")
         )

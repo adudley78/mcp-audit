@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from mcp_audit import __version__
 from mcp_audit._fs import atomic_write
@@ -152,13 +152,13 @@ def build_entry(
         "hashes": compute_hashes(server),
     }
     wrapper = server.raw.get("command") if server.wrapped else None
-    if isinstance(wrapper, str) and wrapper:
-        # The entry launches through `credenzo run`.  The person who locks it
-        # approves the wrapper as written (a path, or a bare name that PATH
-        # resolves); its digest (never the path) lets `lock --verify` on
-        # another machine tell it from a file that is only named like
-        # Credenzo (STORY-0178).  An entry that is not wrapped is written
-        # exactly as before.
+    if isinstance(wrapper, str) and wrapper != PurePath(wrapper).name:
+        # The entry launches through `credenzo run` at a written path.  The
+        # person who locks it approves that path; its digest (never the path)
+        # lets `lock --verify` on another machine tell it from a file that is
+        # only named like Credenzo (STORY-0178).  A bare name is not recorded
+        # (what it runs is whatever PATH finds), and an entry that is not
+        # wrapped is written exactly as before.
         entry["wrapper"] = wrapper_digest(wrapper)
     return entry
 

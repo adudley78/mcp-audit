@@ -158,8 +158,8 @@ def wrapper_trusted(command: object, *, root: Path | None, recorded: object) -> 
     boundary = _repository_of(root)
     name = PurePath(command.replace("\\", "/")).name
     if command == name:
-        if isinstance(recorded, str) and recorded == wrapper_digest(command):
-            return True  # a person locked the entry with this bare name
+        # A record never excuses a bare name: its digest is the same in every
+        # lock, and what it runs is whatever PATH finds today.
         located = shutil.which(command)
         if located is None or boundary is None:
             return True

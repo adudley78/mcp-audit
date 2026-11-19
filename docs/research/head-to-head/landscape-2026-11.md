@@ -37,7 +37,7 @@ Each tool in this table was run on the same text, in a mode that sends nothing a
 | Real changes to tool text (HISTOR, 126,105): changes flagged | 489 | 3,435 | not run on the full record | [`cisco-yara/`](cisco-yara/README.md), [`../histor-changes/`](../histor-changes/README.md) |
 | 2,000 real added texts: flagged at each tool's own verdict level | 1 | 20 | 1 | [`skillspector/`](skillspector/README.md) |
 | MCPTox, 485 poisoned descriptions with no wrapper: any finding | 149 | 99 | 111 | in-sample for Credenzo |
-| MCP-SafetyBench, 154 poisoned descriptions: any finding | 88 | 36 | 30 | in-sample for Credenzo |
+| MCP-SafetyBench, 154 poisoned descriptions: any finding | 88 (56 when the other two were run; the later checks were written from this set) | 36 | 30 | in-sample for Credenzo; [`../mcp-safetybench/`](../mcp-safetybench/README.md) |
 
 Read the table with these limits:
 
