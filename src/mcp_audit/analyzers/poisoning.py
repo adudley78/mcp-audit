@@ -51,6 +51,11 @@ class DetectionPattern:
     # lookbehind, so "never skip permission prompts" is excluded here rather
     # than in the pattern (POISON-076, STORY-0141).
     negated_by: re.Pattern[str] | None = None
+    # When True, the pattern is read in tool text only (a tool's name,
+    # description and schema text; ``lock --verify``): agent instruction
+    # files skip it.  POISON-080..082 are measured on tool text only, and a
+    # skill file honestly holds shell commands such as ``rm -rf build/``.
+    tool_text_only: bool = False
 
 
 # ── Unicode normalization for detection (UTS #39 / NFKD) ───────────────────────
@@ -1252,6 +1257,69 @@ PATTERNS: list[DetectionPattern] = [
     ),
 
     # LOW: Suspicious signals
+    # Orders that MCP-SafetyBench and MCPTox use and no literal check read
+    # (STORY-0172).  Tool text only; see docs/poisoning.md for the measure.
+    DetectionPattern(
+        id="POISON-080",
+        name="Tool redirection order",
+        pattern=re.compile(
+            r"\b(?:must|should|shall)\s+(?:be\s+)?(?:automatically\s+)?redirect(?:ed)?\b"
+            r"|\b(?:automatically|currently)\s+redirect(?:s|ed|ing)\b"
+            r"|\bredirect(?:s|ing)?\s+(?:all|any|every)\b",
+            re.IGNORECASE,
+        ),
+        severity=Severity.HIGH,
+        description=(
+            "Tool description orders that requests are redirected to another"
+            " tool, target or value"
+        ),
+        remediation=(
+            "Read the description. A tool has no reason to redirect the agent's"
+            " requests; remove the server if you did not expect this"
+        ),
+        cwe="CWE-74",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
+        tool_text_only=True,
+    ),
+    DetectionPattern(
+        id="POISON-081",
+        name="Shell command in tool description",
+        pattern=re.compile(
+            r"\brm\s+-[a-z]*r[a-z]*\s"
+            r"|\becho\s+\$\{?(?:PATH|HOME|USER|AWS_\w+|\w*(?:TOKEN|SECRET|KEY)\w*)\b"
+            r"|\b(?:printenv|env)\s*(?:\||>|&&)",
+            re.IGNORECASE,
+        ),
+        severity=Severity.HIGH,
+        description=(
+            "Tool description holds a shell command that deletes files"
+            " recursively or prints environment variables"
+        ),
+        remediation=(
+            "Read the description. If it tells the agent to run the command,"
+            " remove the server"
+        ),
+        cwe="CWE-77",
+        owasp_mcp_top_10=["MCP03", "MCP05"],
+        tool_text_only=True,
+    ),
+    DetectionPattern(
+        id="POISON-082",
+        name="System account file in tool description",
+        pattern=re.compile(r"/etc/(?:passwd|shadow|sudoers)\b", re.IGNORECASE),
+        severity=Severity.MEDIUM,
+        description=(
+            "Tool description names a system account file"
+            " (/etc/passwd, /etc/shadow or /etc/sudoers)"
+        ),
+        remediation=(
+            "Read the description. A tool that tells the agent to read or"
+            " change this file is hostile; a list of mounted paths is not"
+        ),
+        cwe="CWE-200",
+        owasp_mcp_top_10=["MCP03"],
+        tool_text_only=True,
+    ),
     DetectionPattern(
         id="POISON-050",
         name="Excessive description length",

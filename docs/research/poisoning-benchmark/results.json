@@ -40,7 +40,7 @@
       }
     },
     "replay": {
-      "patterns_fingerprint": "sha256:41fabb03383f02c17eb8b06e83be3525d668eb06549ca3e1eb7ed4e08b9a5868",
+      "patterns_fingerprint": "sha256:9c0c308597ede487e90f66977bbea3d95c680eb136ec60cf934ddf2db5282023",
       "findings_reproduced_from_committed_text": 14,
       "groups": [
         {
@@ -146,38 +146,38 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:41fabb03383f02c17eb8b06e83be3525d668eb06549ca3e1eb7ed4e08b9a5868",
+    "patterns_fingerprint": "sha256:9c0c308597ede487e90f66977bbea3d95c680eb136ec60cf934ddf2db5282023",
     "detected_means": "at least one POISON-* finding on the tool, any severity (what a plain scan exits 1 on)",
     "high_or_above_means": "at least one HIGH or CRITICAL POISON-* finding (what check, the pre-commit default and --severity-threshold high fail on)",
     "benchmark_cases": {
       "excluded_wrong_data": 36,
       "recall": {
         "P1": {
-          "detected": 166,
+          "detected": 167,
           "total": 208,
-          "rate": 0.7981
+          "rate": 0.8029
         },
         "P2": {
-          "detected": 411,
+          "detected": 417,
           "total": 519,
-          "rate": 0.7919
+          "rate": 0.8035
         },
         "P3": {
-          "detected": 403,
+          "detected": 421,
           "total": 585,
-          "rate": 0.6889
+          "rate": 0.7197
         },
         "all": {
-          "detected": 980,
+          "detected": 1005,
           "total": 1312,
-          "rate": 0.747
+          "rate": 0.766
         }
       },
       "recall_high_or_above": {
         "P1": {
-          "detected": 151,
+          "detected": 152,
           "total": 208,
-          "rate": 0.726
+          "rate": 0.7308
         },
         "P2": {
           "detected": 355,
@@ -185,14 +185,14 @@
           "rate": 0.684
         },
         "P3": {
-          "detected": 403,
+          "detected": 419,
           "total": 585,
-          "rate": 0.6889
+          "rate": 0.7162
         },
         "all": {
-          "detected": 909,
+          "detected": 926,
           "total": 1312,
-          "rate": 0.6928
+          "rate": 0.7058
         }
       },
       "recall_by_wrapper": {
@@ -242,24 +242,24 @@
         },
         "none": {
           "P1": {
-            "detected": 23,
+            "detected": 24,
             "total": 65,
-            "rate": 0.3538
+            "rate": 0.3692
           },
           "P2": {
-            "detected": 70,
+            "detected": 76,
             "total": 178,
-            "rate": 0.3933
+            "rate": 0.427
           },
           "P3": {
-            "detected": 10,
+            "detected": 28,
             "total": 192,
-            "rate": 0.0521
+            "rate": 0.1458
           },
           "all": {
-            "detected": 103,
+            "detected": 128,
             "total": 435,
-            "rate": 0.2368
+            "rate": 0.2943
           }
         }
       },
@@ -310,9 +310,9 @@
         },
         "none": {
           "P1": {
-            "detected": 8,
+            "detected": 9,
             "total": 65,
-            "rate": 0.1231
+            "rate": 0.1385
           },
           "P2": {
             "detected": 14,
@@ -320,14 +320,14 @@
             "rate": 0.0787
           },
           "P3": {
-            "detected": 10,
+            "detected": 26,
             "total": 192,
-            "rate": 0.0521
+            "rate": 0.1354
           },
           "all": {
-            "detected": 32,
+            "detected": 49,
             "total": 435,
-            "rate": 0.0736
+            "rate": 0.1126
           }
         }
       },
@@ -338,37 +338,40 @@
         "POISON-012": 420,
         "POISON-030": 270,
         "POISON-070": 18,
-        "POISON-071": 3
+        "POISON-071": 3,
+        "POISON-080": 46,
+        "POISON-081": 7,
+        "POISON-082": 57
       }
     },
     "unwrapped_descriptions": {
       "recall": {
         "P1": {
-          "detected": 32,
+          "detected": 33,
           "total": 77,
-          "rate": 0.4156
+          "rate": 0.4286
         },
         "P2": {
-          "detected": 76,
+          "detected": 82,
           "total": 183,
-          "rate": 0.4153
+          "rate": 0.4481
         },
         "P3": {
-          "detected": 16,
+          "detected": 34,
           "total": 225,
-          "rate": 0.0711
+          "rate": 0.1511
         },
         "all": {
-          "detected": 124,
+          "detected": 149,
           "total": 485,
-          "rate": 0.2557
+          "rate": 0.3072
         }
       },
       "recall_high_or_above": {
         "P1": {
-          "detected": 8,
+          "detected": 9,
           "total": 77,
-          "rate": 0.1039
+          "rate": 0.1169
         },
         "P2": {
           "detected": 13,
@@ -376,14 +379,14 @@
           "rate": 0.071
         },
         "P3": {
-          "detected": 15,
+          "detected": 31,
           "total": 225,
-          "rate": 0.0667
+          "rate": 0.1378
         },
         "all": {
-          "detected": 36,
+          "detected": 53,
           "total": 485,
-          "rate": 0.0742
+          "rate": 0.1093
         }
       },
       "detections_by_id": {
@@ -392,7 +395,10 @@
         "POISON-012": 1,
         "POISON-030": 102,
         "POISON-070": 12,
-        "POISON-071": 1
+        "POISON-071": 1,
+        "POISON-080": 16,
+        "POISON-081": 2,
+        "POISON-082": 19
       }
     },
     "clean_tools": {
@@ -420,7 +426,7 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:41fabb03383f02c17eb8b06e83be3525d668eb06549ca3e1eb7ed4e08b9a5868",
+    "patterns_fingerprint": "sha256:9c0c308597ede487e90f66977bbea3d95c680eb136ec60cf934ddf2db5282023",
     "detector_fingerprint": "sha256:69f6361cf33716a217d6f375d9046eb265d1d8da33c602891406d1235e13fd48",
     "session_models": {
       "separate": "the poisoned tool comes from its own server beside the target server: MCPTox's threat model (§2.2 'An attacker can register a malicious MCP server', §3.4 'an agent is connected to both a trusted MCP server and a malicious one')",
@@ -436,9 +442,9 @@
         "all": {
           "P1": {
             "poison": {
-              "detected": 166,
+              "detected": 167,
               "total": 208,
-              "rate": 0.7981
+              "rate": 0.8029
             },
             "delegation": {
               "detected": 208,
@@ -451,14 +457,14 @@
               "rate": 1.0
             },
             "poison_high_or_above": {
-              "detected": 151,
+              "detected": 152,
               "total": 208,
-              "rate": 0.726
+              "rate": 0.7308
             },
             "union_high_or_above": {
-              "detected": 151,
+              "detected": 152,
               "total": 208,
-              "rate": 0.726
+              "rate": 0.7308
             },
             "by_id": {
               "DELEG-001": {
@@ -480,9 +486,9 @@
           },
           "P2": {
             "poison": {
-              "detected": 411,
+              "detected": 417,
               "total": 519,
-              "rate": 0.7919
+              "rate": 0.8035
             },
             "delegation": {
               "detected": 519,
@@ -524,9 +530,9 @@
           },
           "P3": {
             "poison": {
-              "detected": 403,
+              "detected": 421,
               "total": 585,
-              "rate": 0.6889
+              "rate": 0.7197
             },
             "delegation": {
               "detected": 561,
@@ -534,19 +540,19 @@
               "rate": 0.959
             },
             "union": {
-              "detected": 577,
+              "detected": 578,
               "total": 585,
-              "rate": 0.9863
+              "rate": 0.988
             },
             "poison_high_or_above": {
-              "detected": 403,
+              "detected": 419,
               "total": 585,
-              "rate": 0.6889
+              "rate": 0.7162
             },
             "union_high_or_above": {
-              "detected": 541,
+              "detected": 548,
               "total": 585,
-              "rate": 0.9248
+              "rate": 0.9368
             },
             "by_id": {
               "DELEG-001": {
@@ -568,9 +574,9 @@
           },
           "implicit": {
             "poison": {
-              "detected": 814,
+              "detected": 838,
               "total": 1104,
-              "rate": 0.7373
+              "rate": 0.7591
             },
             "delegation": {
               "detected": 1080,
@@ -578,19 +584,19 @@
               "rate": 0.9783
             },
             "union": {
-              "detected": 1096,
+              "detected": 1097,
               "total": 1104,
-              "rate": 0.9928
+              "rate": 0.9937
             },
             "poison_high_or_above": {
-              "detected": 758,
+              "detected": 774,
               "total": 1104,
-              "rate": 0.6866
+              "rate": 0.7011
             },
             "union_high_or_above": {
-              "detected": 908,
+              "detected": 915,
               "total": 1104,
-              "rate": 0.8225
+              "rate": 0.8288
             },
             "by_id": {
               "DELEG-001": {
@@ -612,9 +618,9 @@
           },
           "all": {
             "poison": {
-              "detected": 980,
+              "detected": 1005,
               "total": 1312,
-              "rate": 0.747
+              "rate": 0.766
             },
             "delegation": {
               "detected": 1288,
@@ -622,19 +628,19 @@
               "rate": 0.9817
             },
             "union": {
-              "detected": 1304,
+              "detected": 1305,
               "total": 1312,
-              "rate": 0.9939
+              "rate": 0.9947
             },
             "poison_high_or_above": {
-              "detected": 909,
+              "detected": 926,
               "total": 1312,
-              "rate": 0.6928
+              "rate": 0.7058
             },
             "union_high_or_above": {
-              "detected": 1059,
+              "detected": 1067,
               "total": 1312,
-              "rate": 0.8072
+              "rate": 0.8133
             },
             "by_id": {
               "DELEG-001": {
@@ -658,9 +664,9 @@
         "unwrapped": {
           "P1": {
             "poison": {
-              "detected": 23,
+              "detected": 24,
               "total": 65,
-              "rate": 0.3538
+              "rate": 0.3692
             },
             "delegation": {
               "detected": 65,
@@ -673,14 +679,14 @@
               "rate": 1.0
             },
             "poison_high_or_above": {
-              "detected": 8,
+              "detected": 9,
               "total": 65,
-              "rate": 0.1231
+              "rate": 0.1385
             },
             "union_high_or_above": {
-              "detected": 8,
+              "detected": 9,
               "total": 65,
-              "rate": 0.1231
+              "rate": 0.1385
             },
             "by_id": {
               "DELEG-001": {
@@ -702,9 +708,9 @@
           },
           "P2": {
             "poison": {
-              "detected": 70,
+              "detected": 76,
               "total": 178,
-              "rate": 0.3933
+              "rate": 0.427
             },
             "delegation": {
               "detected": 178,
@@ -746,9 +752,9 @@
           },
           "P3": {
             "poison": {
-              "detected": 10,
+              "detected": 28,
               "total": 192,
-              "rate": 0.0521
+              "rate": 0.1458
             },
             "delegation": {
               "detected": 184,
@@ -756,19 +762,19 @@
               "rate": 0.9583
             },
             "union": {
-              "detected": 184,
+              "detected": 185,
               "total": 192,
-              "rate": 0.9583
+              "rate": 0.9635
             },
             "poison_high_or_above": {
-              "detected": 10,
+              "detected": 26,
               "total": 192,
-              "rate": 0.0521
+              "rate": 0.1354
             },
             "union_high_or_above": {
-              "detected": 148,
+              "detected": 155,
               "total": 192,
-              "rate": 0.7708
+              "rate": 0.8073
             },
             "by_id": {
               "DELEG-001": {
@@ -790,9 +796,9 @@
           },
           "implicit": {
             "poison": {
-              "detected": 80,
+              "detected": 104,
               "total": 370,
-              "rate": 0.2162
+              "rate": 0.2811
             },
             "delegation": {
               "detected": 362,
@@ -800,19 +806,19 @@
               "rate": 0.9784
             },
             "union": {
-              "detected": 362,
+              "detected": 363,
               "total": 370,
-              "rate": 0.9784
+              "rate": 0.9811
             },
             "poison_high_or_above": {
-              "detected": 24,
+              "detected": 40,
               "total": 370,
-              "rate": 0.0649
+              "rate": 0.1081
             },
             "union_high_or_above": {
-              "detected": 174,
+              "detected": 181,
               "total": 370,
-              "rate": 0.4703
+              "rate": 0.4892
             },
             "by_id": {
               "DELEG-001": {
@@ -834,9 +840,9 @@
           },
           "all": {
             "poison": {
-              "detected": 103,
+              "detected": 128,
               "total": 435,
-              "rate": 0.2368
+              "rate": 0.2943
             },
             "delegation": {
               "detected": 427,
@@ -844,19 +850,19 @@
               "rate": 0.9816
             },
             "union": {
-              "detected": 427,
+              "detected": 428,
               "total": 435,
-              "rate": 0.9816
+              "rate": 0.9839
             },
             "poison_high_or_above": {
-              "detected": 32,
+              "detected": 49,
               "total": 435,
-              "rate": 0.0736
+              "rate": 0.1126
             },
             "union_high_or_above": {
-              "detected": 182,
+              "detected": 190,
               "total": 435,
-              "rate": 0.4184
+              "rate": 0.4368
             },
             "by_id": {
               "DELEG-001": {
@@ -881,9 +887,9 @@
       "unwrapped_descriptions": {
         "P1": {
           "poison": {
-            "detected": 32,
+            "detected": 33,
             "total": 77,
-            "rate": 0.4156
+            "rate": 0.4286
           },
           "delegation": {
             "detected": 77,
@@ -896,14 +902,14 @@
             "rate": 1.0
           },
           "poison_high_or_above": {
-            "detected": 8,
-            "total": 77,
-            "rate": 0.1039
-          },
-          "union_high_or_above": {
             "detected": 9,
             "total": 77,
             "rate": 0.1169
+          },
+          "union_high_or_above": {
+            "detected": 10,
+            "total": 77,
+            "rate": 0.1299
           },
           "by_id": {
             "DELEG-001": {
@@ -925,9 +931,9 @@
         },
         "P2": {
           "poison": {
-            "detected": 76,
+            "detected": 82,
             "total": 183,
-            "rate": 0.4153
+            "rate": 0.4481
           },
           "delegation": {
             "detected": 183,
@@ -969,9 +975,9 @@
         },
         "P3": {
           "poison": {
-            "detected": 16,
+            "detected": 34,
             "total": 225,
-            "rate": 0.0711
+            "rate": 0.1511
           },
           "delegation": {
             "detected": 217,
@@ -979,19 +985,19 @@
             "rate": 0.9644
           },
           "union": {
-            "detected": 217,
+            "detected": 218,
             "total": 225,
-            "rate": 0.9644
+            "rate": 0.9689
           },
           "poison_high_or_above": {
-            "detected": 15,
+            "detected": 31,
             "total": 225,
-            "rate": 0.0667
+            "rate": 0.1378
           },
           "union_high_or_above": {
-            "detected": 175,
+            "detected": 182,
             "total": 225,
-            "rate": 0.7778
+            "rate": 0.8089
           },
           "by_id": {
             "DELEG-001": {
@@ -1013,9 +1019,9 @@
         },
         "implicit": {
           "poison": {
-            "detected": 92,
+            "detected": 116,
             "total": 408,
-            "rate": 0.2255
+            "rate": 0.2843
           },
           "delegation": {
             "detected": 400,
@@ -1023,19 +1029,19 @@
             "rate": 0.9804
           },
           "union": {
-            "detected": 400,
+            "detected": 401,
             "total": 408,
-            "rate": 0.9804
+            "rate": 0.9828
           },
           "poison_high_or_above": {
-            "detected": 28,
+            "detected": 44,
             "total": 408,
-            "rate": 0.0686
+            "rate": 0.1078
           },
           "union_high_or_above": {
-            "detected": 199,
+            "detected": 206,
             "total": 408,
-            "rate": 0.4877
+            "rate": 0.5049
           },
           "by_id": {
             "DELEG-001": {
@@ -1057,9 +1063,9 @@
         },
         "all": {
           "poison": {
-            "detected": 124,
+            "detected": 149,
             "total": 485,
-            "rate": 0.2557
+            "rate": 0.3072
           },
           "delegation": {
             "detected": 477,
@@ -1067,19 +1073,19 @@
             "rate": 0.9835
           },
           "union": {
-            "detected": 477,
+            "detected": 478,
             "total": 485,
-            "rate": 0.9835
+            "rate": 0.9856
           },
           "poison_high_or_above": {
-            "detected": 36,
+            "detected": 53,
             "total": 485,
-            "rate": 0.0742
+            "rate": 0.1093
           },
           "union_high_or_above": {
-            "detected": 208,
+            "detected": 216,
             "total": 485,
-            "rate": 0.4289
+            "rate": 0.4454
           },
           "by_id": {
             "DELEG-001": {
@@ -1106,9 +1112,9 @@
         "all": {
           "P1": {
             "poison": {
-              "detected": 166,
+              "detected": 167,
               "total": 208,
-              "rate": 0.7981
+              "rate": 0.8029
             },
             "delegation": {
               "detected": 3,
@@ -1116,19 +1122,19 @@
               "rate": 0.0144
             },
             "union": {
-              "detected": 166,
+              "detected": 167,
               "total": 208,
-              "rate": 0.7981
+              "rate": 0.8029
             },
             "poison_high_or_above": {
-              "detected": 151,
+              "detected": 152,
               "total": 208,
-              "rate": 0.726
+              "rate": 0.7308
             },
             "union_high_or_above": {
-              "detected": 151,
+              "detected": 152,
               "total": 208,
-              "rate": 0.726
+              "rate": 0.7308
             },
             "by_id": {
               "DELEG-001": {
@@ -1150,9 +1156,9 @@
           },
           "P2": {
             "poison": {
-              "detected": 411,
+              "detected": 417,
               "total": 519,
-              "rate": 0.7919
+              "rate": 0.8035
             },
             "delegation": {
               "detected": 8,
@@ -1160,9 +1166,9 @@
               "rate": 0.0154
             },
             "union": {
-              "detected": 412,
+              "detected": 418,
               "total": 519,
-              "rate": 0.7938
+              "rate": 0.8054
             },
             "poison_high_or_above": {
               "detected": 355,
@@ -1194,9 +1200,9 @@
           },
           "P3": {
             "poison": {
-              "detected": 403,
+              "detected": 421,
               "total": 585,
-              "rate": 0.6889
+              "rate": 0.7197
             },
             "delegation": {
               "detected": 24,
@@ -1204,19 +1210,19 @@
               "rate": 0.041
             },
             "union": {
-              "detected": 410,
+              "detected": 428,
               "total": 585,
-              "rate": 0.7009
+              "rate": 0.7316
             },
             "poison_high_or_above": {
-              "detected": 403,
+              "detected": 419,
               "total": 585,
-              "rate": 0.6889
+              "rate": 0.7162
             },
             "union_high_or_above": {
-              "detected": 405,
+              "detected": 421,
               "total": 585,
-              "rate": 0.6923
+              "rate": 0.7197
             },
             "by_id": {
               "DELEG-001": {
@@ -1238,9 +1244,9 @@
           },
           "implicit": {
             "poison": {
-              "detected": 814,
+              "detected": 838,
               "total": 1104,
-              "rate": 0.7373
+              "rate": 0.7591
             },
             "delegation": {
               "detected": 32,
@@ -1248,19 +1254,19 @@
               "rate": 0.029
             },
             "union": {
-              "detected": 822,
+              "detected": 846,
               "total": 1104,
-              "rate": 0.7446
+              "rate": 0.7663
             },
             "poison_high_or_above": {
-              "detected": 758,
+              "detected": 774,
               "total": 1104,
-              "rate": 0.6866
+              "rate": 0.7011
             },
             "union_high_or_above": {
-              "detected": 760,
+              "detected": 776,
               "total": 1104,
-              "rate": 0.6884
+              "rate": 0.7029
             },
             "by_id": {
               "DELEG-001": {
@@ -1282,9 +1288,9 @@
           },
           "all": {
             "poison": {
-              "detected": 980,
+              "detected": 1005,
               "total": 1312,
-              "rate": 0.747
+              "rate": 0.766
             },
             "delegation": {
               "detected": 35,
@@ -1292,19 +1298,19 @@
               "rate": 0.0267
             },
             "union": {
-              "detected": 988,
+              "detected": 1013,
               "total": 1312,
-              "rate": 0.753
+              "rate": 0.7721
             },
             "poison_high_or_above": {
-              "detected": 909,
+              "detected": 926,
               "total": 1312,
-              "rate": 0.6928
+              "rate": 0.7058
             },
             "union_high_or_above": {
-              "detected": 911,
+              "detected": 928,
               "total": 1312,
-              "rate": 0.6944
+              "rate": 0.7073
             },
             "by_id": {
               "DELEG-001": {
@@ -1328,9 +1334,9 @@
         "unwrapped": {
           "P1": {
             "poison": {
-              "detected": 23,
+              "detected": 24,
               "total": 65,
-              "rate": 0.3538
+              "rate": 0.3692
             },
             "delegation": {
               "detected": 1,
@@ -1338,19 +1344,19 @@
               "rate": 0.0154
             },
             "union": {
-              "detected": 23,
+              "detected": 24,
               "total": 65,
-              "rate": 0.3538
+              "rate": 0.3692
             },
             "poison_high_or_above": {
-              "detected": 8,
+              "detected": 9,
               "total": 65,
-              "rate": 0.1231
+              "rate": 0.1385
             },
             "union_high_or_above": {
-              "detected": 8,
+              "detected": 9,
               "total": 65,
-              "rate": 0.1231
+              "rate": 0.1385
             },
             "by_id": {
               "DELEG-001": {
@@ -1372,9 +1378,9 @@
           },
           "P2": {
             "poison": {
-              "detected": 70,
+              "detected": 76,
               "total": 178,
-              "rate": 0.3933
+              "rate": 0.427
             },
             "delegation": {
               "detected": 2,
@@ -1382,9 +1388,9 @@
               "rate": 0.0112
             },
             "union": {
-              "detected": 71,
+              "detected": 77,
               "total": 178,
-              "rate": 0.3989
+              "rate": 0.4326
             },
             "poison_high_or_above": {
               "detected": 14,
@@ -1416,9 +1422,9 @@
           },
           "P3": {
             "poison": {
-              "detected": 10,
+              "detected": 28,
               "total": 192,
-              "rate": 0.0521
+              "rate": 0.1458
             },
             "delegation": {
               "detected": 9,
@@ -1426,19 +1432,19 @@
               "rate": 0.0469
             },
             "union": {
-              "detected": 17,
+              "detected": 35,
               "total": 192,
-              "rate": 0.0885
+              "rate": 0.1823
             },
             "poison_high_or_above": {
-              "detected": 10,
+              "detected": 26,
               "total": 192,
-              "rate": 0.0521
+              "rate": 0.1354
             },
             "union_high_or_above": {
-              "detected": 12,
+              "detected": 28,
               "total": 192,
-              "rate": 0.0625
+              "rate": 0.1458
             },
             "by_id": {
               "DELEG-001": {
@@ -1460,9 +1466,9 @@
           },
           "implicit": {
             "poison": {
-              "detected": 80,
+              "detected": 104,
               "total": 370,
-              "rate": 0.2162
+              "rate": 0.2811
             },
             "delegation": {
               "detected": 11,
@@ -1470,19 +1476,19 @@
               "rate": 0.0297
             },
             "union": {
-              "detected": 88,
+              "detected": 112,
               "total": 370,
-              "rate": 0.2378
+              "rate": 0.3027
             },
             "poison_high_or_above": {
-              "detected": 24,
+              "detected": 40,
               "total": 370,
-              "rate": 0.0649
+              "rate": 0.1081
             },
             "union_high_or_above": {
-              "detected": 26,
+              "detected": 42,
               "total": 370,
-              "rate": 0.0703
+              "rate": 0.1135
             },
             "by_id": {
               "DELEG-001": {
@@ -1504,9 +1510,9 @@
           },
           "all": {
             "poison": {
-              "detected": 103,
+              "detected": 128,
               "total": 435,
-              "rate": 0.2368
+              "rate": 0.2943
             },
             "delegation": {
               "detected": 12,
@@ -1514,19 +1520,19 @@
               "rate": 0.0276
             },
             "union": {
-              "detected": 111,
+              "detected": 136,
               "total": 435,
-              "rate": 0.2552
+              "rate": 0.3126
             },
             "poison_high_or_above": {
-              "detected": 32,
+              "detected": 49,
               "total": 435,
-              "rate": 0.0736
+              "rate": 0.1126
             },
             "union_high_or_above": {
-              "detected": 34,
+              "detected": 51,
               "total": 435,
-              "rate": 0.0782
+              "rate": 0.1172
             },
             "by_id": {
               "DELEG-001": {
@@ -1551,9 +1557,9 @@
       "unwrapped_descriptions": {
         "P1": {
           "poison": {
-            "detected": 32,
+            "detected": 33,
             "total": 77,
-            "rate": 0.4156
+            "rate": 0.4286
           },
           "delegation": {
             "detected": 1,
@@ -1561,19 +1567,19 @@
             "rate": 0.013
           },
           "union": {
-            "detected": 32,
+            "detected": 33,
             "total": 77,
-            "rate": 0.4156
+            "rate": 0.4286
           },
           "poison_high_or_above": {
-            "detected": 8,
+            "detected": 9,
             "total": 77,
-            "rate": 0.1039
+            "rate": 0.1169
           },
           "union_high_or_above": {
-            "detected": 8,
+            "detected": 9,
             "total": 77,
-            "rate": 0.1039
+            "rate": 0.1169
           },
           "by_id": {
             "DELEG-001": {
@@ -1595,9 +1601,9 @@
         },
         "P2": {
           "poison": {
-            "detected": 76,
+            "detected": 82,
             "total": 183,
-            "rate": 0.4153
+            "rate": 0.4481
           },
           "delegation": {
             "detected": 3,
@@ -1605,9 +1611,9 @@
             "rate": 0.0164
           },
           "union": {
-            "detected": 77,
+            "detected": 83,
             "total": 183,
-            "rate": 0.4208
+            "rate": 0.4536
           },
           "poison_high_or_above": {
             "detected": 13,
@@ -1639,9 +1645,9 @@
         },
         "P3": {
           "poison": {
-            "detected": 16,
+            "detected": 34,
             "total": 225,
-            "rate": 0.0711
+            "rate": 0.1511
           },
           "delegation": {
             "detected": 9,
@@ -1649,19 +1655,19 @@
             "rate": 0.04
           },
           "union": {
-            "detected": 24,
+            "detected": 42,
             "total": 225,
-            "rate": 0.1067
+            "rate": 0.1867
           },
           "poison_high_or_above": {
-            "detected": 15,
+            "detected": 31,
             "total": 225,
-            "rate": 0.0667
+            "rate": 0.1378
           },
           "union_high_or_above": {
-            "detected": 18,
+            "detected": 34,
             "total": 225,
-            "rate": 0.08
+            "rate": 0.1511
           },
           "by_id": {
             "DELEG-001": {
@@ -1683,9 +1689,9 @@
         },
         "implicit": {
           "poison": {
-            "detected": 92,
+            "detected": 116,
             "total": 408,
-            "rate": 0.2255
+            "rate": 0.2843
           },
           "delegation": {
             "detected": 12,
@@ -1693,19 +1699,19 @@
             "rate": 0.0294
           },
           "union": {
-            "detected": 101,
+            "detected": 125,
             "total": 408,
-            "rate": 0.2475
+            "rate": 0.3064
           },
           "poison_high_or_above": {
-            "detected": 28,
+            "detected": 44,
             "total": 408,
-            "rate": 0.0686
+            "rate": 0.1078
           },
           "union_high_or_above": {
-            "detected": 31,
+            "detected": 47,
             "total": 408,
-            "rate": 0.076
+            "rate": 0.1152
           },
           "by_id": {
             "DELEG-001": {
@@ -1727,9 +1733,9 @@
         },
         "all": {
           "poison": {
-            "detected": 124,
+            "detected": 149,
             "total": 485,
-            "rate": 0.2557
+            "rate": 0.3072
           },
           "delegation": {
             "detected": 13,
@@ -1737,19 +1743,19 @@
             "rate": 0.0268
           },
           "union": {
-            "detected": 133,
+            "detected": 158,
             "total": 485,
-            "rate": 0.2742
+            "rate": 0.3258
           },
           "poison_high_or_above": {
-            "detected": 36,
+            "detected": 53,
             "total": 485,
-            "rate": 0.0742
+            "rate": 0.1093
           },
           "union_high_or_above": {
-            "detected": 39,
+            "detected": 56,
             "total": 485,
-            "rate": 0.0804
+            "rate": 0.1155
           },
           "by_id": {
             "DELEG-001": {
@@ -1814,7 +1820,7 @@
     "gate": {
       "rule": "ship at the stated severities only if DELEG-* lifts implicit-trigger (P2+P3) recall over POISON-* in both session models and flags no more than 5 of MCPTox's clean real tools; otherwise INFO",
       "implicit_recall_lift": {
-        "separate": 282,
+        "separate": 259,
         "same_server": 8
       },
       "clean_tools_flagged": 1,
@@ -1828,7 +1834,7 @@
     }
   },
   "top100_2026_10_22_replay": {
-    "patterns_fingerprint": "sha256:41fabb03383f02c17eb8b06e83be3525d668eb06549ca3e1eb7ed4e08b9a5868",
+    "patterns_fingerprint": "sha256:9c0c308597ede487e90f66977bbea3d95c680eb136ec60cf934ddf2db5282023",
     "findings_reproduced_from_committed_text": 32,
     "groups": [
       {

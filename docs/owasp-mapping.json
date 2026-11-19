@@ -2360,6 +2360,43 @@
       "notes": "Text tells the model to skip, bypass, disable, turn off, suppress, ignore or auto-approve permission, approval or confirmation prompts or dialogs, or to run with --dangerously-skip-permissions, bypassPermissions or --yolo. A negation earlier in the same clause ('never skip permission prompts'), a flag's purpose clause ('use --yes to skip the prompt'), a gerund subject ('skipping ... is') or a safe-place scope ('only inside the devcontainer') vetoes the match. HIGH, also as SKILL-001 in an agent file. CWE-862. Source: arXiv study of 1.53M skills (about 1 in 17 carries an oversight-loosening directive) and the 415K-view settings-change report, discovery brief 2026-11-04 section 2.1/2.4. STORY-0141; narrowed after review (sandbox, hooks, monitoring and guardrails dropped as too common in ordinary project text)."
     },
     {
+      "finding_id": "POISON-080",
+      "finding_title": "Tool redirection order",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Tool text orders that requests are redirected ('must be redirected to', 'automatically redirects', 'redirecting all ... requests'). Tool text only; not read in agent files. HIGH. CWE-74. Shape from the Tool Redirection and Tool Shadowing cases of MCP-SafetyBench (arXiv 2512.15163) and from MCPTox parameter-tampering cases; no row on HISTOR's record of 126,105 real changes. STORY-0172."
+    },
+    {
+      "finding_id": "POISON-081",
+      "finding_title": "Shell command in tool description",
+      "owasp_codes": [
+        "MCP03",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Command Injection and Execution"
+      ],
+      "notes": "Tool text holds 'rm -r...', 'echo $PATH' / a secret-named variable, or 'env |' / 'printenv |'. Tool text only. HIGH. CWE-77. Shape from the Command Injection cases of MCP-SafetyBench (arXiv 2512.15163); no row on HISTOR's record. STORY-0172."
+    },
+    {
+      "finding_id": "POISON-082",
+      "finding_title": "System account file in tool description",
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ],
+      "notes": "Tool text names /etc/passwd, /etc/shadow or /etc/sudoers. Tool text only. MEDIUM: a list of mounted paths is honest (2 changes on HISTOR's record). CWE-200. Shape from MCP-SafetyBench and MCPTox cases. STORY-0172."
+    },
+    {
       "finding_id": "MEM-005",
       "finding_title": "Instruction file holds a conditional sleeper trigger",
       "owasp_codes": [
