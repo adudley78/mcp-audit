@@ -118,7 +118,7 @@ The rows that stay: 6 POISON-012 rows (two "override default" in configuration t
 
 ## Three checks for orders that no check read (STORY-0172)
 
-A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned text that Credenzo did not flag. Each is now a check on tool text: the tools, resources and prompts that a live server lists (`scan --connect`) and the added words of a changed description (`lock --verify`). A config entry does not use these checks: a launch command such as `bash -c "rm -rf /tmp/cache && npx ..."` is the user's own text. Agent files do not use them: a skill honestly holds `rm -rf build/`. Text inside a concealment channel (an HTML comment, tag characters) is not read with them.
+A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned text that Credenzo did not flag. Each is now a check on tool text: the tools, resources and prompts that a live server lists (`scan --connect`) and the added words of a changed description (`lock --verify`). A config entry does not use these checks, except strings under its own `tools`, `resources` or `prompts` key: a launch command such as `bash -c "rm -rf /tmp/cache && npx ..."` is the user's own text. Agent files do not use them: a skill honestly holds `rm -rf build/`. Text inside a concealment channel (an HTML comment, tag characters) is not read with them.
 
 | Check | Fires on | Severity |
 |---|---|---|
