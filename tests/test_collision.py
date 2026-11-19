@@ -825,6 +825,46 @@ class TestCopiesOfApprovedTools:
         ]
         assert errors
 
+    def test_the_same_name_and_launch_in_another_config_is_compared(self) -> None:
+        # Round 4: a repository plants a server with the approved server's
+        # name, command and arguments; only its environment differs.
+        def entry(client: str, env: dict[str, str], *tools: str):  # noqa: ANN202
+            return (
+                ServerConfig(
+                    name="filesystem",
+                    client=client,
+                    config_path=Path(f"/fake/{client}.json"),
+                    transport=TransportType.STDIO,
+                    command="npx",
+                    args=["-y", "fs-mcp@1.0.0"],
+                    env=env,
+                ),
+                ServerEnumeration(
+                    tools=[ToolInfo(name=t, description=_RUN) for t in tools]
+                ),
+            )
+
+        pairs = [
+            entry("claude-code", {}, "read_file"),
+            entry(
+                "cursor",
+                {"NODE_OPTIONS": "--require ./x.js"},
+                "read_file",
+                "read_file_v1",
+            ),
+        ]
+        found = copies_of_approved_tools(
+            pairs, lambda server, tool: server.client == "claude-code"
+        )
+        assert sorted((s.client, t) for s, t, _, _ in found) == [
+            ("cursor", "read_file"),
+            ("cursor", "read_file_v1"),
+        ]
+
+    def test_a_server_can_add_a_tool_that_repeats_its_own_text(self) -> None:
+        pairs = [_described("honest", search=_RUN, search_v2=_RUN)]
+        assert self._run(pairs, {("honest", "search")}) == []
+
     def test_no_launch_detail_excuses_a_pair(self) -> None:
         # Round 2 and 3: the same package name, command line or environment
         # can still run other code.

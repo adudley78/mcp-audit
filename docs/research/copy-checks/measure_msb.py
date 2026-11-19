@@ -22,7 +22,10 @@ Controls for COLLIDE-003 (it needs real descriptions):
 2. MCPTox's 353 clean tools from 45 servers in one session.
 3. HISTOR's record of changes: the newest description of each tool that the
    record shows a change for.  5,000 sessions of five servers drawn at random
-   (``random.Random(174)``), and every server in one session.
+   from the servers with two or more described tools
+   (``random.Random(174)``), and every server in one session.  The lock guard
+   on 5,000 more such sessions (``random.Random(175)``) with the first server
+   approved.
 
 Usage::
 
@@ -231,6 +234,19 @@ def main() -> None:
         found = _copies({k: list(described[k].items()) for k in rng.sample(keys, 5)})
         with_copy += bool(found)
         with_high += bool(found.get("HIGH"))
+    # The lock guard on real descriptions: the first of five servers was
+    # approved, the four others arrived after it.
+    guard_rng = random.Random(175)  # noqa: S311 - a sample, not a secret
+    guard_sessions = guard_tools = guard_same_name = 0
+    for _ in range(5000):
+        pick = guard_rng.sample(keys, 5)
+        withheld = collision.copies_of_approved_tools(
+            _pairs({k: list(described[k].items()) for k in pick}),
+            lambda server, _tool, first=pick[0]: server.name == first,
+        )
+        guard_sessions += bool(withheld)
+        guard_tools += len(withheld)
+        guard_same_name += sum(tool == original for _, tool, _, original in withheld)
     whole = collision.detect_description_copies(
         _pairs({k: list(v.items()) for k, v in described.items()})
     )
@@ -240,6 +256,12 @@ def main() -> None:
         "random_sessions": 5000,
         "random_sessions_with_collide_003": with_copy,
         "random_sessions_with_collide_003_high": with_high,
+        "lock_guard_first_server_approved": {
+            "sessions": 5000,
+            "sessions_with_a_withheld_tool": guard_sessions,
+            "withheld_tools": guard_tools,
+            "withheld_tools_with_the_name_of_the_approved_tool": guard_same_name,
+        },
         "every_server_in_one_session": {
             "findings_capped_at": collision.MAX_DESCRIPTION_COPY_FINDINGS,
             "findings": len(whole),

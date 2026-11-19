@@ -88,6 +88,12 @@
     "random_sessions": 5000,
     "random_sessions_with_collide_003": 0,
     "random_sessions_with_collide_003_high": 0,
+    "lock_guard_first_server_approved": {
+     "sessions": 5000,
+     "sessions_with_a_withheld_tool": 495,
+     "withheld_tools": 1167,
+     "withheld_tools_with_the_name_of_the_approved_tool": 1167
+    },
     "every_server_in_one_session": {
      "findings_capped_at": 100,
      "findings": 100
@@ -395,15 +401,5 @@
  "word_lists_of_story_0173_on_msb": {
   "name_overlap": "0 of 24",
   "preference_manipulation": "0 of 18"
- },
- "guard_on_real_descriptions": {
-  "source": "HISTOR, newest description of each tool",
-  "sessions": 5000,
-  "servers_per_session": 5,
-  "seed": 175,
-  "order": "the first server approved, the four others added after it",
-  "sessions_with_a_withheld_tool": 495,
-  "withheld_tools": 1167,
-  "withheld_tools_with_the_same_name_as_the_approved_tool": 1167
  }
 }

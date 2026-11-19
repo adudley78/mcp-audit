@@ -134,7 +134,8 @@ The agent wrote the honest sessions to be hard for a scanner, so these are
 not rates for real sessions.
 
 On real descriptions the guard stops more than that. In 5,000 random
-sessions of five servers from HISTOR's record, with the first server
+sessions of five servers from HISTOR's record (servers with two or more
+described tools; `measure_msb.py`), with the first server
 approved and the four others added after it, the guard withholds a tool in
 495 sessions (`random.Random(175)`). Each of the 1,167 withheld tools has the
 same name and the same description as an approved tool. A few vendors in
@@ -179,6 +180,11 @@ servers alone get no finding.
   test of the word lists, not a blind test of COLLIDE-003. The blind set is.
 - A copy with a description in new words gets no finding. Nothing in the
   text ties it to the original.
+- A description of fewer than ten words in long sentences is matched only
+  under the same name or the name plus one or two words. A short text under
+  an unrelated name gets no finding and is recorded by the lock.
+- The same server in a second config file is a new server for the guard. It
+  is stopped one time, like each honest duplicate.
 - The guard needs an earlier lock. A copy that is there at the first lock is
   recorded like each other tool.
 - The guard also stops an honest duplicate one time, until the user allows

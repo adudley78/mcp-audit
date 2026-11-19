@@ -543,7 +543,7 @@ Two tools on two servers can carry one description. The agent cannot tell them a
 `lock --connect` leaves a tool out when all of these are true:
 
 - The lock does not hold the tool yet.
-- Its description holds the description of a tool of another server (under the same name or another name).
+- Its description holds the description of a tool of another server, or the other way round (under the same name or another name; a description of fewer than ten words in long sentences only under the same name or the name plus one or two words). The same server name and command line in another config file is another server.
 - The lock holds that other tool.
 
 The command prints one `NOT APPROVED` line for the tool. After that:

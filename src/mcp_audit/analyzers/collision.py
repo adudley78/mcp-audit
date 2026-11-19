@@ -816,7 +816,10 @@ def copies_of_approved_tools(
         tested: set[int] = set()
         for sentence in dict.fromkeys(tool.all):
             for other in by_long.get(sentence, ()):
-                if other.identity == tool.identity or id(other) in tested:
+                # Only the same config entry is skipped.  The same name and
+                # command line in another config file is another server: its
+                # environment can load other code.
+                if other.server is tool.server or id(other) in tested:
                     continue
                 tested.add(id(other))
                 budget -= len(other.long) + len(tool.long)
@@ -828,7 +831,7 @@ def copies_of_approved_tools(
             if original is not None:
                 break
             for other in by_first.get(sentence, ()):
-                if other.identity == tool.identity or not (
+                if other.server is tool.server or not (
                     other.name == tool.name
                     or _is_name_plus_words(tool.name, other.name)
                     or _is_name_plus_words(other.name, tool.name)
