@@ -156,3 +156,8 @@ honest rows and 3 of the 4 rows that steer the agent get no finding now. Six
 honest rows keep POISON-012. Four honest rows and 1 row that steers the agent
 keep a finding of another check. Of the 11 labelled POISON-040 rows, 9 get no
 finding now.
+
+STORY-0172 then added POISON-080, POISON-081 and POISON-082. `measure.py`
+gives 487 flagged changes from 389 servers and 602 rows (`results.json`,
+`after_story_0172`). The 3 new rows are POISON-082: two lists of mounted paths
+and one example query that name `/etc/passwd`. All 3 are honest.

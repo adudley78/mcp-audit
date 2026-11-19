@@ -948,6 +948,8 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
             findings.append(f)
 
     for pat in PATTERNS:
+        if pat.tool_text_only:
+            continue
         # Length pattern: only fire when the full body is long enough — use
         # the len() check instead of running the DOTALL regex for speed.
         if pat.id == _LENGTH_PATTERN_ID:
