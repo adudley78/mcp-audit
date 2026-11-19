@@ -321,6 +321,18 @@ def lock(
             "Never stored or logged."
         ),
     ),
+    identify_as: str | None = typer.Option(  # noqa: B008
+        None,
+        "--identify-as",
+        metavar="NAME[@VERSION]",
+        help=(
+            "With --connect: the client name (and version) to give each "
+            "server in the MCP handshake. By default a server from a Claude "
+            "Code config is asked as Claude Code, and any other server with "
+            "the MCP SDK's default name. A server can list other tools for "
+            "another client."
+        ),
+    ),
     save_tool_text: bool = typer.Option(  # noqa: B008
         False,
         "--save-tool-text",
@@ -379,6 +391,17 @@ def lock(
             "[red]Error:[/red] --save-tool-text and --tool-text-path need --connect."
         )
         raise typer.Exit(2)
+    if identify_as is not None:
+        if not connect:
+            console.print("[red]Error:[/red] --identify-as needs --connect.")
+            raise typer.Exit(2)
+        from mcp_audit import mcp_client as _mcp_client  # noqa: PLC0415
+
+        try:
+            _mcp_client.set_connect_identity(identify_as)
+        except ValueError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from exc
     if allow_copies and not connect:
         console.print("[red]Error:[/red] --allow-copies needs --connect.")
         raise typer.Exit(2)

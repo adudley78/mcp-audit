@@ -96,6 +96,35 @@ The token is sent as `Authorization: Bearer <token>` on every HTTP request.
 
 ---
 
+## The name Credenzo gives the server (`--identify-as`, STORY-0177)
+
+A server reads the client's name in the MCP handshake (`clientInfo.name`). A
+hostile server can list one set of tools for a scanner and another for the
+agent. The MCP Python SDK's default name is `mcp` (version `0.1.0`), which no
+agent sends. Until STORY-0177 Credenzo connected with that default.
+
+- A server from a Claude Code config (`~/.claude.json`, `.mcp.json`, local
+  scope) is now asked as Claude Code. The identity is the one a live Claude
+  Code 2.1.328 session sent on 2026-11-19: name `claude-code`, title
+  `Claude Code`, version `2.1.328`.
+- The rule goes by the client that Credenzo found the file for. A file named
+  with `scan --path` has the client `custom`, also when it is a `.mcp.json`:
+  it keeps the SDK default. Use `--identify-as claude-code@2.1.328` there.
+- A server from any other client's config keeps the SDK default. The names
+  that other clients send are not verified here. A wrong guess would make
+  `lock --connect` record tools that the real client never sees.
+- `--identify-as NAME[@VERSION]` (with `scan --connect` or `lock --connect`)
+  sets the name for every server of that run.
+
+`lock --connect` records what the named client sees. After this change, a
+server that lists other tools for Claude Code than for `mcp` shows as changed
+on the next `lock --verify --connect`. That difference is real; review it.
+
+Limits: Credenzo does not copy a client's declared capabilities (Claude Code
+declares `elicitation` and `roots`), its protocol version or its network
+address. A server can tell clients apart by those. Credenzo does not connect
+two times under two names to compare the answers.
+
 ## Supported transports
 
 | Transport | `--connect` support | `--connect-token` |
