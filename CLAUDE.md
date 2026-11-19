@@ -125,7 +125,7 @@ src/mcp_audit/
 │   ├── cli.py         # argparse for run: --config/--server/--lock/--mode; gate → relay; exit 78 when enforce refuses
 │   ├── relay.py       # byte-exact stdio relay; process group, signal forwarding, exit mirroring; monitor taps lines, enforce relays line by line through the ToolGuard
 │   ├── gate.py        # launch gate: argv vs the lock entry (LOCK-001/002, RUN-001/002); uses lock/core.py only, redaction on the slow path
-│   ├── wrapping.py    # wrap_entry/unwrap_entry (--original-sha256 = RFC 8785 digest of the original entry), inner_launch (config_parser analyses a wrapped entry as its inner server; ServerConfig.wrapped/wrap_mode), WRAPPABLE_CLIENTS, wrap_status; a relative ./mcp-audit is never trusted as the wrapper
+│   ├── wrapping.py    # wrapper_trusted(command, root=, recorded=) (STORY-0178): `lock --verify` (verifier._check_drift gets the lock root) reads a wrapped entry as its inner launch only when the wrapper is the running install, or its digest is the lock entry's optional `wrapper` (writer.build_entry, absolute wrapper paths only; never the path), or it is outside the git repository above the lock root with nothing recorded; a bare name is never recorded and is refused when PATH resolves it into the repository; wrap_entry/unwrap_entry (--original-sha256 = RFC 8785 digest of the original entry), inner_launch (config_parser analyses a wrapped entry as its inner server; ServerConfig.wrapped/wrap_mode), WRAPPABLE_CLIENTS, wrap_status; a relative ./mcp-audit is never trusted as the wrapper
 │   └── tools.py       # ToolGuard: live tools/list vs lock tool digests (LOCK-006..009, RUN-003); enforce withholds added/changed tools and denies their tools/call
 ├── _redact.py         # Local-path redaction for output that leaves the host (advisory feed, SARIF, Nucleus, snapshot)
 ├── bundle.py          # Signed air-gapped data bundle (STORY-0129): verify_bundle() checks bundle.json + the feed in a private copy, advances seen.json (0o600) only on success; override() points scan/affected at the bundle's data files
@@ -650,11 +650,11 @@ What each feature does is in `README.md`, `docs/README.md` (the index of every d
 Counts that `scripts/update_test_count.py` keeps in sync:
 
 - 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
-- 10733 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 10751 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - 34 top-level CLI commands: affected, vet, reach, check, fix, run, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `credenzo --help` before each release
 - 56-entry curated dataset of legitimate MCP servers (`registry/known-servers.json`, `docs/registry.md`)
 - 42 community rules ship bundled; the breakdown is under "Data files at project root" above
-- Demo: 76 findings on a first scan of `demo/configs/` (68 once rug-pull state exists). Recount before each release: `credenzo scan --path demo/configs/ --format json`
+- Demo: 75 findings on a first scan of `demo/configs/` (67 once rug-pull state exists; 76 and 68 up to 0.33.0, before STORY-0171 moved the bare "do not mention" out of POISON-012; POISON-070 still reports that text). Recount before each release: `credenzo scan --path demo/configs/ --format json`
 
 ## Provenance
 
@@ -682,7 +682,7 @@ A full audit of the git history before the public release found no real credenti
 
 ### CI workflow (`.github/workflows/ci.yml`)
 
-Triggers on every push and pull request to **any branch**. Runs a 3×2 matrix (6 combinations):
+Triggers on every pull request and on pushes to `main` (until 2026-11-19 also on every branch push, which ran each pull-request commit twice and left macOS jobs waiting for a runner until their time limit). Runs a 3×2 matrix (6 combinations):
 - **OS:** `ubuntu-latest`, `macos-latest`, `windows-latest`
 - **Python:** `3.11`, `3.12`
 - `fail-fast: false` — a failure on one leg does not cancel the others.

@@ -4,7 +4,12 @@ name: Synthetic Install Integration Tests
 # including paths with spaces, non-ASCII filenames, and Windows >260-char paths.
 
 on:
+  # Pushes to main, and every pull request.  A push to a branch that has a
+  # pull request used to start both, so each commit ran every job twice; on
+  # 2026-11-19 the second set waited for a macOS runner until its time limit
+  # (two runs cancelled with no step started).
   push:
+    branches: [main]
   pull_request:
 
 # Least privilege by default (2026-11 hardening): jobs that need more

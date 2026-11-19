@@ -571,7 +571,11 @@ def _load(text: str) -> Any:
 
 
 def parse_skillspector(text: str) -> Verdict:
-    """ASSUMED, unverified shape: ``{"issues": [{"severity": ...}], ...}``."""
+    """Shape ``{"issues": [{"severity": ...}], ...}``.
+
+    Checked against real output of SkillSpector v2.12.0 on 2026-11-19 (keys:
+    ``issues``, ``risk_assessment``, ``suppressed``, ``skill``...).
+    """
     doc = _load(text)
     if not isinstance(doc, dict):
         raise ParseError("SkillSpector output is not an object")
@@ -603,9 +607,10 @@ def _cisco_analyzers(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def parse_cisco(text: str) -> Verdict:
-    """ASSUMED, unverified: ``{"scan_results": [{"status", "is_safe", ...}]}``.
+    """Shape ``{"scan_results": [{"status", "is_safe", "findings": {...}}]}``.
 
-    Each result holds one ``<name>_analyzer`` object with a ``severity``.
+    ``findings`` holds one ``<name>_analyzer`` object with a ``severity``.
+    Checked against real output of cisco-ai-mcp-scanner 4.8.7 on 2026-11-19.
     """
     doc = _load(text)
     results = doc.get("scan_results") if isinstance(doc, dict) else doc
@@ -763,7 +768,40 @@ def tool_version(exe: str, spec: ToolSpec) -> str:
     except (OSError, subprocess.SubprocessError):
         return "unknown (version command failed)"
     out = (proc.stdout or proc.stderr).strip().splitlines()
-    return out[0] if out else "unknown (no version output)"
+    first = out[0] if out else ""
+    if not first or first.lower().startswith("usage:"):
+        # No --version flag (Cisco mcp-scanner 4.8.7 prints its usage).  Ask
+        # the interpreter beside the executable for the package version.
+        return _package_version(exe, spec) or "unknown (no version output)"
+    return first
+
+
+_PACKAGE_NAMES = {"cisco": "cisco-ai-mcp-scanner"}
+
+
+def _package_version(exe: str, spec: ToolSpec) -> str | None:
+    package = _PACKAGE_NAMES.get(spec.key)
+    python = Path(exe).resolve().parent / "python"
+    if package is None or not python.exists():
+        return None
+    try:
+        proc = subprocess.run(  # noqa: S603
+            [
+                str(python),
+                "-c",
+                "import importlib.metadata as m, sys; print(m.version(sys.argv[1]))",
+                package,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=VERSION_TIMEOUT_SECONDS,
+            env=scrubbed_env(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    version = proc.stdout.strip()
+    return f"{package} {version}" if proc.returncode == 0 and version else None
 
 
 def scan_one(spec: ToolSpec, exe: str, target: str) -> Verdict | None:

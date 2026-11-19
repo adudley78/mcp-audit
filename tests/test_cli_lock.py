@@ -700,3 +700,24 @@ class TestLockDoesNotApproveACopy(TestLockConnect):
         self._config(tmp_path, "terminal")
         result = runner.invoke(app, ["lock", str(tmp_path), "--allow-copies"])
         assert result.exit_code == 2
+
+
+def test_lock_warns_about_an_entry_with_a_url_and_a_command(tmp_path: Path) -> None:
+    """STORY-0178: such an entry is LOCK-001 for as long as it holds both."""
+    cfg = tmp_path / ".cursor"
+    cfg.mkdir()
+    (cfg / "mcp.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "both": {"command": "sh", "args": [], "url": "https://a.test/mcp"}
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+    assert result.exit_code == 0, result.output
+    assert "both a url and a command" in unwrapped(result.output)
+    verify = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+    assert verify.exit_code == 1 and "LOCK-001" in verify.output

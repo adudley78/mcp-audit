@@ -465,6 +465,16 @@ def _run_write(
 ) -> None:
     """Handle plain ``lock`` and ``lock --accept`` (same regeneration)."""
     servers = _discover_lock_servers(root, include_user, console)
+    for server in servers:
+        if server.url and server.command:
+            # The lock records the URL of such an entry; a client that reads
+            # it as a local server runs the command.  `lock --verify`
+            # reports it (LOCK-001) for as long as it holds both.
+            console.print(
+                f"[yellow]WARN[/yellow] {escape(server.name)}: the entry has "
+                "both a url and a command. `lock --verify` reports it "
+                "(LOCK-001) until one of them is removed."
+            )
     existing_doc = load_existing(lock_path)
     # STORY-0143: the repository's own guardrail files (never home files,
     # never settings.local.json), recorded beside the servers.

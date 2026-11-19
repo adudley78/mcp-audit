@@ -61,6 +61,28 @@ Credenzo executable named by absolute path or bare name counts as the
 wrapper; a relative `./mcp-audit` in a cloned repository is analysed as the
 command it is.
 
+A file that is only *named* `credenzo` is not Credenzo. `lock --verify`
+reports LOCK-001 for a wrapped entry when its wrapper is a
+file inside the repository that is not the Credenzo that runs the check and
+is not recorded in the lock, or when the lock recorded another wrapper.
+"The repository" is the git repository that holds the lock, also when the
+lock is in a subdirectory or in a submodule. When your home directory is
+itself a git repository (dotfiles), a wrapper under home counts as inside it:
+run `credenzo lock` after `wrap` so that the wrapper's path is recorded.
+
+A bare name (`credenzo`) is never recorded, because what it runs is whatever
+`PATH` finds. It is reported when `PATH` leads to a file inside the repository
+(`node_modules/.bin`, a project `.venv`) that is not the Credenzo that runs
+the check. `credenzo lock` records the digest of a wrapper
+path that you lock (the `wrapper` field; never the path). The digest is of
+the path, not of the file: it says that a person approved that path. A file
+that a later commit puts at a recorded path inside the repository still
+matches. So: after `wrap` in a repository whose
+Credenzo is installed inside it (a project `.venv`), run `credenzo lock` and
+commit, or other machines report LOCK-001. `wrap --exe credenzo` writes the
+bare name into a file that a team shares; install Credenzo outside the
+repository on each machine then.
+
 `check` adds a `Launch gate:` line once any server is wrapped, and a policy
 with `runtime.require_wrap: true` makes `scan` report each unwrapped local
 server as WRAP-001.

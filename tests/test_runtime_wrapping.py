@@ -231,3 +231,132 @@ class TestStatusAndPolicy:
         assert not [
             f for f in evaluate_governance(servers, policy) if f.id == "WRAP-001"
         ]
+
+
+class TestWrapperTrust:
+    """A file named like Credenzo is not Credenzo (STORY-0178).
+
+    Found on 2026-11-19: after ``lock``, an entry rewritten to
+    ``/abs/path/credenzo run -- <locked launch>`` passed ``lock --verify``.
+    A repository can hold such a file at a path known in advance.
+    """
+
+    INNER = ["run", "--", "npx", "-y", "@acme/files@1.2.3"]
+
+    def _repo(self, tmp_path: Path) -> Path:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".git").mkdir()
+        return repo
+
+    def test_a_wrapper_inside_the_repository_is_not_trusted(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_audit.runtime.wrapping import wrapper_trusted
+
+        repo = self._repo(tmp_path)
+        planted = repo / "tools" / "credenzo"
+        planted.parent.mkdir()
+        planted.write_text("#!/bin/sh\n")
+        assert wrapper_trusted(str(planted), root=repo, recorded=None) is False
+
+    def test_a_recorded_wrapper_is_trusted_and_another_path_is_not(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_audit.runtime.wrapping import wrapper_digest, wrapper_trusted
+
+        repo = self._repo(tmp_path)
+        inside = str(repo / ".venv" / "bin" / "credenzo")
+        outside = str(tmp_path / "elsewhere" / "credenzo")
+        assert wrapper_trusted(inside, root=repo, recorded=wrapper_digest(inside))
+        assert not wrapper_trusted(outside, root=repo, recorded=wrapper_digest(inside))
+
+    def test_a_path_outside_the_repository_with_nothing_recorded_is_trusted(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_audit.runtime.wrapping import wrapper_trusted
+
+        repo = self._repo(tmp_path)
+        assert wrapper_trusted("/opt/tools/credenzo", root=repo, recorded=None)
+
+    def test_a_symlink_that_leads_into_the_repository_is_not_trusted(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_audit.runtime.wrapping import wrapper_trusted
+
+        repo = self._repo(tmp_path)
+        (repo / "credenzo").write_text("#!/bin/sh\n")
+        link = tmp_path / "out"
+        try:
+            link.symlink_to(repo, target_is_directory=True)
+        except OSError:
+            pytest.skip("symlinks are not available")
+        assert not wrapper_trusted(str(link / "credenzo"), root=repo, recorded=None)
+
+    def test_the_running_install_is_trusted_wherever_it_is(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.runtime import wrapping
+
+        repo = self._repo(tmp_path)
+        mine = repo / ".venv" / "bin" / "credenzo"
+        mine.parent.mkdir(parents=True)
+        mine.write_text("#!/bin/sh\n")
+        assert not wrapping.wrapper_trusted(str(mine), root=repo, recorded=None)
+        monkeypatch.setattr(wrapping, "_this_install", lambda: [mine.resolve()])
+        assert wrapping.wrapper_trusted(str(mine), root=repo, recorded=None)
+
+    def test_a_bare_name_that_path_resolves_into_the_repository(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.runtime import wrapping
+
+        repo = self._repo(tmp_path)
+        planted = repo / "bin" / "credenzo"
+        planted.parent.mkdir()
+        planted.write_text("#!/bin/sh\n")
+        monkeypatch.setattr(wrapping.shutil, "which", lambda name: str(planted))
+        assert not wrapping.wrapper_trusted("credenzo", root=repo, recorded=None)
+        monkeypatch.setattr(wrapping.shutil, "which", lambda name: "/usr/bin/credenzo")
+        assert wrapping.wrapper_trusted("credenzo", root=repo, recorded=None)
+        monkeypatch.setattr(wrapping.shutil, "which", lambda name: None)
+        assert wrapping.wrapper_trusted("credenzo", root=repo, recorded=None)
+
+    @pytest.mark.parametrize("command", ["npx", "./credenzo", "", None, 3])
+    def test_what_is_not_a_wrapper_is_never_trusted(
+        self, tmp_path: Path, command: object
+    ) -> None:
+        from mcp_audit.runtime.wrapping import wrapper_trusted
+
+        assert wrapper_trusted(command, root=tmp_path, recorded=None) is False
+
+    def test_a_file_of_the_superproject_is_inside_for_a_lock_in_a_submodule(
+        self, tmp_path: Path
+    ) -> None:
+        """A submodule's `.git` is a file; keep walking up."""
+        from mcp_audit.runtime.wrapping import wrapper_trusted
+
+        sup = self._repo(tmp_path)
+        sub = sup / "sub"
+        sub.mkdir()
+        (sub / ".git").write_text("gitdir: ../.git/modules/sub\n")
+        planted = sup / "tools" / "credenzo"
+        planted.parent.mkdir()
+        planted.write_text("#!/bin/sh\n")
+        assert not wrapper_trusted(str(planted), root=sub, recorded=None)
+
+    def test_a_record_never_excuses_a_bare_name_that_path_leads_into_the_repository(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """PR #340 review: the digest of a bare name is the same in every lock."""
+        from mcp_audit.runtime import wrapping
+
+        repo = self._repo(tmp_path)
+        inside = repo / "node_modules" / ".bin" / "credenzo"
+        inside.parent.mkdir(parents=True)
+        inside.write_text("#!/bin/sh\n")
+        monkeypatch.setattr(wrapping.shutil, "which", lambda name: str(inside))
+        assert not wrapping.wrapper_trusted("credenzo", root=repo, recorded=None)
+        assert not wrapping.wrapper_trusted(
+            "credenzo", root=repo, recorded=wrapping.wrapper_digest("credenzo")
+        )

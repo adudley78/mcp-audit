@@ -54,6 +54,7 @@ from mcp_audit.lock.resolve import resolve_package
 from mcp_audit.lock.writer import load_existing
 from mcp_audit.models import Finding, ServerConfig, ServerEnumeration, Severity
 from mcp_audit.registry.loader import KnownServerRegistry
+from mcp_audit.runtime.wrapping import wrapper_trusted
 
 _OWASP = ["MCP04"]
 
@@ -318,7 +319,7 @@ def verify(
         key, locked_entry = locked_by_match[match]
         if launch_carries_secret(server):
             findings.append(_lock_013(key, server))
-        drift_finding = _check_drift(key, server, locked_entry)
+        drift_finding = _check_drift(key, server, locked_entry, lock_root)
         if drift_finding is not None:
             findings.append(drift_finding)
             continue
@@ -480,7 +481,7 @@ def servers_to_connect(
         if match not in locked_by_match:
             continue
         key, entry = locked_by_match[match]
-        if key in records and _check_drift(key, server, entry) is None:
+        if key in records and _check_drift(key, server, entry, lock_root) is None:
             eligible.append(server)
     return eligible
 
@@ -991,8 +992,14 @@ def _lock_014(item: guardrail_section.Loosened) -> Finding:
     )
 
 
-def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding | None:
-    """Return a LOCK-001 finding when identity/env/header names drifted."""
+def _check_drift(
+    key: str, server: ServerConfig, locked_entry: dict, root: Path | None = None
+) -> Finding | None:
+    """Return a LOCK-001 finding when identity/env/header names drifted.
+
+    With *root* (the lock root), a wrapped entry is also checked for a wrapper
+    that is only named like Credenzo (``wrapping.wrapper_trusted``).
+    """
     current_identity = build_identity(server)
     current_env = sorted(server.env.keys())
     current_headers = sorted(server.headers.keys())
@@ -1001,6 +1008,22 @@ def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding 
     locked_headers = locked_entry.get("header_keys", [])
 
     diffs: list[str] = []
+    if server.url and server.command:
+        # The lock records the URL of such an entry.  A client that reads the
+        # entry as a local server runs the command, which no lock field holds,
+        # so the entry is never "unchanged" (STORY-0178).
+        diffs.append(
+            "the entry has both a url and a command; the lock records only "
+            "the url, and a client may run the command"
+        )
+    if server.wrapped and not wrapper_trusted(
+        server.raw.get("command"), root=root, recorded=locked_entry.get("wrapper")
+    ):
+        diffs.append(
+            "wrapper: the entry now launches through a program named like "
+            "Credenzo that is inside this repository or is not the one the "
+            "lock recorded; if it is your Credenzo, run `credenzo lock --accept`"
+        )
     # Both sides in redacted form (STORY-0118): an older lock holding a
     # credential verbatim still matches, and evidence never quotes one.
     current_identity = comparable_identity(current_identity)
