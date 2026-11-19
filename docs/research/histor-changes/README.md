@@ -161,3 +161,10 @@ STORY-0172 then added POISON-080, POISON-081 and POISON-082. `measure.py`
 gives 487 flagged changes from 389 servers and 602 rows (`results.json`,
 `after_story_0172`). The 3 new rows are POISON-082: two lists of mounted paths
 and one example query that name `/etc/passwd`. All 3 are honest.
+
+The second part of STORY-0171 then narrowed POISON-030: "first call" does not
+count as a noun. `measure.py` gives 216 flagged changes from 197 servers and
+234 rows, with 170 POISON-030 rows in the place of 538 (`results.json`,
+`after_story_0171_poison_030`). Of the 100 labelled POISON-030 rows, 67 honest
+rows get no finding now, 32 honest rows still fire, and the 1 row that steers
+the agent still fires.

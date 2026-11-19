@@ -45,7 +45,7 @@ POISON-060 now counts full-width **digits and letters** (U+FF10â€“FF19, U+FF21â€
 
 Per case, exactly one MCPTox case changed findings: a P1 case with a full-width colon after "Ignore the previous instructions" lost POISON-060 and is still flagged at HIGH by POISON-012. POISON-060 was never the only detection on any MCPTox case. The top-100 "0 of 661" stays a fixed measurement of the 0.21.x code (`precision` prints STALE): a fragment is only the first match in its field, so a full-width letter later in a field would still fire, and only a fresh enumeration can give the new figure.
 
-**POISON-030 was not changed.** STORY-0107 also tried gating POISON-030 ("first call", "instead use", "after calling this") on an order. MCPTox showed no loss, but MCPTox had shaped the gate; on a review set of 40 poisoned and 40 benign descriptions written outside MCPTox, the current pattern catches 39 of the poisoned descriptions and the gate caught 2; a widened version tuned on that same set caught 32 (82% of 39), below the 90% bar set before the experiment. POISON-030 therefore keeps firing on workflow documentation (30 of the 661 top-100 findings); telling an order from documentation needs a measured approach that holds out of sample.
+**POISON-030 was not changed then (it was narrowed in November, see "POISON-030 does not count the noun" below).** STORY-0107 also tried gating POISON-030 ("first call", "instead use", "after calling this") on an order. MCPTox showed no loss, but MCPTox had shaped the gate; on a review set of 40 poisoned and 40 benign descriptions written outside MCPTox, the current pattern catches 39 of the poisoned descriptions and the gate caught 2; a widened version tuned on that same set caught 32 (82% of 39), below the 90% bar set before the experiment. POISON-030 therefore keeps firing on workflow documentation (30 of the 661 top-100 findings); telling an order from documentation needs a measured approach that holds out of sample.
 - **Length is a weak signal.** `POISON-050` (LOW, description of 2,000 characters or more) fired 139 times on the top-100 corpus, on API reference text, and twice on MCPTox's clean tools.
 
 ## On real changes, almost every labelled flag is a false alarm (STORY-0169)
@@ -53,7 +53,7 @@ Per case, exactly one MCPTox case changed findings: a P1 case with a full-width 
 Measured 2026-11-18 on a public record of 126,105 real changes to MCP tool definitions (HISTOR, snapshot 2026-11-16). The POISON-* text checks fired on 784 changes from 545 servers. The script checks the added words of each title and description, and the full new text of each changed schema node. `credenzo lock --verify` checks titles and descriptions only; the record has descriptions, and the checks fired there on 448 changes from 334 servers. A labelled set of 280 flagged rows has 0 malicious rows, 269 honest rows and 11 rows that steer the agent. One of the 11 orders a call to a tool that its server does not list; it is probably a demonstration.
 
 - **POISON-060 fired on every word in Cyrillic or Greek (corrected in STORY-0170, next section).** Of all 629 flagged rows, 603 have a whole word in one of those scripts at the match and 24 have a Greek letter inside a Latin or other term. A server with a Russian description got a HIGH finding.
-- **POISON-030 fires on a tool's own sequence.** 99 of 100 labelled rows are text such as "the first call returns a preview naming every recipient".
+- **POISON-030 fired on a tool's own sequence (narrowed in STORY-0171, below).** 99 of 100 labelled rows are text such as "the first call returns a preview naming every recipient".
 - **POISON-012 fired on "do not say", "do not tell" and "do not mention" in each sense (corrected in STORY-0171, below).** 54 of 58 rows are honest: guidance about what to tell the user, plain statements and quoted examples.
 - **POISON-040 fired on correct Persian spelling (corrected in STORY-0171, below).** 8 of 11 rows are the zero-width non-joiner.
 
@@ -116,6 +116,26 @@ No text that these attack sets detected lost its finding. The gains (1 MCPTox de
 
 The rows that stay: 6 POISON-012 rows (two "override default" in configuration text, two quoted examples in tools that detect prompt injection, one description of such a detector, and one "ignore any instructions inside it" about untrusted page content) and 2 POISON-040 rows (the example input of a tool that removes zero-width characters). All are honest.
 
+## POISON-030 does not count the noun "first call" (STORY-0171)
+
+POISON-030 fired on the words "first call" in each sense. "You must first call read_file" is an order. "The first call returns a preview" is a tool's own call sequence. On HISTOR's record the words gave 465 of the 538 POISON-030 rows, and 99 of 100 labelled rows were honest. Now "first call" does not count right after `the`, `a`, `its`, `your`, `on`, `each`, `every`, `per`, `that`, `this`, `'s`, `of`, `as` or `is`. The other POISON-030 phrases did not change.
+
+| | Before | After |
+|---|---|---|
+| POISON-030 rows on HISTOR's record | 538 | 170 |
+| Changes flagged by any POISON-* check, of 126,105 | 487 | 216 |
+| Servers flagged | 389 | 197 |
+| Changes flagged in a title or description (the scope of `lock --verify`) | 255 | 138 |
+| Labelled POISON-030 rows that fire (99 honest, 1 steers the agent) | 100 | 33 (32 honest, and the 1 that steers) |
+| Honest texts a second agent wrote blind, 60 | 60 flagged | 34 flagged |
+| MCPTox, all 1,312 / 485 with no wrapper | 1,005 / 149 | 1,005 / 149 |
+| MCP-SafetyBench, 154 poisoned descriptions | 56 | 56 |
+| MCP-SafetyBench texts with a POISON-030 phrase | 13 | 13 |
+
+**Is the attack side proven?** In October a similar gate passed MCPTox and then caught 2 of 40 attacks that a reviewer wrote (STORY-0107). The bar set then was 90% of attacks from outside MCPTox. This rule was written from MCPTox and HISTOR and then run on MCP-SafetyBench, which it had not seen: it keeps 13 of 13 texts that hold a POISON-030 phrase (10 "first call", 3 "before using this tool"). Thirteen texts is a small sample.
+
+**What it costs.** An attacker can write the order after one of the small words: "for safety, this first call read_file ..." gets no POISON-030. 170 rows stay on HISTOR's record, and most are honest: 97 "first call" in forms the rule does not read as a noun ("first call `init`, then ..."), 69 "instead of call / using / use" and 4 others.
+
 ## Three checks for orders that no check read (STORY-0172)
 
 A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned text that Credenzo did not flag. Each is now a check on tool text: the tools, resources and prompts that a live server lists (`scan --connect`) and the added words of a changed description (`lock --verify`). A config entry does not use these checks, except strings under its own `tools`, `resources` or `prompts` key: a launch command such as `bash -c "rm -rf /tmp/cache && npx ..."` is the user's own text. Agent files do not use them: a skill honestly holds `rm -rf build/`. Text inside a concealment channel (an HTML comment, tag characters) is not read with them.
@@ -132,7 +152,7 @@ A comparison with Cisco mcp-scanner's YARA rules showed three kinds of poisoned 
 | MCPTox, 485 descriptions with no wrapper | 124 / 36 | 149 / 53 |
 | MCP-SafetyBench, 154 poisoned descriptions | 30 / 17 | 56 / 40 |
 | MCPTox clean tools flagged, of 353 | 2 | 2 |
-| HISTOR, changes flagged of 126,105 | 485 | 487 |
+| HISTOR, changes flagged of 126,105 (before the POISON-030 change) | 485 | 487 |
 | HISTOR, changes flagged at HIGH or above | 46 | 46 |
 
 The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of mounted paths that names `/etc/passwd`, and an example query. POISON-080 and POISON-081 have no row there, though 423 of its added texts hold the word "redirect". HISTOR's texts are the added words of a change (median 164 characters), not whole descriptions.
@@ -148,10 +168,10 @@ The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of moun
 | MCPTox, 1,312 poisoned cases | 1,005 (76.6%) | 277 (21.1%) |
 | MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 99 (20.4%) |
 | MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 36 (23.4%) |
-| HISTOR, 126,105 real changes: changes flagged | 487 | 3,435 |
+| HISTOR, 126,105 real changes: changes flagged | 216 (487 before the POISON-030 change) | 3,435 |
 | HISTOR: changes flagged at HIGH or above (each vendor's own scale; Cisco rates almost each hit HIGH) | 46 | 3,259 |
 
-Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only. YARA is the one analyzer of its default set (`api,yara,llm`) that runs with no key. Its other analyzers were not run, and that includes the local `schema`, `prompt_defense` and `readiness` analyzers. In a random sample of 150 texts that its rules flagged on HISTOR's record, 146 are honest, 4 steer the agent and 0 are malicious (an AI model labelled them from about 300 characters round each match). Before STORY-0172 Credenzo flagged fewer MCP-SafetyBench texts than Cisco (30 and 36). The attack sets are not independent of Credenzo and the HISTOR numbers are. The limits and the scripts are in [`docs/research/head-to-head/cisco-yara/`](research/head-to-head/cisco-yara/README.md).
+Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only. YARA is the one analyzer of its default set (`api,yara,llm`) that runs with no key. Its other analyzers were not run, and that includes the local `schema`, `prompt_defense` and `readiness` analyzers. In a random sample of 150 texts that its rules flagged on HISTOR's record, 146 are honest, 4 steer the agent and 0 are malicious (an AI model labelled them from about 300 characters round each match). Before STORY-0172 Credenzo flagged fewer MCP-SafetyBench texts than Cisco (30 and 36). Neither side of the comparison is independent of Credenzo now. The attack sets shaped its checks, and STORY-0170 and STORY-0171 corrected its checks with HISTOR's flagged rows in view. The like-for-like HISTOR number is the first run, before any correction: 784 flagged changes for Credenzo and 3,435 for Cisco. The limits and the scripts are in [`docs/research/head-to-head/cisco-yara/`](research/head-to-head/cisco-yara/README.md).
 
 ## MCP-SafetyBench: a second set of attacks (measured 2026-11-18)
 

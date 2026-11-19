@@ -2,7 +2,8 @@
 
 Measured 2026-11-18. On a public record of 126,105 real changes to MCP tool
 definitions, Cisco mcp-scanner's YARA rules flag 3,435 changes and Credenzo's
-text checks flag 487. On the two public sets of poisoned tool descriptions,
+text checks flag 216 (487 when this comparison was first run, before the
+POISON-030 change of STORY-0171). On the two public sets of poisoned tool descriptions,
 Credenzo flags more of them.
 
 ## What was compared
@@ -31,9 +32,12 @@ input schema), or the added text of each changed field in HISTOR's record, as
 | MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 99 (20.4%) |
 | MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 36 (23.4%) |
 | MCPTox, 353 clean tools, flagged | 2 | 3 |
-| HISTOR, 126,105 real changes: changes flagged | 487 | 3,435 |
-| HISTOR: servers flagged | 389 | 2,889 |
+| HISTOR, 126,105 real changes: changes flagged | 216 | 3,435 |
+| HISTOR: servers flagged | 197 | 2,889 |
 | HISTOR: changes flagged at HIGH or above (each vendor's own scale) | 46 | 3,259 |
+
+Before any correction made with this record in view, Credenzo flagged 784
+changes (STORY-0169). That is the like-for-like number against Cisco's 3,435.
 
 On real changes, a flag is almost never an attack. In Credenzo's labelled set
 (280 flagged rows, STORY-0169) 0 are malicious. In a random sample of 150
@@ -50,9 +54,11 @@ the agent (`labels.json`). Honest text that Cisco's rules flag: the word
   and Credenzo did not. Before them Credenzo flagged 30 of 154 on
   MCP-SafetyBench, fewer than Cisco's 36, and 124 of 485 on MCPTox. No public
   attack set remains that Credenzo has not been tuned on.
-- **The HISTOR numbers are independent.** No check of either tool was written
-  from HISTOR's flagged rows before STORY-0169, and POISON-080..082 added 2
-  flagged changes there.
+- **The HISTOR numbers were independent on the first run (Credenzo 784) and
+  are not now.** STORY-0170 and STORY-0171 corrected Credenzo's checks with
+  HISTOR's flagged rows in view, and that took Credenzo from 784 flagged
+  changes to 216. Cisco's rules had no such correction. The first run is the
+  like-for-like number: 784 and 3,435.
 - **The scopes differ.** Cisco's rules also name risky capabilities (code
   execution, SQL injection strings, script injection). Credenzo's POISON-*
   checks look for text that attacks the agent. A flag on "this tool runs a

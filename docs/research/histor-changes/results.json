@@ -259,5 +259,59 @@
     "Cyr+Lat": 1
    }
   }
+ },
+ "after_story_0171_poison_030": {
+  "note": "measure.py output after POISON-030 stops counting the noun 'first call'",
+  "measure_py_output": {
+   "changes": 126105,
+   "changes_with_modified_tool": 112155,
+   "changes_flagged": 216,
+   "servers_flagged": 197,
+   "changes_flagged_in_title_or_description": 138,
+   "servers_flagged_in_title_or_description": 129,
+   "distinct_rows": 234,
+   "distinct_rows_by_check": {
+    "POISON-030": 170,
+    "POISON-020": 23,
+    "POISON-003": 9,
+    "POISON-012": 6,
+    "POISON-071": 6,
+    "POISON-070": 5,
+    "POISON-076": 3,
+    "POISON-082": 3,
+    "POISON-060": 2,
+    "POISON-045": 2,
+    "POISON-001": 2,
+    "POISON-040": 2,
+    "POISON-072": 1
+   },
+   "distinct_rows_in_schema_fields": 77,
+   "distinct_added_texts_by_check": {
+    "POISON-030": 173,
+    "POISON-020": 23,
+    "POISON-012": 10,
+    "POISON-003": 10,
+    "POISON-082": 9,
+    "POISON-071": 6,
+    "POISON-070": 5,
+    "POISON-076": 3,
+    "POISON-060": 2,
+    "POISON-045": 2,
+    "POISON-001": 2,
+    "POISON-040": 2,
+    "POISON-072": 1
+   },
+   "poison_060_rows_by_script_of_matched_word": {
+    "Grk+Lat": 1,
+    "Cyr+Lat": 1
+   }
+  },
+  "labelled_rows_after": {
+   "POISON-030": {
+    "honest, no finding": 67,
+    "honest, POISON-030": 32,
+    "steers-agent, POISON-030": 1
+   }
+  }
  }
 }

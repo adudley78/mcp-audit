@@ -751,6 +751,21 @@ _DIR_ADVERB: str = (
     r"(?:always\s+|first\s+|immediately\s+|silently\s+|automatically\s+)?"
 )
 
+# POISON-030 (STORY-0171).  "first call" is an order in "you must first call
+# X" and a noun in "the first call returns a preview".  On HISTOR's record of
+# real changes the words gave 465 of the 538 POISON-030 rows, and 99 of 100
+# labelled rows were a tool's own call sequence.  The noun form is not
+# counted: "first call" right after a determiner or one of the small words a
+# noun phrase takes.  The words stay otherwise, because MCPTox loses 64 of
+# its 103 no-wrapper detections without them.
+_FIRST_CALL_AS_NOUN: str = "".join(
+    rf"(?<!{before}\s)"
+    for before in (
+        r"\bthe", r"\ba", r"\bits", r"\byour", r"\bon", r"\beach", r"\bevery",
+        r"\bper", r"\bthat", r"\bthis", r"'s", r"\bof", r"\bas", r"\bis",
+    )
+)  # fmt: skip
+
 # fmt: off
 PATTERNS: list[DetectionPattern] = [
     # CRITICAL: File exfiltration
@@ -920,7 +935,7 @@ PATTERNS: list[DetectionPattern] = [
         name="Cross-tool manipulation",
         pattern=re.compile(
             r"(before\s+using\s+this\s+tool|"
-            r"first\s+call|"
+            rf"{_FIRST_CALL_AS_NOUN}first\s+call|"
             r"instead\s+(of\s+)?(use|using|call)|"
             r"after\s+(calling|using)\s+this)",
             re.IGNORECASE,

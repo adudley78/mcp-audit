@@ -1,6 +1,6 @@
 {
  "measured": "2026-11-18",
- "credenzo": "this branch (STORY-0172): POISON-* text checks",
+ "credenzo": "this branch (STORY-0171 POISON-030 change): POISON-* text checks",
  "cisco": "cisco-ai-mcp-scanner 4.8.7, YaraAnalyzer only, default rules",
  "sets": {
   "mcptox_poisoned_1312": {
@@ -55,12 +55,12 @@
   "changes_with_a_checked_text": 111544,
   "distinct_added_texts": 179935,
   "credenzo": {
-   "changes_flagged": 487,
-   "servers": 389,
+   "changes_flagged": 216,
+   "servers": 197,
    "changes_flagged_high": 46,
    "servers_high": 42,
-   "title_or_description_changes": 255,
-   "distinct_texts_flagged": 656
+   "title_or_description_changes": 138,
+   "distinct_texts_flagged": 248
   },
   "cisco": {
    "changes_flagged": 3435,
@@ -70,7 +70,14 @@
    "title_or_description_changes": 2555,
    "distinct_texts_flagged": 2111
   },
-  "texts_flagged_by_both": 55
+  "texts_flagged_by_both": 43,
+  "credenzo_history": {
+   "e18622d, before any correction (STORY-0169)": 784,
+   "after STORY-0170": 532,
+   "after STORY-0171 part 1": 485,
+   "after STORY-0172": 487,
+   "after the POISON-030 change": 216
+  }
  },
  "cisco_flags_labelled": {
   "sample": 150,
