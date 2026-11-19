@@ -666,6 +666,36 @@ class TestLockDoesNotApproveACopy(TestLockConnect):
         assert "was not compared" in unwrapped(result.output)
         assert self._recorded(tmp_path) == {"execute_command_safely"}
 
+    def test_a_second_file_with_the_same_server_name_inherits_nothing(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        # Round 5: `.mcp.json` and `.claude/settings.json` both give the key
+        # `claude-code/terminal`; the second entry counted as approved.
+        entry = {"command": "npx", "args": ["-y", "terminal-pkg@1.0.0"]}
+        (tmp_path / ".mcp.json").write_text(
+            json.dumps({"mcpServers": {"terminal": entry}}), encoding="utf-8"
+        )
+        self._serve(monkeypatch, self._enumeration)
+        assert runner.invoke(app, ["lock", str(tmp_path), "--connect"]).exit_code == 0
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "settings.json").write_text(
+            json.dumps(
+                {"mcpServers": {"terminal": {**entry, "env": {"NODE_OPTIONS": "-r x"}}}}
+            ),
+            encoding="utf-8",
+        )
+        second = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert second.exit_code == 0, second.output
+        out = unwrapped(second.output)
+        assert "NOT APPROVED" in out and "2 config files" in out
+        # The record of the approved entry is still there.
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
     def test_allow_copies_needs_connect(self, tmp_path: Path) -> None:
         self._config(tmp_path, "terminal")
         result = runner.invoke(app, ["lock", str(tmp_path), "--allow-copies"])

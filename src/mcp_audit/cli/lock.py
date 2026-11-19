@@ -30,6 +30,7 @@ from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
 from mcp_audit.lock import guardrail_section, tool_digests, tool_text
+from mcp_audit.lock.core import index_locked_entries, match_key
 from mcp_audit.lock.identity import launch_carries_secret
 from mcp_audit.lock.model import LOCK_FILENAME
 from mcp_audit.lock.verifier import render_pr_comment, servers_to_connect
@@ -147,6 +148,7 @@ def _withhold_copies(
     servers: list[ServerConfig],
     enumerations: dict[tuple[str, str], ServerEnumeration],
     existing_doc: dict | None,
+    root: Path,
     *,
     withhold: bool = True,
 ) -> tuple[list[tuple[str, str, str, str]], list[str]]:
@@ -176,12 +178,31 @@ def _withhold_copies(
     if not tool_digests.is_owned(section) or not tool_digests.checksum_ok(section):
         return [], []
     recorded: dict = section.get("servers") or {}
+    # The lock entry of a server is found by (config file, name), as verify
+    # finds it.  The key `<client>/<name>` is not enough: a second config
+    # file can hold a server with the same client label and name, and that
+    # entry must not inherit the first one's approvals.
+    locked = index_locked_entries((existing_doc or {}).get("servers") or {})
 
     def is_approved(server: ServerConfig, tool: str) -> bool:
-        return tool in (recorded.get(server_key(server)) or {}).get("tools", {})
+        match = match_key(server.config_path, root, server.name)
+        entry = locked.get(match) if match is not None else None
+        if entry is None:
+            return False
+        return tool in (recorded.get(entry[0]) or {}).get("tools", {})
 
     pairs = [(s, enumerations[tool_digests.enumeration_key(s)]) for s in servers]
     notes: list[str] = []
+    files: dict[str, set[str]] = {}
+    for server in servers:
+        files.setdefault(server_key(server), set()).add(str(server.config_path))
+    for key, paths in sorted(files.items()):
+        if len(paths) > 1:
+            notes.append(
+                f"{key} is in {len(paths)} config files; the lock holds one record"
+                " for that name, and only the entry that it held before counts"
+                " as approved"
+            )
     copies = copies_of_approved_tools(pairs, is_approved, notes)
     drop = {(id(server), tool) for server, tool, _, _ in copies} if withhold else set()
     for server, enumeration in pairs:
@@ -457,7 +478,7 @@ def _run_write(
         discarded = tools_tampered(existing_doc)
         enumerations = _enumerate_tools(servers, connect_token)
         withheld_copies, copy_notes = _withhold_copies(
-            servers, enumerations, existing_doc, withhold=not allow_copies
+            servers, enumerations, existing_doc, root, withhold=not allow_copies
         )
         tool_records = {}
         for server in servers:
@@ -466,9 +487,13 @@ def _run_write(
             if problem:
                 tool_failures.append((server_key(server), problem))
                 continue
-            tool_records[server_key(server)] = tool_digests.server_record(
-                enumeration.tools
-            )
+            record = tool_digests.server_record(enumeration.tools)
+            earlier = tool_records.get(server_key(server))
+            if earlier is not None:
+                # Two config files give one key.  Keep the tools of both
+                # entries; an entry with no tool left must not wipe the other.
+                record = {"tools": {**record["tools"], **earlier["tools"]}}
+            tool_records[server_key(server)] = record
             text_records[server_key(server)] = tool_text.server_text(enumeration.tools)
 
     registry = None if offline else _load_registry(registry_path, console)

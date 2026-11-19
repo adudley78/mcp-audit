@@ -747,6 +747,11 @@ def detect_description_copies(
     return findings
 
 
+def _same_entry(a: ServerConfig, b: ServerConfig) -> bool:
+    """Whether two configs are one entry: the same name in the same file."""
+    return a is b or (a.name == b.name and a.config_path == b.config_path)
+
+
 def copies_of_approved_tools(
     pairs: list[tuple[ServerConfig, ServerEnumeration]],
     is_approved: Callable[[ServerConfig, str], bool],
@@ -819,7 +824,7 @@ def copies_of_approved_tools(
                 # Only the same config entry is skipped.  The same name and
                 # command line in another config file is another server: its
                 # environment can load other code.
-                if other.server is tool.server or id(other) in tested:
+                if _same_entry(other.server, tool.server) or id(other) in tested:
                     continue
                 tested.add(id(other))
                 budget -= len(other.long) + len(tool.long)
@@ -831,7 +836,7 @@ def copies_of_approved_tools(
             if original is not None:
                 break
             for other in by_first.get(sentence, ()):
-                if other.server is tool.server or not (
+                if _same_entry(other.server, tool.server) or not (
                     other.name == tool.name
                     or _is_name_plus_words(tool.name, other.name)
                     or _is_name_plus_words(other.name, tool.name)
