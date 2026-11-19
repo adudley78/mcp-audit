@@ -15,7 +15,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Normal runs take 3-6 min on every OS. Without a limit a hang holds the
     # runner for GitHub's 6-hour default (#274's Windows legs did exactly that).
-    timeout-minutes: 20
+    # 35, not 20: on ubuntu-26.04 the apt packages for WebKit can take more than
+    # 10 minutes from a slow mirror (see "Install Playwright browsers").
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -40,22 +42,30 @@ jobs:
 
       - name: Install Playwright browsers
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        # A browser download stalled two times on 2026-11-18 and the step ran
-        # to the job limit (20 minutes) with no error.  Each try now stops
-        # after 4 minutes and the step tries three times, so a stalled
-        # download fails fast and says why.
-        timeout-minutes: 15
+        # What happened (read from the job logs, 2026-11-19): the browser
+        # downloads take about 15 seconds.  The slow part is `install-deps`:
+        # on the ubuntu-26.04 runner image WebKit needs about 250 apt packages
+        # that the image does not have, and the mirror served them at well
+        # under 1 MB/s (112 packages in 3 minutes 14 seconds in one run).  A
+        # first fix stopped each try after 4 minutes; that killed apt mid-run,
+        # left the dpkg lock held, and made every retry fail.  So: retry the
+        # browser download only, run apt once with its own retries and never
+        # stop it early, and let the job limit below cover a slow mirror.
+        timeout-minutes: 25
         run: |
           uv pip install playwright --system
           for attempt in 1 2 3; do
-            if timeout 240 python -m playwright install chromium firefox webkit \
-              && timeout 240 python -m playwright install-deps; then
-              exit 0
+            if timeout -k 10 240 python -m playwright install chromium firefox webkit; then
+              break
             fi
-            echo "::warning::Playwright install try ${attempt} failed or stalled"
+            echo "::warning::Playwright browser download try ${attempt} failed or stalled"
+            if [ "${attempt}" = 3 ]; then
+              echo "::error::Playwright browser download failed three times"
+              exit 1
+            fi
           done
-          echo "::error::Playwright install failed three times"
-          exit 1
+          echo 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+          python -m playwright install-deps
 
       - name: Run tests
         run: pytest tests/ -x -q
