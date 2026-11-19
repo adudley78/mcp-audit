@@ -49,7 +49,7 @@ did not see these servers.
   named `name#2`...
 - **Not read:** the local-scope servers of another project (run the scan in
   that project; `credenzo reach` lists every project's). `scan --path`,
-  `scan --project`, `lock`, `wrap` and `fix` do not read or edit local-scope
+  `scan --project`, `lock`, `wrap`, `fix` and `affected --fix` do not read or edit local-scope
   servers. See [GAPS.md](../GAPS.md).
 
 ## Codex (STORY-0110)

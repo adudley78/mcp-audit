@@ -206,6 +206,7 @@ def _local_scope_servers(data: dict, config: DiscoveredConfig) -> list[ServerCon
     local = replace(config, client_name=LOCAL_SCOPE_CLIENT)
     servers: list[ServerConfig] = []
     seen: dict[str, int] = {}
+    read: set[Path] = set()
     for directory in config.local_project_dirs:
         for key, entry in projects.items():
             if not isinstance(key, str) or not isinstance(entry, dict):
@@ -215,6 +216,15 @@ def _local_scope_servers(data: dict, config: DiscoveredConfig) -> list[ServerCon
                 continue
             if not _same_directory(key, directory):
                 continue
+            if directory in read:
+                # A second spelling of one directory (a trailing separator, a
+                # symlink).  Claude Code loads one entry; the first is read.
+                config.parse_warnings.append(
+                    f"{config.path.name}: more than one projects entry names "
+                    "the scan's directory; only the first was read"
+                )
+                continue
+            read.add(directory)
             for server in _servers_from_dict(entries, local):
                 count = seen.get(server.name, 0) + 1
                 seen[server.name] = count

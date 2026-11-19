@@ -414,3 +414,74 @@ class TestOtherCommands:
         assert path.read_text(encoding="utf-8") == text
         assert result.fixes_applied == []
         assert any("local-scope" in line for line in result.skipped)
+
+
+class TestReviewFaults:
+    """Faults the attack review of PR #337 found."""
+
+    def test_affected_fix_never_pins_the_top_level_server_of_the_same_name(
+        self, home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        project = tmp_path / "proj"
+        project.mkdir()
+        monkeypatch.chdir(project)
+        affected = {
+            "command": "uvx",
+            "args": ["mcp-atlassian==0.21.0", "--transport", "sse"],
+        }
+        fine = {"command": "uvx", "args": ["mcp-atlassian==99.0.0"]}
+        path = _claude_json(
+            home, {str(project): {"mcpServers": {"atl": affected}}}, top={"atl": fine}
+        )
+        before = path.read_text(encoding="utf-8")
+        result = CliRunner().invoke(
+            app, ["affected", "CVE-2026-77244", "--fix", "--apply"]
+        )
+        assert path.read_text(encoding="utf-8") == before, result.output
+        assert not path.with_suffix(".json.bak").exists()
+        assert "local-scope" in " ".join(result.output.split())
+
+    def test_two_spellings_of_one_directory_are_read_once(self, tmp_path: Path) -> None:
+        project = tmp_path / "proj"
+        project.mkdir()
+        path = _claude_json(
+            tmp_path,
+            {
+                str(project): {"mcpServers": {"loc": {"command": "first"}}},
+                f"{project}/": {"mcpServers": {"loc": {"command": "second"}}},
+            },
+        )
+        config = _config(path, project)
+        servers = parse_config(config)
+        assert [(s.name, s.command) for s in servers] == [("loc", "first")]
+        assert any("only the first" in w for w in config.parse_warnings)
+
+    def test_a_rug_pull_finding_does_not_show_the_project_directory(
+        self, tmp_path: Path
+    ) -> None:
+        state = tmp_path / "state.json"
+        user = ServerConfig(
+            name="usr",
+            client="claude-code",
+            config_path=Path("/home/u/.claude.json"),
+            command="uvx",
+            raw={"command": "uvx"},
+        )
+        RugPullAnalyzer(state_path=state).analyze_all([user])
+        RugPullAnalyzer(state_path=state).analyze_all(
+            [
+                user,
+                _local("db", "/work/secret-client"),
+                _local("mem", "/work/secret-client"),
+            ]
+        )
+        findings = RugPullAnalyzer(state_path=state).analyze_all(
+            [user, _local("db", "/work/secret-client", command="evil")]
+        )
+        assert {f.id for f in findings} == {"RUGPULL-001", "RUGPULL-003"}
+        for finding in findings:
+            assert "secret-client" not in finding.model_dump_json()

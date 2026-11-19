@@ -171,6 +171,18 @@ def server_key(server: ServerConfig) -> str:
     return f"{server.client}/{server.name}"
 
 
+def _shown_key(key: str) -> str:
+    """Return *key* as a finding shows it.
+
+    A local-scope key carries its project directory (an absolute path) so
+    that two projects never share a record.  A finding names the server
+    only: the path stays in the state file on this machine.
+    """
+    if key.startswith(f"{_LOCAL_SCOPE_CLIENT}/"):
+        return key.rsplit(_GATEWAY_KEY_SEP, 1)[0]
+    return key
+
+
 def compute_hashes(server: ServerConfig) -> dict[str, str]:
     """Return a dict of SHA-256 digests for the four tracked aspects of a server.
 
@@ -402,7 +414,7 @@ class RugPullAnalyzer(BaseAnalyzer):
             server=srv.name,
             title=f"New MCP server detected: {srv.name!r}",
             description=(
-                f"Server {key!r} was not present in the previous baseline. "
+                f"Server {_shown_key(key)!r} was not present in the previous baseline. "
                 "Its configuration has been recorded for future comparison."
             ),
             evidence=f"config_path: {srv.config_path}",
@@ -431,9 +443,9 @@ class RugPullAnalyzer(BaseAnalyzer):
             server=srv.name,
             title=f"Server configuration changed since last scan: {srv.name!r}",
             description=(
-                f"The configuration of {key!r} has changed since the last recorded "
-                "baseline. This pattern is consistent with a rug-pull attack where "
-                "tool descriptions or parameters are silently modified after initial "
+                f"The configuration of {_shown_key(key)!r} has changed since the last "
+                "recorded baseline. This pattern is consistent with a rug-pull attack "
+                "where tool descriptions or parameters are silently modified after initial "
                 "trust is established."
             ),
             evidence=evidence,
@@ -459,8 +471,8 @@ class RugPullAnalyzer(BaseAnalyzer):
             server=srv_name,
             title=f"Previously tracked server no longer configured: {srv_name!r}",
             description=(
-                f"Server {key!r} was present in the previous baseline but is "
-                "no longer in the current configuration."
+                f"Server {_shown_key(key)!r} was present in the previous baseline but "
+                "is no longer in the current configuration."
             ),
             evidence=f"Last seen: {last_seen}",
             remediation=(

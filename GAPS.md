@@ -1962,11 +1962,17 @@ them now for the working directory's project, as client `claude-code-local`.
   only by a scan run in that subdirectory or below it.
 - **`scan --path ~/.claude.json` and `scan --project DIR`** read no local-scope
   servers.
-- **`lock`, `wrap` and `fix`** do not record, wrap or edit a local-scope
-  server. `credenzo run` cannot be put in front of one by `wrap`; write the
+- **`lock`, `wrap`, `fix` and `affected --fix`** do not record, wrap or edit a
+  local-scope server. `credenzo run` cannot be put in front of one by `wrap`; write the
   wrapped command by hand with `claude mcp add`.
 - **PERM-007 and the managed MCP policy report** do not compare local-scope
   servers (see that section).
+- **A linked git worktree.** If Claude Code keys a worktree's servers by the
+  main repository's path, a scan run in the worktree does not read them. Not
+  checked against Claude Code.
+- **One name in the directory and in a parent.** The parent's server is named
+  `name#2` in a scan from the directory and `name` in a scan from the parent,
+  so a change of directory gives one RUGPULL-002 and one RUGPULL-003 (INFO).
 - **Rug-pull records.** A local-scope server's record carries its project
   directory. A removed local-scope server is reported (RUGPULL-003) only while
   the same project still has another local-scope server; when the last one
