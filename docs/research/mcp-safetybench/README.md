@@ -2,7 +2,7 @@
 
 Measured 2026-11-19. With each poisoned tool in the session of its domain,
 Credenzo flags 108 of the 154 distinct poisoned tools of MCP-SafetyBench
-(70.1%), 54 at HIGH or above. The text checks alone flag 89 (57.8%), 40 at
+(70.1%), 51 at HIGH or above. The text checks alone flag 88 (57.1%), 40 at
 HIGH or above. The text count was 26 before STORY-0171, 30 before STORY-0172
 and 56 before STORY-0173. STORY-0172 and STORY-0173 wrote checks from these
 texts, so the current counts are in-sample.
@@ -43,15 +43,15 @@ DELEG-001..003.
 | Preference Manipulation | 18 of 20 | 20 of 20 |
 | Tool Poisoning, Parameter Poisoning | 12 of 18 | 18 of 18 |
 | Tool Shadowing | 11 of 21 | 19 of 21 |
-| Function Overlapping | 15 of 20 | 17 of 20 |
+| Function Overlapping | 14 of 20 | 17 of 20 |
 | Tool Poisoning, Tool Redirection | 6 of 10 | 6 of 10 |
 | Tool Poisoning, Command Injection | 16 of 29 | 16 of 29 |
 | Tool Poisoning, Function Dependency Injection | 10 of 23 | 10 of 23 |
 | Tool Poisoning, FileSystem Poisoning | 1 of 7 | 1 of 7 |
 | Tool Poisoning, Network Request Poisoning | 0 of 6 | 1 of 6 |
-| All | 89 of 154 | 108 of 154 |
+| All | 88 of 154 | 108 of 154 |
 
-Text checks by ID: POISON-083 on 33 texts, POISON-080 on 17, POISON-030 on
+Text checks by ID: POISON-083 on 32 texts, POISON-080 on 17, POISON-030 on
 13, POISON-070 on 13, POISON-081 on 12, POISON-001 on 4, POISON-082 on 3.
 Session checks by ID: DELEG-001 on 17 tools, COLLIDE-002 on 13, DELEG-003 on
 8, DELEG-002 on 6.
@@ -70,6 +70,12 @@ The MEDIUM findings are honest servers that list the same words in two
 spellings (MCPTox: `searchEmails` and `search-emails`). The first list of decoration words
 held "new" and "tool". It gave 2 HIGH findings on honest pairs in the HISTOR
 control, so those words were removed. The benchmark count did not change.
+The "0 HIGH" number is therefore fitted to this control. The control draws
+servers at random; two servers for one job share more names. A review then
+showed HIGH on honest pairs such as `send_secure_message` beside
+`send_message`, so a copy is HIGH only when each added word praises ("best",
+"premium", "enhanced") and MEDIUM for the other decoration words. The count
+at HIGH or above went from 54 to 51.
 
 ## Limits
 

@@ -241,6 +241,25 @@ _DECORATION_WORDS: frozenset[str] = frozenset(
         "trusted",
     ]
 )
+#: Decoration words that only praise.  A copy that adds only these is HIGH.
+#: The other decoration words have a use in honest names ("secure", "safe",
+#: "verified", "max", "v2": ``send_secure_message`` beside ``send_message``),
+#: so a copy that adds one of them is MEDIUM.
+_PROMOTION_WORDS: frozenset[str] = frozenset(
+    [
+        "best",
+        "premium",
+        "enhanced",
+        "ultimate",
+        "improved",
+        "better",
+        "super",
+        "turbo",
+        "ultra",
+    ]
+)
+#: Findings one scan reports.  A hostile server chooses its tool names.
+MAX_NAME_COPY_FINDINGS = 100
 _CAMEL_BOUNDARY = re.compile(r"([a-z0-9])([A-Z])")
 _NOT_ALNUM = re.compile(r"[^A-Za-z0-9]+")
 #: Tool names longer than this are not compared (a name is a few words).
@@ -260,10 +279,11 @@ def detect_tool_name_squats(
 
     Two shapes, compared on the words of the names:
 
-    - **Decorated copy (HIGH).** The name is another server's tool name of
-      two or more words plus only decoration words ("best", "enhanced",
-      "premium", "v2" ...): ``best_get_stock_info`` beside ``get_stock_info``.
-      The finding is on the decorated tool.
+    - **Decorated copy.** The name is another server's tool name of two or
+      more words plus only decoration words: ``best_get_stock_info`` beside
+      ``get_stock_info``.  HIGH when each added word only praises ("best",
+      "premium", "enhanced"); MEDIUM when one has a use in honest names
+      ("secure", "v2").  The finding is on the decorated tool.
     - **Spelling variant (MEDIUM).** The same words in another spelling on
       two servers: ``searchEmails`` and ``search-emails``.  The agent sees two
       tools that read as one.  One finding names both.
@@ -276,38 +296,43 @@ def detect_tool_name_squats(
             Pairs with enumeration errors are ignored.
 
     Returns:
-        ``COLLIDE-002`` findings, at most one per pair of names.
+        ``COLLIDE-002`` findings: at most one spelling finding per set of
+        words, one decorated finding per server and set of words, and
+        ``MAX_NAME_COPY_FINDINGS`` in all.  Each server counts with the first
+        spelling it lists.
     """
     live = [(s, e) for s, e in pairs if not e.error]
     if len(live) < 2:
         return []
     by_identity: dict[tuple, ServerConfig] = {}
-    index: dict[tuple[str, ...], dict[tuple[tuple, str], None]] = {}
+    # words of a name -> server -> the first spelling that server lists.  One
+    # spelling per server keeps the work linear in the number of tools: a
+    # server that lists 10,000 spellings of one name counts once.
+    index: dict[tuple[str, ...], dict[tuple, str]] = {}
     for server, enum in live:
         identity = _server_identity(server)
         by_identity.setdefault(identity, server)
         for tool in enum.tools:
             tokens = _name_tokens(tool.name)
             if tokens:
-                index.setdefault(tokens, {})[(identity, tool.name)] = None
+                index.setdefault(tokens, {}).setdefault(identity, tool.name)
 
     findings: list[Finding] = []
-    seen: set[tuple[str, str, str]] = set()
 
-    def emit(kind: str, a: tuple[tuple, str], b: tuple[tuple, str]) -> None:
+    def emit(
+        kind: str,
+        a: tuple[tuple, str],
+        b: tuple[tuple, str],
+        severity: Severity = Severity.MEDIUM,
+    ) -> None:
         """Add one finding for tool *a*, which copies tool *b*."""
         (ida, name_a), (idb, name_b) = a, b
-        lo, hi = sorted([name_a, name_b])
-        key = (kind, lo, hi) if kind == "variant" else (kind, name_a, name_b)
-        if key in seen:
-            return
-        seen.add(key)
         sa, sb = by_identity[ida], by_identity[idb]
         decorated = kind == "decorated"
         findings.append(
             Finding(
                 id="COLLIDE-002",
-                severity=Severity.HIGH if decorated else Severity.MEDIUM,
+                severity=severity,
                 analyzer="collision",
                 client=sa.client if sa.client == sb.client else "multiple",
                 server=sa.name if decorated else f"{sa.name} + {sb.name}",
@@ -349,18 +374,25 @@ def detect_tool_name_squats(
         )
 
     for tokens, members in sorted(index.items()):
-        owners = list(members)
-        # Spelling variants: same words, different text, different servers.
-        for i, a in enumerate(owners):
-            for b in owners[i + 1 :]:
-                if a[0] != b[0] and a[1] != b[1]:
-                    emit("variant", *sorted([a, b], key=lambda m: m[1]))
+        if len(findings) >= MAX_NAME_COPY_FINDINGS:
+            break
+        # Spelling variant: same words, different text, different servers.
+        # One finding per set of words, for the first two spellings.
+        spellings: dict[str, tuple] = {}
+        for identity, name in members.items():
+            spellings.setdefault(name, identity)
+        if len(spellings) >= 2:
+            (name_a, ida), (name_b, idb) = sorted(spellings.items())[:2]
+            emit("variant", (ida, name_a), (idb, name_b))
         # Decorated copy: drop the decoration words and look the rest up.
         core = tuple(t for t in tokens if t not in _DECORATION_WORDS)
         if core == tokens or len(core) < 2:
             continue
-        for a in owners:
-            for b in index.get(core, {}):
-                if a[0] != b[0]:
-                    emit("decorated", a, b)
-    return findings
+        originals = index.get(core, {})
+        added = {t for t in tokens if t in _DECORATION_WORDS}
+        severity = Severity.HIGH if added <= _PROMOTION_WORDS else Severity.MEDIUM
+        for identity, name in members.items():
+            other = next((i for i in originals if i != identity), None)
+            if other is not None:
+                emit("decorated", (identity, name), (other, originals[other]), severity)
+    return findings[:MAX_NAME_COPY_FINDINGS]

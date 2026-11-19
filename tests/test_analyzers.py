@@ -1698,6 +1698,11 @@ class TestPoison083SelfPromotion:
             "Returns unmatched entries and the best match for each query.",
             "Gets the official documentation page for a symbol.",
             "Searches the most recent commits.",
+            # Review of PR #335: honest text that the first pattern flagged.
+            "Get the official version of the document.",
+            "Returns the upgraded version of the package.",
+            "Returns the world's most populous cities.",
+            "Gets the advanced version info.",
         ],
     )
     def test_plain_text_is_silent(self, description: str, tmp_path: Path) -> None:

@@ -1326,9 +1326,9 @@ PATTERNS: list[DetectionPattern] = [
         # description sells the tool to the agent ("the premium version",
         # "world's best", "used by 99% of professionals").  STORY-0173.
         pattern=re.compile(
-            r"\b(?:world'?s\s+(?:best|most)"
-            r"|(?:premium|ultimate|advanced|enhanced|superior|official|upgraded)"
-            r"\s+version\b"
+            r"\b(?:world'?s\s+(?:best|most\s+(?:advanced|reliable|sophisticated"
+            r"|trusted|accurate|powerful))"
+            r"|(?:premium|ultimate|enhanced|superior)\s+version\b"
             r"|most\s+(?:advanced|reliable|sophisticated|trusted|accurate|powerful)\b"
             r"[^.]{0,60}\b(?:available|tool|engine)"
             r"|used\s+by\s+\d+%"

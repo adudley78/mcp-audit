@@ -924,6 +924,7 @@ async def run_scan_async(
         # Requires at least two successfully connected servers to compare.
         if len(connect_pairs) >= 2:
             from mcp_audit.analyzers.collision import (  # noqa: PLC0415
+                MAX_NAME_COPY_FINDINGS,
                 detect_tool_collisions,
                 detect_tool_name_squats,
             )
@@ -939,7 +940,13 @@ async def run_scan_async(
             # COLLIDE-002 (STORY-0173): a tool named after another server's
             # tool ("best_get_stock_info", "searchEmails" / "search-emails").
             try:
-                result.findings.extend(detect_tool_name_squats(connect_pairs))
+                copies = detect_tool_name_squats(connect_pairs)
+                result.findings.extend(copies)
+                if len(copies) >= MAX_NAME_COPY_FINDINGS:
+                    result.errors.append(
+                        "COLLIDE-002: more tool-name copies than"
+                        f" {MAX_NAME_COPY_FINDINGS}; the rest are not listed"
+                    )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"tool-name copy check error: {e}")
 

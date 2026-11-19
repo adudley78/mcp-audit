@@ -155,7 +155,7 @@ src/mcp_audit/
 │   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
 │   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection (TOXIC-001..011, INTEG-001; COMMS_OUT sinks TOXIC-008..011, STORY-0101)
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
-│   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001); detect_tool_name_squats() = COLLIDE-002 (STORY-0173): another server's tool name of ≥2 words plus only `_DECORATION_WORDS` (HIGH), or the same words in another spelling on two servers (MEDIUM); names only, runs right after COLLIDE-001; controls in docs/research/mcp-safetybench/name_copy_controls.py
+│   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001); detect_tool_name_squats() = COLLIDE-002 (STORY-0173): another server's tool name of ≥2 words plus only `_DECORATION_WORDS` (HIGH when every added word is in `_PROMOTION_WORDS`, else MEDIUM), or the same words in another spelling on two servers (MEDIUM); one spelling per server, `MAX_NAME_COPY_FINDINGS` = 100; names only, runs right after COLLIDE-001; controls in docs/research/mcp-safetybench/name_copy_controls.py
 │   ├── annotations.py  # ANNOT-001 (LOW, non-advisory, STORY-0136): readOnlyHint true on a tool whose input schema runs commands or writes; detect_annotation_contradictions() runs in run_scan_async after DELEG-* (needs --connect), findings_from_tool_text() reads cwd mcp-lock.tools.json in scanner._discover_and_parse (no explicit path); live hit replaces the saved-text hit for the same tool; bounded schema walk, $ref never followed, names cleaned
 │   ├── delegation.py   # Cross-tool delegation in live tool descriptions (DELEG-001..003, STORY-0100): names another
 │   │                   #   server's tool / trigger + action its server lacks / rewrite another tool's arguments;
@@ -650,7 +650,7 @@ What each feature does is in `README.md`, `docs/README.md` (the index of every d
 Counts that `scripts/update_test_count.py` keeps in sync:
 
 - 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
-- 10636 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 10642 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - 34 top-level CLI commands: affected, vet, reach, check, fix, run, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `credenzo --help` before each release
 - 56-entry curated dataset of legitimate MCP servers (`registry/known-servers.json`, `docs/registry.md`)
 - 42 community rules ship bundled; the breakdown is under "Data files at project root" above

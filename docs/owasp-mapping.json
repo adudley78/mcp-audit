@@ -1297,7 +1297,7 @@
         "Tool Poisoning",
         "Shadow MCP Servers"
       ],
-      "notes": "Requires --connect. HIGH: a tool name is another server's tool name of two or more words plus only words such as 'premium', 'enhanced', 'v2'. MEDIUM: two servers list the same words in another spelling (searchEmails / search-emails). Names only. Shape from the Tool Shadowing, Function Overlapping and Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. Controls: 21 of 5,000 random five-server sessions of HISTOR's tool names get a MEDIUM finding, 0 a HIGH. CWE-694. STORY-0173."
+      "notes": "Requires --connect. A tool name is another server's tool name of two or more words plus only decoration words: HIGH when each added word only praises ('best', 'premium', 'enhanced'), MEDIUM when one has an honest use ('secure', 'v2'). MEDIUM also when two servers list the same words in another spelling (searchEmails / search-emails). Names only; 100 findings a scan at most. Shape from the Tool Shadowing, Function Overlapping and Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. Control: 21 of 5,000 random five-server sessions of HISTOR's tool names get a MEDIUM finding, 0 a HIGH (the word list was cut with this control in view). CWE-694. STORY-0173."
     },
     {
       "finding_id": "ANNOT-001",
@@ -2418,7 +2418,7 @@
       "owasp_names": [
         "Tool Poisoning"
       ],
-      "notes": "Tool text sells the tool to the agent: 'the premium version', 'world's best', 'used by 99% of professionals'. Tool text only. MEDIUM: marketing text is not an order. CWE-451. Shape from the Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. 2 rows on HISTOR's record, both honest. STORY-0173."
+      "notes": "Tool text sells the tool to the agent: 'the premium version', 'world's best', 'used by 99% of professionals', 'industry-leading'. Tool text only. MEDIUM: marketing text is not an order. CWE-451. Shape from the Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. 2 rows on HISTOR's record, both honest. STORY-0173."
     },
     {
       "finding_id": "MEM-005",

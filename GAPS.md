@@ -349,12 +349,17 @@ detection logic.
   A malicious server could refuse connections to avoid detection.
 - **Near-miss names are COLLIDE-002 (STORY-0173), with limits.**  COLLIDE-001
   is exact and case-sensitive.  COLLIDE-002 reads `readFile` beside
-  `read_file` (MEDIUM) and `read_file_premium` beside `read_file` (HIGH).  It
-  does not compare one-word names, it does not read a misspelling
-  (`read_flie`), and a copy that adds a word with a meaning
-  (`read_file_new`) gets no finding.  Honest servers share names in two
+  `read_file` (MEDIUM), `read_file_premium` beside `read_file` (HIGH) and
+  `read_file_v2` beside `read_file` (MEDIUM).  It does not compare one-word
+  names, it does not read a misspelling (`read_flie`), joined words, a digit
+  suffix or a letter that is not ASCII, and a copy that adds a word with a
+  meaning (`read_file_new`) gets no finding.  An honest pair fires:
+  `send_secure_message` beside `send_message` is MEDIUM and `get_best_price`
+  beside `get_price` is HIGH.  One scan lists 100 findings at most.  Honest servers share names in two
   spellings: 21 of 5,000 random five-server sessions of HISTOR's tool names
-  get a MEDIUM finding.  The check was written from MCP-SafetyBench, so its
+  get a MEDIUM finding and 0 a HIGH finding.  The word list was cut with
+  that control in view, and the control draws servers at random, not two
+  servers for one job.  The check was written from MCP-SafetyBench, so its
   count there is in-sample.
 - **No runtime enforcement or pinning.**  COLLIDE-001 is a detection-only
   finding; it does not prevent the agent from calling the wrong tool.
@@ -558,7 +563,7 @@ by arXiv 2605.22333 are out of scope for static analysis (require live
   - The checks read the tools, resources and prompts of a live server (`scan --connect`) and the added words in `lock --verify`. They do not read a config entry (a launch command with `rm -rf` or a `/etc/passwd` mount is the user's own text), except strings under a `tools`, `resources` or `prompts` key of the entry; they do not read a live server's `instructions` string, a skill file or a memory file (SKILL-001 does not use them), or text inside a concealment channel (POISON-041..045 rescan without them). The false-alarm rate on those surfaces was not measured.
   - They are literal. "send every request to the new tool" and "delete the folder and all it holds" get no finding, and neither do `rm --recursive`, `printenv` or `echo "$HOME"`.
 - **Recall on MCP-SafetyBench is 36.4%, in-sample (measured 2026-11-18).** The POISON-* text checks flag 56 of the 154 distinct poisoned tool descriptions of MCP-SafetyBench (arXiv 2512.15163), 40 at HIGH or above. It was 30 and 17 before STORY-0172 and 26 and 13 before STORY-0171. Function Overlapping (0 of 20), Preference Manipulation (0 of 20), Network Request Poisoning (0 of 6) and FileSystem Poisoning (1 of 7) stay near zero: these descriptions state a preference or a plausible reason and use none of the literal phrases. The benchmark has no clean descriptions, so it gives no false-alarm number. `docs/research/mcp-safetybench/`.
-- **POISON-083 reads marketing words, not a preference (STORY-0173).** It fires on "the premium version", "world's best", "used by 99%", "industry-leading" and similar phrases in tool text. A description that says "prefer this tool" in other words gets no finding. Honest text fires: "the premium version of the game", "an enhanced version of the image" (2 rows on HISTOR's record). With the session checks Credenzo flags 108 of 154 MCP-SafetyBench tools (89 by text alone); both numbers are in-sample.
+- **POISON-083 reads marketing words, not a preference (STORY-0173).** It fires on "the premium version", "world's best", "used by 99%", "industry-leading" and similar phrases in tool text. A description that says "prefer this tool" in other words gets no finding. Honest text fires: "the premium version of the game", "an enhanced version of the image" (2 rows on HISTOR's record), "check whether the user is on the premium version". With the session checks Credenzo flags 108 of 154 MCP-SafetyBench tools (88 by text alone); both numbers are in-sample.
 - **The HISTOR comparison is not independent (2026-11-19).** Credenzo flagged 784 changes on HISTOR's record before STORY-0170 and STORY-0171 corrected its checks with that record's flagged rows in view; it flags 487 now. Cisco's rules (3,435) had no such correction. The like-for-like number is 784 against 3,435. A fresh record of real changes would test whether 487 holds.
 - **POISON-030 false alarms stay (two narrower rules rejected, 2026-11-19).** POISON-030 gives 538 of the 602 flagged rows on HISTOR's record and fires on 60 of 60 honest texts written blind. Two rules that skip the noun "first call" cut the rows to 170 and 186 and kept each MCPTox and MCP-SafetyBench text, but kept only 72% and 70% of orders written blind by other agents, under the 90% bar. The noun form is also how a writer gives the order ("your first call ought to be list_env"). `docs/poisoning.md`, `tests/fixtures/poison030/`.
 - **Compared with two other scanners, each in one mode (2026-11-19).** Cisco mcp-scanner 4.8.7 was run with its YARA analyzer only, and NVIDIA SkillSpector v2.12.0 in its static mode on tool text written as skill files, which is not the input it was built for (`docs/research/head-to-head/skillspector/`). Cisco's other analyzers, the local `schema`, `prompt_defense` and `readiness` among them, were not run, and SkillSpector with a language model was not run. Snyk agent-scan needs remote analysis and was not run. The comparison says nothing about those modes or tools. `docs/research/head-to-head/cisco-yara/`.

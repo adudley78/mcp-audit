@@ -16,7 +16,7 @@
  "measure_py_output": {
   "distinct_poisoned_descriptions": 154,
   "sha256_of_sorted_text_sha256_lines": "e7040a8dad88106b955785eada08a14654e08578bab4ce098462c6c84354b21f",
-  "flagged_any_severity": 89,
+  "flagged_any_severity": 88,
   "flagged_high_or_above": 40,
   "descriptions_by_check": {
    "POISON-001": 4,
@@ -25,10 +25,10 @@
    "POISON-080": 17,
    "POISON-081": 12,
    "POISON-082": 3,
-   "POISON-083": 33
+   "POISON-083": 32
   },
   "flagged_of_total_by_attack_category": {
-   "Function Overlapping": "15/20",
+   "Function Overlapping": "14/20",
    "Preference Manipulation": "18/20",
    "Tool Poisoning-Command Injection": "16/29",
    "Tool Poisoning-FileSystem Poisoning": "1/7",
@@ -85,10 +85,10 @@
   },
   "added": {
    "n": 61,
-   "text_checks": 44,
+   "text_checks": 43,
    "session_checks": 29,
    "either": 56,
-   "either_high_or_above": 14,
+   "either_high_or_above": 11,
    "session_checks_by_id": {
     "COLLIDE-002": 13,
     "DELEG-001": 17,
@@ -121,10 +121,10 @@
   },
   "all": {
    "n": 154,
-   "text_checks": 89,
+   "text_checks": 88,
    "session_checks": 39,
    "either": 108,
-   "either_high_or_above": 54,
+   "either_high_or_above": 51,
    "session_checks_by_id": {
     "COLLIDE-002": 13,
     "DELEG-001": 17,

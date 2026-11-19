@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from mcp_audit.analyzers.collision import (
+    MAX_NAME_COPY_FINDINGS,
     _is_registry_known,
     _server_identity,
     detect_tool_collisions,
@@ -436,8 +437,7 @@ class TestToolNameSquats:
     def test_other_decorations(self) -> None:
         for name in (
             "playwright_navigate_enhanced",
-            "Playwright_Navigate_Advanced",
-            "playwrightNavigateV2",
+            "ultimate_playwright_navigate",
         ):
             found = detect_tool_name_squats(
                 [_pair("browser", "playwright_navigate"), _pair("x", name)]
@@ -506,4 +506,33 @@ class TestToolNameSquats:
         start = time.perf_counter()
         found = detect_tool_name_squats(pairs)
         assert time.perf_counter() - start < 5.0
-        assert len(found) == 3000
+        assert len(found) == MAX_NAME_COPY_FINDINGS
+
+    def test_many_spellings_of_one_name_are_one_finding(self) -> None:
+        # Review of PR #335: two servers with 1,000 spellings each gave
+        # 1,000,000 findings in 17 seconds.
+        import time  # noqa: PLC0415
+
+        seps = ["_", "-", ".", "~", "+", "__", "--", "_-"]
+        a = [
+            f"get{x}page{y}item{'!' * i}" for i in range(125) for x in seps for y in "_"
+        ]
+        b = [
+            f"Get{x}Page{y}Item{'?' * i}" for i in range(125) for x in seps for y in "-"
+        ]
+        start = time.perf_counter()
+        found = detect_tool_name_squats(
+            [_pair("a", *a), _pair("b", *b), _pair("c", "best_get_page_item")]
+        )
+        assert time.perf_counter() - start < 2.0
+        assert sorted(f.severity for f in found) == [Severity.HIGH, Severity.MEDIUM]
+
+    def test_a_word_with_an_honest_use_is_medium(self) -> None:
+        for base, other in (
+            ("send_message", "send_secure_message"),
+            ("get_issue", "get_issue_v2"),
+            ("search_code", "advanced_search_code"),
+            ("list_devices", "list_trusted_devices"),
+        ):
+            found = detect_tool_name_squats([_pair("a", base), _pair("b", other)])
+            assert [f.severity for f in found] == [Severity.MEDIUM], other
