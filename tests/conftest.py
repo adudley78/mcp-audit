@@ -54,6 +54,19 @@ os.environ["COLUMNS"] = "200"
 
 
 @pytest.fixture(autouse=True)
+def _isolate_claude_local_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Read no Claude Code local-scope servers unless a test asks for them.
+
+    A default scan also reads ``projects.<cwd>.mcpServers`` in the real
+    ``~/.claude.json`` (STORY-0175).  Without this, a contributor who added a
+    local-scope server to this checkout would see extra servers and findings
+    in any test that runs a default scan.  ``tests/test_local_scope.py``
+    patches the real function back.
+    """
+    monkeypatch.setattr("mcp_audit.discovery.local_scope_dirs", lambda cwd: ())
+
+
+@pytest.fixture(autouse=True)
 def _isolate_claude_plugins(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

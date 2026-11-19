@@ -82,7 +82,10 @@ def _configs(
         )
     else:
         found = discover_configs(
-            include_plugins=False, include_agents=False, include_gateways=False
+            include_plugins=False,
+            include_agents=False,
+            include_gateways=False,
+            include_local_scope=False,
         )
     out: list[DiscoveredConfig] = []
     seen: set[Path] = set()

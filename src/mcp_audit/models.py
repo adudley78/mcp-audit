@@ -111,6 +111,12 @@ class ServerConfig(BaseModel):
     wrapped: bool = False
     # The wrapper's ``--mode`` (``monitor`` or ``enforce``) when ``wrapped``.
     wrap_mode: str | None = None
+    # The project directory of a Claude Code local-scope server (client
+    # ``claude-code-local``, STORY-0175): the ``projects`` key in
+    # ``~/.claude.json`` it was read from.  Internal: it keeps one project's
+    # rug-pull record apart from another's, and is left out of every dump so
+    # no output gains an absolute path.
+    local_project: str | None = Field(default=None, exclude=True)
 
     # ── JSON serialisation: launch credentials never leave in clear (STORY-0108)
     #

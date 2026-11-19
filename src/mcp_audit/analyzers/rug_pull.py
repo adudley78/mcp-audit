@@ -143,6 +143,10 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
 
 #: Separates a gateway upstream's name from its config path in a state key.
 _GATEWAY_KEY_SEP = " @ "
+#: Claude Code local-scope servers (``discovery.LOCAL_SCOPE_CLIENT``).  Their
+#: state key carries the project directory, and a scan run somewhere else
+#: never reports them as removed.
+_LOCAL_SCOPE_CLIENT = "claude-code-local"
 
 
 def server_key(server: ServerConfig) -> str:
@@ -161,6 +165,9 @@ def server_key(server: ServerConfig) -> str:
         except (OSError, RuntimeError):
             path = str(server.config_path)
         return f"{server.client}/{server.name}{_GATEWAY_KEY_SEP}{path}"
+    if server.client == _LOCAL_SCOPE_CLIENT and server.local_project:
+        # One project's local-scope server is not another's (STORY-0175).
+        return f"{server.client}/{server.name}{_GATEWAY_KEY_SEP}{server.local_project}"
     return f"{server.client}/{server.name}"
 
 
@@ -334,11 +341,22 @@ class RugPullAnalyzer(BaseAnalyzer):
                     findings.append(self._changed_finding(srv, key, changed, moved))
 
         # ── Detect removed servers ─────────────────────────────────────────────
+        local_projects = {
+            s.local_project for s in servers if s.client == _LOCAL_SCOPE_CLIENT
+        }
         for key, entry in stored.items():
             if key not in current:
                 client, _, srv_name = key.partition("/")
                 if client in GATEWAY_UPSTREAM_CLIENTS:
                     srv_name = srv_name.rsplit(_GATEWAY_KEY_SEP, 1)[0]
+                if client == _LOCAL_SCOPE_CLIENT:
+                    # A local-scope server belongs to one project.  This scan
+                    # can say it is gone only when it read that project's
+                    # servers and found others; a scan run in another
+                    # directory never read them.
+                    srv_name, sep, project = srv_name.rpartition(_GATEWAY_KEY_SEP)
+                    if not sep or project not in local_projects:
+                        continue
                 findings.append(self._removed_finding(client, srv_name, key, entry))
 
         # ── Persist updated state ─────────────────────────────────────────────

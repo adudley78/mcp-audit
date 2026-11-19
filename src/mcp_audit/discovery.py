@@ -8,6 +8,7 @@ import platform
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from mcp_audit._paths import find_git_root
 from mcp_audit.analyzers.git_exec import GitSurface, is_bare_repository
 from mcp_audit.gateways import PROJECT_GATEWAY_FILES, user_gateway_config_paths
 from mcp_audit.models import Finding, Severity
@@ -24,6 +25,13 @@ _LOCK_FILENAME = "mcp-lock.json"
 #: auto-discovery but are never written to or verified against
 #: ``mcp-lock.json`` and are left out of the rug-pull state key.
 AGENT_DEFINITION_CLIENT = "claude-code-agent"
+
+#: Client label of a Claude Code **local-scope** server (STORY-0175): an entry
+#: under ``projects.<project path>.mcpServers`` in ``~/.claude.json``, where
+#: ``claude mcp add`` writes by default.  Claude Code loads it only in that
+#: project, and it has precedence over a project or user server of the same
+#: name (https://code.claude.com/docs/en/mcp, "Scope hierarchy and precedence").
+LOCAL_SCOPE_CLIENT = "claude-code-local"
 
 
 @dataclass
@@ -291,6 +299,44 @@ class DiscoveredConfig:
     # ``None`` lets the parser infer it from the path (a ``.toml`` suffix, or
     # ``.gemini/settings.json``) and otherwise read plain JSON (STORY-0110).
     dialect: str | None = None
+    # Set only on the user's ``~/.claude.json`` in a scan with no explicit
+    # path: the directories whose ``projects.<path>.mcpServers`` entries
+    # parse_config() also returns, as client ``claude-code-local``
+    # (STORY-0175).  Empty everywhere else, so every other caller of
+    # parse_config() reads the file exactly as before.
+    local_project_dirs: tuple[Path, ...] = ()
+
+
+def local_scope_dirs(cwd: Path) -> tuple[Path, ...]:
+    """Directories whose Claude Code local-scope servers a scan from *cwd* reads.
+
+    Claude Code stores a local-scope server "under that project's path" in
+    ``~/.claude.json`` (code.claude.com/docs/en/mcp).  The docs do not say
+    whether that path is the directory Claude Code started in or the
+    repository root, so both count: *cwd*, then each parent up to the git
+    root.  Outside a git repository only *cwd* counts.
+
+    Args:
+        cwd: The scan's working directory.
+
+    Returns:
+        *cwd* first, then its parents up to and including the git root.
+    """
+    try:
+        start = cwd.resolve()
+    except OSError:
+        return (cwd,)
+    dirs = [start]
+    try:
+        root = find_git_root(start)
+    except OSError:
+        root = None
+    if root is not None:
+        current = start
+        while current != root and current.parent != current:
+            current = current.parent
+            dirs.append(current)
+    return tuple(dirs)
 
 
 def _agent_definitions_home() -> Path:
@@ -585,6 +631,7 @@ def discover_configs(
     skip_findings: list[Finding] | None = None,
     errors: list[str] | None = None,
     include_gateways: bool = True,
+    include_local_scope: bool = True,
 ) -> list[DiscoveredConfig]:
     """Find all MCP configuration files on this machine.
 
@@ -623,6 +670,13 @@ def discover_configs(
             ``.mcphub/servers.json``, marked ``is_project_scoped``).  Same rules
             as *include_plugins*: on by default, ignored with
             *skip_auto_discovery*; ``lock`` passes ``False``.
+        include_local_scope: Also read the Claude Code **local-scope**
+            servers of the working directory's project from the user's
+            ``~/.claude.json`` (``projects.<path>.mcpServers``), as client
+            ``claude-code-local`` (STORY-0175).  No extra file is returned:
+            the ``~/.claude.json`` entry carries ``local_project_dirs`` and
+            :func:`~mcp_audit.config_parser.parse_config` reads them.  Same
+            rules as *include_plugins*; ``lock`` and ``wrap`` pass ``False``.
 
     Returns:
         List of discovered configuration files.  A candidate that is itself a
@@ -694,6 +748,11 @@ def discover_configs(
         # user is scanning from, the same GhostApproval risk as the --project
         # walk below — not the $HOME dotfile-manager shape.
         cwd = Path.cwd()
+        if include_local_scope:
+            claude_json = _home() / ".claude.json"
+            for found in discovered:
+                if found.client_name == "claude-code" and found.path == claude_json:
+                    found.local_project_dirs = local_scope_dirs(cwd)
         # A path already discovered above is not added twice: with cwd ==
         # $HOME, .claude/settings.json *is* the user-level file (STORY-0082),
         # and a symlinked ~/.claude must not turn it into a project file with

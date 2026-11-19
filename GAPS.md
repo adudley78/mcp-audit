@@ -1946,6 +1946,32 @@ trust"). Recorded limits:
   frontmatter split by `agent_files/discovery.py` and the subagent reader;
   if it ever is not, lines count from the start of the body.
 
+## Claude Code local-scope servers (STORY-0175)
+
+Before STORY-0175 a default scan did not read the servers that `claude mcp add` writes
+by default (`projects.<project path>.mcpServers` in `~/.claude.json`). It reads
+them now for the working directory's project, as client `claude-code-local`.
+
+- **Other projects.** A scan reads only the local-scope servers of the working
+  directory (and its parents up to the git root). A credential in another
+  project's local-scope entry gets no finding until a scan runs in that
+  project. `credenzo reach` lists every project's local-scope servers.
+- **The project path.** Claude Code's docs do not say whether the `projects`
+  key is the directory Claude Code started in or the repository root. Credenzo
+  reads both. A session started in a subdirectory with its own key is read
+  only by a scan run in that subdirectory or below it.
+- **`scan --path ~/.claude.json` and `scan --project DIR`** read no local-scope
+  servers.
+- **`lock`, `wrap` and `fix`** do not record, wrap or edit a local-scope
+  server. `credenzo run` cannot be put in front of one by `wrap`; write the
+  wrapped command by hand with `claude mcp add`.
+- **PERM-007 and the managed MCP policy report** do not compare local-scope
+  servers (see that section).
+- **Rug-pull records.** A local-scope server's record carries its project
+  directory. A removed local-scope server is reported (RUGPULL-003) only while
+  the same project still has another local-scope server; when the last one
+  goes, the scan no longer reads that project's entry and says nothing.
+
 ## Codex and Gemini CLI MCP servers (STORY-0110)
 
 - **Only the user file and the project file are read.** Codex's system layer

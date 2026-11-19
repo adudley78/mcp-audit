@@ -32,7 +32,12 @@ from mcp_audit.models import Finding, LockStatus, ServerConfig
 #: MCP gateway upstreams (``<gateway>-upstream``, STORY-0111) are never
 #: recorded either; a project-scoped one under a lock root is listed in
 #: ``status.not_covered``.
-_NOT_LOCKED_CLIENTS = frozenset({"claude-code-plugin"}) | GATEWAY_UPSTREAM_CLIENTS
+#: Claude Code local-scope servers (``claude-code-local``, STORY-0175) are
+#: never recorded: they live in the user's ``~/.claude.json`` under a
+#: machine-specific project path.
+_NOT_LOCKED_CLIENTS = (
+    frozenset({"claude-code-plugin", "claude-code-local"}) | GATEWAY_UPSTREAM_CLIENTS
+)
 
 _DRIFT_IDS = frozenset(
     {
