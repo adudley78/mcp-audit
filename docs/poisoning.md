@@ -171,6 +171,17 @@ The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of moun
 
 Cisco's scanner is `cisco-ai-mcp-scanner` 4.8.7, YARA analyzer only. YARA is the one analyzer of its default set (`api,yara,llm`) that runs with no key. Its other analyzers were not run, and that includes the local `schema`, `prompt_defense` and `readiness` analyzers. In a random sample of 150 texts that its rules flagged on HISTOR's record, 146 are honest, 4 steer the agent and 0 are malicious (an AI model labelled them from about 300 characters round each match). Before STORY-0172 Credenzo flagged fewer MCP-SafetyBench texts than Cisco (30 and 36). Neither side of the comparison is independent of Credenzo. The attack sets shaped its checks, and STORY-0170 and STORY-0171 corrected its checks with HISTOR's flagged rows in view. The like-for-like HISTOR number is the first run, before any correction: 784 flagged changes for Credenzo and 3,435 for Cisco. The limits and the scripts are in [`docs/research/head-to-head/cisco-yara/`](research/head-to-head/cisco-yara/README.md).
 
+## Compared with NVIDIA SkillSpector, static mode (measured 2026-11-19)
+
+| Set | Credenzo | SkillSpector | Cisco YARA |
+|---|---|---|---|
+| MCP-SafetyBench, 154 poisoned descriptions | 56 (36.4%) | 30 (19.5%) | 36 (23.4%) |
+| MCPTox, 485 poisoned descriptions with no wrapper | 149 (30.7%) | 111 (22.9%) | 99 (20.4%) |
+| MCPTox, 353 clean tools, flagged | 2 | 6 | 3 |
+| HISTOR, sample of 2,000 distinct added texts, flagged | 6 | 23 | 31 |
+
+SkillSpector v2.12.0 ran with `--no-llm`, on each text written as a skill file. That is not the input it was built for, and its mode with a language model was not measured. Neither the attack sets nor the HISTOR sample are independent of Credenzo, as above. The limits and the scripts are in [`docs/research/head-to-head/skillspector/`](research/head-to-head/skillspector/README.md).
+
 ## MCP-SafetyBench: a second set of attacks (measured 2026-11-18)
 
 MCP-SafetyBench ([arXiv 2512.15163](https://arxiv.org/abs/2512.15163), <https://github.com/xjzzzzzzzz/MCPSafety>, commit `7872437`) has 245 attack tasks on real MCP servers. 154 distinct texts in its task files replace a tool description or add a tool with a poisoned description. Credenzo flagged 26 of the 154 (16.9%), 13 at HIGH or above, before STORY-0171, and 30 (19.5%) and 17 after it. With POISON-080..082 (STORY-0172) it flags 56 (36.4%), 40 at HIGH or above. The three checks were written from these texts, so the last number is in-sample.

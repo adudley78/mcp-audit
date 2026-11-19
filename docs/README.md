@@ -102,5 +102,6 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | [research/head-to-head/](research/head-to-head/README.md) | Benchmark beside other scanners |
 | [research/histor-changes/](research/histor-changes/README.md) | False alarms of POISON-* on a public record of real changes |
 | [research/head-to-head/cisco-yara/](research/head-to-head/cisco-yara/README.md) | Credenzo and Cisco mcp-scanner's YARA rules on the same text |
+| [research/head-to-head/skillspector/](research/head-to-head/skillspector/README.md) | Credenzo, NVIDIA SkillSpector (static mode) and Cisco YARA on the same text |
 | [research/mcp-safetybench/](research/mcp-safetybench/README.md) | Recall of POISON-* on MCP-SafetyBench's poisoned tool descriptions |
 | [research/mem006/](research/mem006/) · [research/mem008/](research/mem008/) | MEM-006 and MEM-008 measurements |

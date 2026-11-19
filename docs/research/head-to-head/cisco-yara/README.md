@@ -15,9 +15,9 @@ Credenzo flags more of them.
   a remote service. No other analyzer was run. That includes the local
   `schema`, `prompt_defense` and `readiness` analyzers, so this is not a
   measure of the whole product.
-- NVIDIA SkillSpector and Snyk agent-scan were not run. SkillSpector could not
-  be installed in the measurement environment. Snyk agent-scan needs remote
-  analysis.
+- NVIDIA SkillSpector was run one day later, in its static mode: see
+  [`../skillspector/`](../skillspector/README.md). Snyk agent-scan needs
+  remote analysis and was not run.
 
 Each tool got the same text: the description of each tool (and the JSON of its
 input schema), or the added text of each changed field in HISTOR's record, as

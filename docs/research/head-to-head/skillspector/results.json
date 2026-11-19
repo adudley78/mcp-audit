@@ -1,0 +1,89 @@
+{
+ "measured": "2026-11-19",
+ "skillspector": "NVIDIA SkillSpector v2.12.0, commit ee4576e047991cebaf31aab7af8bc18efc436824, `scan --recursive --max-skills 32 --no-llm --format json`, 30 skills per run",
+ "credenzo": "main at fc84ee0 (POISON-* text checks)",
+ "cisco": "cisco-ai-mcp-scanner 4.8.7, YARA analyzer only",
+ "input": "each text as one SKILL.md (scripts/bench_competitors.skill_text_for_tool)",
+ "histor_sample": "2,000 of the 179,935 distinct added texts of HISTOR's record, random.Random(172) shuffle of the sorted SHA-256 values",
+ "sets": {
+  "safetybench": {
+   "n": 154,
+   "errors": 0,
+   "omitted": 0,
+   "skillspector": 30,
+   "skillspector_high": 18,
+   "credenzo": 56,
+   "credenzo_high": 40,
+   "cisco": 36,
+   "cisco_high": 36,
+   "flagged_by_skillspector_and_credenzo": 18,
+   "skillspector_top_patterns": {
+    "TM1 Tool Parameter Abuse HIGH": 16,
+    "PE3 Credential Access HIGH": 7,
+    "EA2 Autonomous Decision Making MEDIUM": 6,
+    "PE2 Sudo/Root Execution MEDIUM": 6,
+    "E1 External Transmission MEDIUM": 4,
+    "P1 Instruction Override HIGH": 2
+   }
+  },
+  "mcptox_unwrapped": {
+   "n": 485,
+   "errors": 0,
+   "omitted": 0,
+   "skillspector": 111,
+   "skillspector_high": 57,
+   "credenzo": 149,
+   "credenzo_high": 53,
+   "cisco": 99,
+   "cisco_high": 99,
+   "flagged_by_skillspector_and_credenzo": 51,
+   "skillspector_top_patterns": {
+    "EA2 Autonomous Decision Making MEDIUM": 53,
+    "PE3 Credential Access HIGH": 46,
+    "P1 Instruction Override HIGH": 12,
+    "E1 External Transmission MEDIUM": 9,
+    "TM1 Tool Parameter Abuse HIGH": 4,
+    "YR4 YARA rule 'agent_skill_mcp_tool_poisoning_metadata': MCP/tool metadata poisoning indicators in tool schemas or skill manifests [agent_skills] HIGH": 1
+   }
+  },
+  "mcptox_clean": {
+   "n": 353,
+   "errors": 0,
+   "omitted": 0,
+   "skillspector": 6,
+   "skillspector_high": 2,
+   "credenzo": 2,
+   "credenzo_high": 0,
+   "cisco": 3,
+   "cisco_high": 3,
+   "flagged_by_skillspector_and_credenzo": 0,
+   "skillspector_top_patterns": {
+    "EA2 Autonomous Decision Making MEDIUM": 2,
+    "RA1 Self-Modification HIGH": 2,
+    "AR2 Anti-Refusal Statement HIGH": 1,
+    "E1 External Transmission MEDIUM": 1,
+    "RP1 MCP server referenced without pinned version: 'npx prisma'. MEDIUM": 1
+   }
+  },
+  "histor_sample": {
+   "n": 2000,
+   "errors": 0,
+   "omitted": 0,
+   "skillspector": 23,
+   "skillspector_high": 10,
+   "credenzo": 6,
+   "credenzo_high": 1,
+   "cisco": 31,
+   "cisco_high": 20,
+   "flagged_by_skillspector_and_credenzo": 1,
+   "skillspector_top_patterns": {
+    "RA2 Session Persistence MEDIUM": 6,
+    "PE3 Credential Access HIGH": 6,
+    "EA2 Autonomous Decision Making MEDIUM": 4,
+    "AS2 MCP Config Access HIGH": 1,
+    "E1 External Transmission MEDIUM": 1,
+    "YR4 YARA rule 'agent_skill_mcp_tool_poisoning_metadata': MCP/tool metadata poisoning indicators in tool schemas or skill manifests [agent_skills] HIGH": 1
+   }
+  }
+ }
+}
