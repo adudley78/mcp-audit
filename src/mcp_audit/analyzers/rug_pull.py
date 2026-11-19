@@ -445,8 +445,8 @@ class RugPullAnalyzer(BaseAnalyzer):
             description=(
                 f"The configuration of {_shown_key(key)!r} has changed since the last "
                 "recorded baseline. This pattern is consistent with a rug-pull attack "
-                "where tool descriptions or parameters are silently modified after initial "
-                "trust is established."
+                "where tool descriptions or parameters are silently modified after "
+                "initial trust is established."
             ),
             evidence=evidence,
             remediation=(
