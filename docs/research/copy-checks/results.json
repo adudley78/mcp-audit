@@ -90,7 +90,7 @@
     "random_sessions_with_collide_003_high": 0,
     "every_server_in_one_session": {
      "findings_capped_at": 100,
-     "findings": 47
+     "findings": 100
     }
    }
   },

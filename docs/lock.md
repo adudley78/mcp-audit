@@ -545,7 +545,7 @@ Two tools on two servers can carry one description. The agent cannot tell them a
 - The lock does not hold the tool yet.
 - Its description holds the description of a tool of another server (under the same name or another name).
 - The lock holds that other tool.
-- The two servers do not launch the same package.
+- The two servers do not have the same command and the same arguments. (The same package name is not enough: `--package`, `--registry` or another version puts other code under that name.)
 
 The command prints one `NOT APPROVED` line for the tool. After that:
 
@@ -554,7 +554,7 @@ The command prints one `NOT APPROVED` line for the tool. After that:
 
 If you expect the tool (a fork, a gateway beside the server that it fronts), lock again with `--allow-copies`.
 
-Limits: a first lock has no earlier record, so it records both tools; `scan --connect` reports the pair as COLLIDE-003. A server that you locked first counts as the original, whoever wrote it. A copy with a description in new words is recorded like each other tool. The measurements are in [research/copy-checks/](research/copy-checks/README.md).
+Limits: a first lock has no earlier record, so it records both tools; `scan --connect` reports the pair as COLLIDE-003. A server that you locked first counts as the original, whoever wrote it. A copy with a description in new words is recorded like each other tool. When the server of the approved tool does not answer, or lists only part of its tools, the copy has no partner and is recorded. The measurements are in [research/copy-checks/](research/copy-checks/README.md).
 
 ## Saved tool text (`--save-tool-text`)
 

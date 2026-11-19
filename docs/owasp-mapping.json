@@ -1310,7 +1310,7 @@
         "Tool Poisoning",
         "Shadow MCP Servers"
       ],
-      "notes": "Requires --connect. One tool's description holds the description of a tool on another server (other name). MEDIUM: the fact is the same for an attack and for an honest duplicate, and the text does not show which tool was first, so the finding names both. HIGH only when the registry knows one server and not the other. No word list. 0 findings in 5,000 random five-server sessions of real descriptions. lock --connect does not approve a new tool that carries the description of a tool the lock held before. CWE-694. STORY-0174."
+      "notes": "Requires --connect. One tool's description holds the description of a tool on another server (other name). MEDIUM: the fact is the same for an attack and for an honest duplicate, and the text does not show which tool was first, so the finding names both. Nothing that a server chooses changes the severity. No word list. 0 findings in 5,000 random five-server sessions of real descriptions. lock --connect does not approve a new tool that carries the description of a tool the lock held before. CWE-694. STORY-0174."
     },
     {
       "finding_id": "ANNOT-001",

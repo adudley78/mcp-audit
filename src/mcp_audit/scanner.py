@@ -955,11 +955,7 @@ async def run_scan_async(
             # tool description under another name.
             try:
                 result.findings.extend(
-                    detect_description_copies(
-                        connect_pairs,
-                        errors=result.errors,
-                        registry=_extract_registry(analyzers),
-                    )
+                    detect_description_copies(connect_pairs, errors=result.errors)
                 )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"description copy check error: {e}")

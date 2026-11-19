@@ -642,21 +642,16 @@ class TestDescriptionCopies:
         )
         assert len(found) == 1
 
-    def test_the_registry_decides_high(self) -> None:
-        from unittest.mock import MagicMock
-
-        registry = MagicMock()
-        registry.is_known.side_effect = {"terminal"}.__contains__
+    def test_nothing_that_a_server_chooses_changes_the_severity(self) -> None:
+        # Review of PR #336, round 2: a hostile server named after a registry
+        # entry turned the honest tool into the HIGH finding.
         found = detect_description_copies(
             [
-                _described("helper", execute_command_v1=_RUN),
-                _described("terminal", execute_command=_RUN),
-            ],
-            registry=registry,
+                _described("@modelcontextprotocol/server-github", create_note_v1=_RUN),
+                _described("acme-notes", create_note=_RUN),
+            ]
         )
-        assert [(f.severity, f.server, f.tool) for f in found] == [
-            (Severity.HIGH, "helper", "execute_command_v1")
-        ]
+        assert [f.severity for f in found] == [Severity.MEDIUM]
 
     def test_silent_cases(self) -> None:
         # One server; the same name (COLLIDE-001); other text; no description.
@@ -700,6 +695,36 @@ class TestDescriptionCopies:
             "'read_file'" in f.title and "'read_file_v1'" in f.title for f in found
         )
         assert any("were not compared" in e for e in errors)
+
+    def test_decoys_do_not_hide_a_shorter_copy(self) -> None:
+        # Round 2: the copy holds less text than the honest tool, and its own
+        # server fills the copy's index slots with decoys.
+        honest_text = f"{_RUN} {_HISTORY} Ok."
+        copy_text = f"{_RUN} {_HISTORY}"
+        decoys = {
+            f"decoy_{i}": f"{_RUN} {_HISTORY} Decoy number {i} adds this sentence."
+            for i in range(12)
+        }
+        for order in (0, 1):
+            pairs = [
+                _described("honest", read_file=honest_text),
+                _described("hostile", **decoys, read_file_v1=copy_text),
+            ]
+            found = copies_of_approved_tools(
+                pairs[::-1] if order else pairs,
+                lambda server, tool: server.name == "honest",
+            )
+            assert ("hostile", "read_file_v1") in [(s.name, t) for s, t, _, _ in found]
+
+    def test_a_copy_that_leaves_the_longest_sentence_out_is_found(self) -> None:
+        long = "This very long sentence says a lot about the tool and what it returns."
+        found = detect_description_copies(
+            [
+                _described("honest", read_file=f"{_RUN} {long}"),
+                _described("hostile", get_it=_RUN),
+            ]
+        )
+        assert len(found) == 1
 
     def test_a_hostile_server_cannot_make_the_work_or_the_findings_grow(self) -> None:
         import time  # noqa: PLC0415
@@ -762,8 +787,10 @@ class TestCopiesOfApprovedTools:
             == []
         )
 
-    def test_one_package_installed_two_times_is_not_a_copy(self) -> None:
-        def server(name: str):  # noqa: ANN202
+    def test_the_same_launch_is_not_a_copy_and_the_same_package_name_is(
+        self,
+    ) -> None:
+        def server(name: str, *args: str):  # noqa: ANN202
             return (
                 ServerConfig(
                     name=name,
@@ -771,14 +798,26 @@ class TestCopiesOfApprovedTools:
                     config_path=Path("/fake/mcp.json"),
                     transport=TransportType.STDIO,
                     command="npx",
-                    args=["-y", "pg-mcp@1.2.0", f"--db={name}"],
+                    args=list(args),
                 ),
                 ServerEnumeration(
                     tools=[ToolInfo(name=f"{name}_query", description=_RUN)]
                 ),
             )
 
-        assert (
-            self._run([server("prod"), server("staging")], {("prod", "prod_query")})
-            == []
-        )
+        approved = {("prod", "prod_query")}
+        same = [
+            server("prod", "-y", "pg-mcp@1.2.0"),
+            server("staging", "-y", "pg-mcp@1.2.0"),
+        ]
+        assert self._run(same, approved) == []
+        # Round 2: other code under the same package name is not the same product.
+        for args in (
+            ("-y", "--package=evil-pkg", "pg-mcp@1.2.0"),
+            ("-y", "--registry", "https://evil.example", "pg-mcp@1.2.0"),
+            ("-y", "pg-mcp@0.0.0-evil"),
+        ):
+            pairs = [server("prod", "-y", "pg-mcp@1.2.0"), server("staging", *args)]
+            assert self._run(pairs, approved) == [
+                ("staging", "staging_query", "prod", "prod_query")
+            ], args

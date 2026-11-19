@@ -41,8 +41,11 @@ was first: a hostile server can take the short name `read_file` and copy the
 text of an honest `read_file_safe`. A first version of this check made the
 longer name the copy and rated it HIGH. A reviewer showed that the hostile
 server then gets the honest tool reported, and that 28 of 30 honest sessions
-with a fork, a gateway or two servers of one vendor got a HIGH finding. The
-check is HIGH now only when the registry knows one server and not the other.
+with a fork, a gateway or two servers of one vendor got a HIGH finding. A
+second version rated a tool HIGH when the registry knew the other server; a
+hostile server that put a registry name in its own name or arguments then
+turned the finding round. Nothing that a server chooses changes the severity
+now. The finding is always MEDIUM, and the lock guard is what acts.
 
 The finding does not hold the copied text.
 
@@ -55,8 +58,10 @@ name). `lock --verify --connect` then reports it (LOCK-006) and
 `run --mode enforce` withholds it, so the agent sees the approved tool only.
 `--allow-copies` records it.
 
-- Two servers that launch the same package are one product installed two
-  times. Their tools are not copies of each other.
+- Two servers with the same command and the same arguments run the same
+  code. Their tools are not copies of each other. The same package name is
+  not enough: `--package`, `--registry` or another version puts other code
+  under that name.
 - A first lock has no earlier record, so it has no order. It records both
   tools, and `scan --connect` reports the pair.
 
@@ -77,7 +82,7 @@ sources with `ast` and does not run them. No benchmark text is committed.
 | All | 96 | 96 | 96 | 0 |
 
 The guard column has the honest server approved first and the attack server
-added after it. The out-of-scope-parameter and tool-transfer attacks act in a
+added after it, with a launch command of its own. The out-of-scope-parameter and tool-transfer attacks act in a
 parameter or in a tool result. The checks find those tools because they also
 take the name or the description of the honest tool, not because they read
 the attack. An attack of that kind with a name and a description of its own
@@ -109,6 +114,8 @@ gives, for the 40 attack sessions:
   (4 sessions) or a tool that only names the tool that it replaces (2).
 - No finding is HIGH, because the fact is the same for an attack and for an
   honest duplicate. The guard is what acts.
+- The guard numbers hold for this order: the target's server was approved
+  first.
 
 For the 40 honest sessions:
 
@@ -134,7 +141,7 @@ HISTOR's record of changes (Artamokhov, A., 2026,
 | 5,000 random sessions of five servers | 0 sessions with a finding |
 | MCPTox, 353 clean tools of 45 servers in one session | 0 |
 | MSB, five honest servers in one session | 0 |
-| Each of the 13,684 servers in one session | 47 pairs of tools |
+| Each of the 13,684 servers in one session | 100 pairs listed (the cap) |
 
 In the last row most pairs are servers of one vendor that share helper tools
 under a prefix (`brain_update_coupon`, `cypher_update_coupon`). A random
