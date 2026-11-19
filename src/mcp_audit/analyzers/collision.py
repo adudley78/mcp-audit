@@ -282,8 +282,10 @@ def detect_tool_name_squats(
     - **Decorated copy.** The name is another server's tool name of two or
       more words plus only decoration words: ``best_get_stock_info`` beside
       ``get_stock_info``.  HIGH when each added word only praises ("best",
-      "premium", "enhanced"); MEDIUM when one has a use in honest names
-      ("secure", "v2").  The finding is on the decorated tool.
+      "premium", "enhanced") and stands before or after the whole name;
+      MEDIUM when one has a use in honest names ("secure", "v2") or stands
+      inside the name (``get_best_price``).  The finding is on the
+      decorated tool.
     - **Spelling variant (MEDIUM).** The same words in another spelling on
       two servers: ``searchEmails`` and ``search-emails``.  The agent sees two
       tools that read as one.  One finding names both.
@@ -298,8 +300,9 @@ def detect_tool_name_squats(
     Returns:
         ``COLLIDE-002`` findings: at most one spelling finding per set of
         words, one decorated finding per server and set of words, and
-        ``MAX_NAME_COPY_FINDINGS`` in all.  Each server counts with the first
-        spelling it lists.
+        ``MAX_NAME_COPY_FINDINGS`` in all, HIGH first.  Each server counts
+        with the first spelling it lists; a spelling finding names two
+        servers.
     """
     live = [(s, e) for s, e in pairs if not e.error]
     if len(live) < 2:
@@ -373,9 +376,12 @@ def detect_tool_name_squats(
             )
         )
 
+    # Collect light records first, HIGH before MEDIUM, and build Finding
+    # objects only for the ones that fit under the cap.  A server that lists
+    # many MEDIUM copies cannot push a HIGH copy out of the report.
+    high: list[tuple[str, tuple[tuple, str], tuple[tuple, str]]] = []
+    medium: list[tuple[str, tuple[tuple, str], tuple[tuple, str]]] = []
     for tokens, members in sorted(index.items()):
-        if len(findings) >= MAX_NAME_COPY_FINDINGS:
-            break
         # Spelling variant: same words, different text, different servers.
         # One finding per set of words, for the first two spellings.
         spellings: dict[str, tuple] = {}
@@ -383,16 +389,29 @@ def detect_tool_name_squats(
             spellings.setdefault(name, identity)
         if len(spellings) >= 2:
             (name_a, ida), (name_b, idb) = sorted(spellings.items())[:2]
-            emit("variant", (ida, name_a), (idb, name_b))
+            medium.append(("variant", (ida, name_a), (idb, name_b)))
         # Decorated copy: drop the decoration words and look the rest up.
         core = tuple(t for t in tokens if t not in _DECORATION_WORDS)
         if core == tokens or len(core) < 2:
             continue
         originals = index.get(core, {})
+        if not originals:
+            continue
+        # HIGH needs words that only praise, put before or after the whole
+        # name: "best_get_price".  Inside the name they are often part of an
+        # honest phrase: "get_best_price", "list_premium_plans".
         added = {t for t in tokens if t in _DECORATION_WORDS}
-        severity = Severity.HIGH if added <= _PROMOTION_WORDS else Severity.MEDIUM
+        start = next(i for i, t in enumerate(tokens) if t not in _DECORATION_WORDS)
+        around = tokens[start : start + len(core)] == core
+        bucket = high if around and added <= _PROMOTION_WORDS else medium
         for identity, name in members.items():
             other = next((i for i in originals if i != identity), None)
             if other is not None:
-                emit("decorated", (identity, name), (other, originals[other]), severity)
-    return findings[:MAX_NAME_COPY_FINDINGS]
+                bucket.append(
+                    ("decorated", (identity, name), (other, originals[other]))
+                )
+    for kind, a, b in high[:MAX_NAME_COPY_FINDINGS]:
+        emit(kind, a, b, Severity.HIGH)
+    for kind, a, b in medium[: MAX_NAME_COPY_FINDINGS - len(findings)]:
+        emit(kind, a, b)
+    return findings

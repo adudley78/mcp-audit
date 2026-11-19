@@ -354,8 +354,10 @@ detection logic.
   names, it does not read a misspelling (`read_flie`), joined words, a digit
   suffix or a letter that is not ASCII, and a copy that adds a word with a
   meaning (`read_file_new`) gets no finding.  An honest pair fires:
-  `send_secure_message` beside `send_message` is MEDIUM and `get_best_price`
-  beside `get_price` is HIGH.  One scan lists 100 findings at most.  Honest servers share names in two
+  `send_secure_message` beside `send_message` and `get_best_price` beside
+  `get_price` are MEDIUM, and `best_get_price` beside `get_price` is HIGH.
+  One scan lists 100 findings at most, HIGH first; a spelling finding names
+  two servers when three share the words.  Honest servers share names in two
   spellings: 21 of 5,000 random five-server sessions of HISTOR's tool names
   get a MEDIUM finding and 0 a HIGH finding.  The word list was cut with
   that control in view, and the control draws servers at random, not two

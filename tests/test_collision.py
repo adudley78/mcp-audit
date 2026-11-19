@@ -527,6 +527,29 @@ class TestToolNameSquats:
         assert time.perf_counter() - start < 2.0
         assert sorted(f.severity for f in found) == [Severity.HIGH, Severity.MEDIUM]
 
+    def test_praise_inside_the_name_is_medium(self) -> None:
+        # Review of PR #335, round 2: honest phrases.
+        for base, other in (
+            ("get_price", "get_best_price"),
+            ("list_plans", "list_premium_plans"),
+            ("list_users", "list_super_users"),
+        ):
+            found = detect_tool_name_squats([_pair("a", base), _pair("b", other)])
+            assert [f.severity for f in found] == [Severity.MEDIUM], other
+
+    def test_the_cap_keeps_a_high_finding(self) -> None:
+        # Round 2: 150 MEDIUM copies that sort first must not push out a HIGH.
+        names = [f"alpha_{i}_item" for i in range(150)]
+        found = detect_tool_name_squats(
+            [
+                _pair("honest", *names, "send_email"),
+                _pair("noise", *[f"advanced_{n}" for n in names]),
+                _pair("evil", "send_email_premium"),
+            ]
+        )
+        assert len(found) == MAX_NAME_COPY_FINDINGS
+        assert [f.server for f in found if f.severity == Severity.HIGH] == ["evil"]
+
     def test_a_word_with_an_honest_use_is_medium(self) -> None:
         for base, other in (
             ("send_message", "send_secure_message"),

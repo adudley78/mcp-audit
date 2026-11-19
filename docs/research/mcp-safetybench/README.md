@@ -74,8 +74,8 @@ The "0 HIGH" number is therefore fitted to this control. The control draws
 servers at random; two servers for one job share more names. A review then
 showed HIGH on honest pairs such as `send_secure_message` beside
 `send_message`, so a copy is HIGH only when each added word praises ("best",
-"premium", "enhanced") and MEDIUM for the other decoration words. The count
-at HIGH or above went from 54 to 51.
+"premium", "enhanced") and stands before or after the whole name, and
+MEDIUM in the other cases. The count at HIGH or above went from 54 to 51.
 
 ## Limits
 

@@ -1983,6 +1983,43 @@ class TestCollisionWiringInConnectBlock:
         assert [f.severity for f in found] == [Severity.HIGH]
         assert found[0].tool == "search_repositories_premium"
 
+    async def test_name_copy_cap_is_reported(self, tmp_path: Path) -> None:
+        """At the cap the scan says that findings were left out."""
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers":'
+            ' {"srv-a": {"command": "cmd-a"}, "srv-b": {"command": "cmd-b"}}}'
+        )
+        names = [f"fetch_{i}_item" for i in range(150)]
+        enumerations = [
+            ServerEnumeration(tools=[ToolInfo(name=n) for n in names]),
+            ServerEnumeration(tools=[ToolInfo(name=f"{n}_premium") for n in names]),
+        ]
+        call_counter = {"n": 0}
+
+        async def _fake_connect(server, auth_token=None):  # noqa: ARG001
+            idx = call_counter["n"]
+            call_counter["n"] += 1
+            return enumerations[idx] if idx < len(enumerations) else ServerEnumeration()
+
+        with (
+            _patch_no_known_clients(),
+            patch(
+                "mcp_audit.mcp_client.connect_and_enumerate",
+                side_effect=_fake_connect,
+            ),
+        ):
+            result = await run_scan_async(
+                extra_paths=[config],
+                connect=True,
+                skip_rug_pull=True,
+            )
+
+        assert sum(f.id == "COLLIDE-002" for f in result.findings) == 100
+        assert any(e.startswith("COLLIDE-002:") for e in result.errors)
+
     async def test_no_collision_when_connect_errors(self, tmp_path: Path) -> None:
         """All connect errors → no COLLIDE-001 findings."""
         from mcp_audit.models import ServerEnumeration
