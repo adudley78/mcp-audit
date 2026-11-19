@@ -4,8 +4,8 @@
   "tools": {
     "mcp-audit": {
       "status": "ran",
-      "version": "0.29.0",
-      "commit": "7235856040f7ba0ea61dc3b73fa45355b8e4527c",
+      "version": "0.33.0",
+      "commit": "6d48ab9e6abbe08af04f2edd1b39392c44d08ec6",
       "dirty_src_or_scripts": false,
       "commands": {
         "tool_lists": "POISON-* analyzer over each tool definition (the code `scan --connect` runs; same calls as bench_poisoning.py)",
@@ -13,13 +13,13 @@
       },
       "results": {
         "mcptox_poisoned": {
-          "flagged": 980,
-          "high": 909,
+          "flagged": 1005,
+          "high": 926,
           "scored": 1312,
           "errors": 0,
           "total": 1312,
-          "rate": 0.747,
-          "rate_high": 0.6928,
+          "rate": 0.766,
+          "rate_high": 0.7058,
           "metric": "recall"
         },
         "mcptox_clean": {
@@ -276,15 +276,571 @@
           }
         }
       },
-      "date": "2026-11-11"
+      "date": "2026-11-19"
     },
     "skillspector": {
-      "status": "not run",
-      "reason": "not run: not installed in this environment (run on Adam's machine)"
+      "status": "ran",
+      "label": "SkillSpector (static, --no-llm)",
+      "version": "SkillSpector v2.12.0",
+      "executable": "skillspector",
+      "command": [
+        "skillspector",
+        "scan",
+        "<DIR>",
+        "--no-llm",
+        "--format",
+        "json"
+      ],
+      "input": "a directory holding SKILL.md",
+      "results": {
+        "mcptox_poisoned": {
+          "flagged": 295,
+          "high": 154,
+          "scored": 1312,
+          "errors": 0,
+          "total": 1312,
+          "rate": 0.2248,
+          "rate_high": 0.1174,
+          "metric": "recall"
+        },
+        "mcptox_clean": {
+          "flagged": 6,
+          "high": 2,
+          "scored": 353,
+          "errors": 0,
+          "total": 353,
+          "rate": 0.017,
+          "rate_high": 0.0057,
+          "metric": "clean_flag_rate"
+        },
+        "hiding_malicious": {
+          "flagged": 7,
+          "high": 6,
+          "scored": 8,
+          "errors": 0,
+          "total": 8,
+          "rate": 0.875,
+          "rate_high": 0.75,
+          "metric": "recall",
+          "by_technique": {
+            "html-comment": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "padding-blank-lines": {
+              "flagged": 3,
+              "high": 3,
+              "scored": 3,
+              "errors": 0,
+              "total": 3,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "padding-spaces": {
+              "flagged": 1,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 0.0
+            },
+            "unicode-tags": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "visible": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "zero-width": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 1.0
+            }
+          },
+          "cases": {
+            "visible-payload": {
+              "flagged": false,
+              "high": false
+            },
+            "html-comment-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "unicode-tags-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "zero-width-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-78-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-300-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-825-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "spaces-250-payload": {
+              "flagged": true,
+              "high": false
+            }
+          }
+        },
+        "hiding_clean": {
+          "flagged": 5,
+          "high": 3,
+          "scored": 9,
+          "errors": 0,
+          "total": 9,
+          "rate": 0.5556,
+          "rate_high": 0.3333,
+          "metric": "clean_flag_rate",
+          "by_technique": {
+            "html-comment": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "padding-blank-lines": {
+              "flagged": 3,
+              "high": 3,
+              "scored": 3,
+              "errors": 0,
+              "total": 3,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "padding-spaces": {
+              "flagged": 1,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 0.0
+            },
+            "unicode-tags": {
+              "flagged": 1,
+              "high": 0,
+              "scored": 2,
+              "errors": 0,
+              "total": 2,
+              "rate": 0.5,
+              "rate_high": 0.0
+            },
+            "visible": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "zero-width": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            }
+          },
+          "cases": {
+            "visible-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "html-comment-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "unicode-tags-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "unicode-tags-flag-emoji-clean": {
+              "flagged": true,
+              "high": false
+            },
+            "zero-width-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "blank-lines-78-clean": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-300-clean": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-825-clean": {
+              "flagged": true,
+              "high": true
+            },
+            "spaces-250-clean": {
+              "flagged": true,
+              "high": false
+            }
+          }
+        },
+        "benign_checklists": {
+          "flagged": 1,
+          "high": 1,
+          "scored": 4,
+          "errors": 0,
+          "total": 4,
+          "rate": 0.25,
+          "rate_high": 0.25,
+          "metric": "clean_flag_rate",
+          "by_technique": {
+            "checklist": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 4,
+              "errors": 0,
+              "total": 4,
+              "rate": 0.25,
+              "rate_high": 0.25
+            }
+          },
+          "cases": {
+            "ssh-key-hygiene-review": {
+              "flagged": false,
+              "high": false
+            },
+            "mcp-tool-description-review": {
+              "flagged": false,
+              "high": false
+            },
+            "secrets-in-ci-checklist": {
+              "flagged": true,
+              "high": true
+            },
+            "incident-triage-notes": {
+              "flagged": false,
+              "high": false
+            }
+          }
+        }
+      },
+      "date": "2026-11-19"
     },
     "cisco": {
-      "status": "not run",
-      "reason": "not run: not installed in this environment (run on Adam's machine)"
+      "status": "ran",
+      "label": "Cisco mcp-scanner (yara only)",
+      "version": "cisco-ai-mcp-scanner 4.8.7",
+      "executable": "mcp-scanner",
+      "command": [
+        "mcp-scanner",
+        "--analyzers",
+        "yara",
+        "--format",
+        "raw",
+        "static",
+        "--tools",
+        "<FILE>"
+      ],
+      "input": "a tool-list JSON with one tool",
+      "results": {
+        "mcptox_poisoned": {
+          "flagged": 277,
+          "high": 277,
+          "scored": 1312,
+          "errors": 0,
+          "total": 1312,
+          "rate": 0.2111,
+          "rate_high": 0.2111,
+          "metric": "recall"
+        },
+        "mcptox_clean": {
+          "flagged": 3,
+          "high": 3,
+          "scored": 353,
+          "errors": 0,
+          "total": 353,
+          "rate": 0.0085,
+          "rate_high": 0.0085,
+          "metric": "clean_flag_rate"
+        },
+        "hiding_malicious": {
+          "flagged": 6,
+          "high": 6,
+          "scored": 8,
+          "errors": 0,
+          "total": 8,
+          "rate": 0.75,
+          "rate_high": 0.75,
+          "metric": "recall",
+          "by_technique": {
+            "html-comment": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "padding-blank-lines": {
+              "flagged": 3,
+              "high": 3,
+              "scored": 3,
+              "errors": 0,
+              "total": 3,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "padding-spaces": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "unicode-tags": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "visible": {
+              "flagged": 1,
+              "high": 1,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 1.0,
+              "rate_high": 1.0
+            },
+            "zero-width": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            }
+          },
+          "cases": {
+            "visible-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "html-comment-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "unicode-tags-payload": {
+              "flagged": false,
+              "high": false
+            },
+            "zero-width-payload": {
+              "flagged": false,
+              "high": false
+            },
+            "blank-lines-78-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-300-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "blank-lines-825-payload": {
+              "flagged": true,
+              "high": true
+            },
+            "spaces-250-payload": {
+              "flagged": true,
+              "high": true
+            }
+          }
+        },
+        "hiding_clean": {
+          "flagged": 0,
+          "high": 0,
+          "scored": 9,
+          "errors": 0,
+          "total": 9,
+          "rate": 0.0,
+          "rate_high": 0.0,
+          "metric": "clean_flag_rate",
+          "by_technique": {
+            "html-comment": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "padding-blank-lines": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 3,
+              "errors": 0,
+              "total": 3,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "padding-spaces": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "unicode-tags": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 2,
+              "errors": 0,
+              "total": 2,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "visible": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            },
+            "zero-width": {
+              "flagged": 0,
+              "high": 0,
+              "scored": 1,
+              "errors": 0,
+              "total": 1,
+              "rate": 0.0,
+              "rate_high": 0.0
+            }
+          },
+          "cases": {
+            "visible-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "html-comment-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "unicode-tags-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "unicode-tags-flag-emoji-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "zero-width-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "blank-lines-78-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "blank-lines-300-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "blank-lines-825-clean": {
+              "flagged": false,
+              "high": false
+            },
+            "spaces-250-clean": {
+              "flagged": false,
+              "high": false
+            }
+          }
+        },
+        "benign_checklists": {
+          "flagged": 2,
+          "high": 2,
+          "scored": 4,
+          "errors": 0,
+          "total": 4,
+          "rate": 0.5,
+          "rate_high": 0.5,
+          "metric": "clean_flag_rate",
+          "by_technique": {
+            "checklist": {
+              "flagged": 2,
+              "high": 2,
+              "scored": 4,
+              "errors": 0,
+              "total": 4,
+              "rate": 0.5,
+              "rate_high": 0.5
+            }
+          },
+          "cases": {
+            "ssh-key-hygiene-review": {
+              "flagged": true,
+              "high": true
+            },
+            "mcp-tool-description-review": {
+              "flagged": false,
+              "high": false
+            },
+            "secrets-in-ci-checklist": {
+              "flagged": true,
+              "high": true
+            },
+            "incident-triage-notes": {
+              "flagged": false,
+              "high": false
+            }
+          }
+        }
+      },
+      "date": "2026-11-19"
     },
     "snyk": {
       "status": "not run",
@@ -363,5 +919,5 @@
     "high": "at least one HIGH or CRITICAL finding",
     "errors": "no usable verdict; excluded from rates, never counted as clean"
   },
-  "date": "2026-11-11"
+  "date": "2026-11-19"
 }

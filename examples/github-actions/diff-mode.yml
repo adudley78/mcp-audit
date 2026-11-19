@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 0
 
       - name: MCP-aware diff
-        uses: adudley78/credenzo@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
+        uses: adudley78/credenzo@12b4c086218cfbb218fa5f5159b4a81113110316 # v0.34.0
         with:
           mode: diff
           severity-threshold: medium   # fail on MEDIUM+; use 'high' for lighter gate

@@ -37,6 +37,11 @@ Each tool in this table was run on the same text, in a mode that sends nothing a
 | Real changes to tool text (HISTOR, 126,105): changes flagged | 489 | 3,435 | not run on the full record | [`cisco-yara/`](cisco-yara/README.md), [`../histor-changes/`](../histor-changes/README.md) |
 | 2,000 real added texts: flagged at each tool's own verdict level | 1 | 20 | 1 | [`skillspector/`](skillspector/README.md) |
 | MCPTox, 485 poisoned descriptions with no wrapper: any finding | 149 | 99 | 111 | in-sample for Credenzo |
+| MCPTox, all 1,312 poisoned cases (877 have an "important" tag or an "ignore" wrapper): any finding | 1,005 | 277 | 295 | in-sample for Credenzo; [`README.md`](README.md) |
+| MCPTox, 353 real clean tools: flagged (at HIGH) | 2 (0) | 3 (3) | 6 (2) | [`README.md`](README.md) |
+| 8 skills with one payload, 7 hidden in different ways: found at HIGH | 8 | 6 | 6 | [`README.md`](README.md) |
+| 9 harmless twins of those skills: flagged (at HIGH) | 5 (0) | 0 (0) | 5 (3) | [`README.md`](README.md) |
+| 4 skills that describe security checks: flagged at HIGH | 0 | 2 | 1 | [`README.md`](README.md) |
 | MCP-SafetyBench, 154 poisoned descriptions: any finding | 88 (56 when the other two were run; the later checks were written from this set) | 36 | 30 | in-sample for Credenzo; [`../mcp-safetybench/`](../mcp-safetybench/README.md) |
 
 Read the table with these limits:
@@ -45,6 +50,13 @@ Read the table with these limits:
   from. They show that the checks read those texts, not what they catch next.
   On MCP Security Bench, a set that nobody had looked at, Credenzo's word
   lists found 0 of 42 tools. That failure is why the copy checks exist.
+- The rows that link to [`README.md`](README.md) come from one harness run on
+  2026-11-19 (`scripts/bench_competitors.py`, results in `results.json`).
+  SkillSpector got each tool description as a `SKILL.md` and Cisco got each
+  skill as a tool description, so each one reads part of that corpus outside
+  its own format. The three skill sets are small (8, 9 and 4 files).
+- Credenzo flags 5 of 9 harmless twins at MEDIUM or LOW. Cisco flags none.
+  Credenzo is not the quietest scanner on that set.
 - Credenzo's 489 on HISTOR is after corrections that used that record (487
   when Cisco's rules were measured; 489 since POISON-083). The number before
   the corrections was 784. The like-for-like number is 784 against 3,435.

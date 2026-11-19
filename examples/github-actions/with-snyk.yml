@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run mcp-audit
-        uses: adudley78/credenzo@84428467fd6cebe33531523d92e30df3349ebc8b # v0.33.0
+        uses: adudley78/credenzo@12b4c086218cfbb218fa5f5159b4a81113110316 # v0.34.0
         with:
           severity-threshold: high       # fail on HIGH+; use 'medium' to tighten
           sarif-output: mcp-audit.sarif
