@@ -13,6 +13,7 @@ from mcp_audit.analyzers.collision import (
     _is_registry_known,
     _server_identity,
     detect_tool_collisions,
+    detect_tool_name_squats,
 )
 from mcp_audit.models import (
     ServerConfig,
@@ -408,3 +409,92 @@ class TestClientField:
         pairs = [(s1, _make_enum("tool")), (s2, _make_enum("tool"))]
         f = detect_tool_collisions(pairs)[0]
         assert f.client == "multiple"
+
+
+# ── COLLIDE-002: a tool named after another server's tool (STORY-0173) ────────
+
+
+def _pair(server: str, *tools: str) -> tuple[ServerConfig, ServerEnumeration]:
+    return (
+        _make_server(server, args=[server]),
+        ServerEnumeration(tools=[ToolInfo(name=t, description="") for t in tools]),
+    )
+
+
+class TestToolNameSquats:
+    def test_decorated_copy_is_high_and_on_the_copy(self) -> None:
+        found = detect_tool_name_squats(
+            [
+                _pair("finance", "get_stock_info", "get_news"),
+                _pair("helper", "best_get_stock_info"),
+            ]
+        )
+        assert [(f.id, f.severity, f.server, f.tool) for f in found] == [
+            ("COLLIDE-002", Severity.HIGH, "helper", "best_get_stock_info")
+        ]
+
+    def test_other_decorations(self) -> None:
+        for name in (
+            "playwright_navigate_enhanced",
+            "Playwright_Navigate_Advanced",
+            "best_tool_for_playwright_navigate",
+            "playwrightNavigateV2",
+        ):
+            found = detect_tool_name_squats(
+                [_pair("browser", "playwright_navigate"), _pair("x", name)]
+            )
+            assert [f.severity for f in found] == [Severity.HIGH], name
+
+    def test_spelling_variant_is_medium_and_reported_once(self) -> None:
+        found = detect_tool_name_squats(
+            [_pair("mail-a", "searchEmails"), _pair("mail-b", "search-emails")]
+        )
+        assert [(f.id, f.severity) for f in found] == [("COLLIDE-002", Severity.MEDIUM)]
+        assert set(found[0].server.split(" + ")) == {"mail-a", "mail-b"}
+
+    def test_same_name_is_collide_001_only(self) -> None:
+        pairs = [_pair("a", "read_file"), _pair("b", "read_file")]
+        assert detect_tool_name_squats(pairs) == []
+        assert [f.id for f in detect_tool_collisions(pairs)] == ["COLLIDE-001"]
+
+    def test_honest_neighbours_are_silent(self) -> None:
+        found = detect_tool_name_squats(
+            [
+                _pair("github", "list_issues", "create_issue", "search"),
+                _pair("gitlab", "gitlab_list_issues", "web_search", "new_issue"),
+                _pair("notes", "fast_search", "search_notes"),
+            ]
+        )
+        assert found == []
+
+    def test_one_word_name_is_not_a_decorated_copy(self) -> None:
+        """GAPS.md: ``best_search`` beside ``search`` is too common to report."""
+        assert (
+            detect_tool_name_squats([_pair("a", "search"), _pair("b", "best_search")])
+            == []
+        )
+
+    def test_same_server_is_silent(self) -> None:
+        assert (
+            detect_tool_name_squats(
+                [_pair("a", "get_page", "getPage", "best_get_page"), _pair("b", "x")]
+            )
+            == []
+        )
+
+    def test_failed_enumeration_is_ignored(self) -> None:
+        bad = (_make_server("b", args=["b"]), ServerEnumeration(error="boom"))
+        assert detect_tool_name_squats([_pair("a", "get_page"), bad]) == []
+
+    def test_long_names_are_linear(self) -> None:
+        import time  # noqa: PLC0415
+
+        pairs = [
+            _pair("a", *[f"fetch_{i}_item" for i in range(3000)], "a" * 100_000),
+            _pair("b", *[f"best_fetch_{i}_item" for i in range(3000)], "B_" * 50_000),
+        ]
+        start = time.perf_counter()
+        found = detect_tool_name_squats(pairs)
+        assert time.perf_counter() - start < 5.0
+        # fetch_2_item and fetch_3_item: the digit is itself a decoration word.
+        assert len(found) == 2998

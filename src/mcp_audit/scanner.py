@@ -925,6 +925,7 @@ async def run_scan_async(
         if len(connect_pairs) >= 2:
             from mcp_audit.analyzers.collision import (  # noqa: PLC0415
                 detect_tool_collisions,
+                detect_tool_name_squats,
             )
 
             try:
@@ -935,6 +936,12 @@ async def run_scan_async(
                 )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"collision error: {e}")
+            # COLLIDE-002 (STORY-0173): a tool named after another server's
+            # tool ("best_get_stock_info", "searchEmails" / "search-emails").
+            try:
+                result.findings.extend(detect_tool_name_squats(connect_pairs))
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"tool-name copy check error: {e}")
 
         # ── Cross-tool delegation (DELEG-001..003, STORY-0100) ───────────────
         # Reads the same enumerations: descriptions that steer the agent to

@@ -29,6 +29,8 @@ Research basis:
 
 from __future__ import annotations
 
+import re
+
 from mcp_audit.models import Finding, ServerConfig, ServerEnumeration, Severity
 from mcp_audit.registry.loader import KnownServerRegistry
 
@@ -196,4 +198,178 @@ def detect_tool_collisions(
             )
         )
 
+    return findings
+
+
+# ── COLLIDE-002: a tool named after another server's tool (STORY-0173) ────────
+#
+# COLLIDE-001 needs the same name on two servers.  The Function Overlapping
+# and Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163) add
+# a tool whose name is another server's tool name in other dress:
+# ``Playwright_Navigate`` beside ``playwright_navigate``, or
+# ``best_playwright_navigate``, ``playwright_navigate_enhanced``.  A scanner
+# that reads one description at a time cannot see this; it needs the session.
+
+#: Words that dress a copied name up as the better tool.  A name that adds
+#: only these words to another server's tool name is a decorated copy.
+_DECORATION_WORDS: frozenset[str] = frozenset(
+    [
+        "best",
+        "premium",
+        "enhanced",
+        "advanced",
+        "ultimate",
+        "pro",
+        "plus",
+        "new",
+        "v2",
+        "v3",
+        "2",
+        "3",
+        "improved",
+        "better",
+        "fast",
+        "faster",
+        "secure",
+        "safe",
+        "official",
+        "optimized",
+        "super",
+        "smart",
+        "tool",
+        "for",
+        "the",
+        "turbo",
+        "max",
+        "ultra",
+        "next",
+        "real",
+        "true",
+        "original",
+        "verified",
+        "trusted",
+    ]
+)
+_CAMEL_BOUNDARY = re.compile(r"([a-z0-9])([A-Z])")
+_NOT_ALNUM = re.compile(r"[^A-Za-z0-9]+")
+#: Tool names longer than this are not compared (a name is a few words).
+_MAX_NAME_CHARS = 200
+
+
+def _name_tokens(name: str) -> tuple[str, ...]:
+    """Return the lowercase words of a tool name (``getPage`` → get, page)."""
+    spaced = _CAMEL_BOUNDARY.sub(r"\1_\2", name[:_MAX_NAME_CHARS])
+    return tuple(t for t in _NOT_ALNUM.split(spaced.lower()) if t)
+
+
+def detect_tool_name_squats(
+    pairs: list[tuple[ServerConfig, ServerEnumeration]],
+) -> list[Finding]:
+    """Report a tool whose name copies another server's tool name (COLLIDE-002).
+
+    Two shapes, compared on the words of the names:
+
+    - **Decorated copy (HIGH).** The name is another server's tool name of
+      two or more words plus only decoration words ("best", "enhanced",
+      "premium", "v2" ...): ``best_get_stock_info`` beside ``get_stock_info``.
+      The finding is on the decorated tool.
+    - **Spelling variant (MEDIUM).** The same words in another spelling on
+      two servers: ``searchEmails`` and ``search-emails``.  The agent sees two
+      tools that read as one.  One finding names both.
+
+    The same name on two servers is COLLIDE-001 and is not reported here.
+    Runs after COLLIDE-001 on the same ``--connect`` pairs; reads names only.
+
+    Args:
+        pairs: ``(ServerConfig, ServerEnumeration)`` from the ``--connect`` loop.
+            Pairs with enumeration errors are ignored.
+
+    Returns:
+        ``COLLIDE-002`` findings, at most one per pair of names.
+    """
+    live = [(s, e) for s, e in pairs if not e.error]
+    if len(live) < 2:
+        return []
+    by_identity: dict[tuple, ServerConfig] = {}
+    index: dict[tuple[str, ...], dict[tuple[tuple, str], None]] = {}
+    for server, enum in live:
+        identity = _server_identity(server)
+        by_identity.setdefault(identity, server)
+        for tool in enum.tools:
+            tokens = _name_tokens(tool.name)
+            if tokens:
+                index.setdefault(tokens, {})[(identity, tool.name)] = None
+
+    findings: list[Finding] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def emit(kind: str, a: tuple[tuple, str], b: tuple[tuple, str]) -> None:
+        """Add one finding for tool *a*, which copies tool *b*."""
+        (ida, name_a), (idb, name_b) = a, b
+        lo, hi = sorted([name_a, name_b])
+        key = (kind, lo, hi) if kind == "variant" else (kind, name_a, name_b)
+        if key in seen:
+            return
+        seen.add(key)
+        sa, sb = by_identity[ida], by_identity[idb]
+        decorated = kind == "decorated"
+        findings.append(
+            Finding(
+                id="COLLIDE-002",
+                severity=Severity.HIGH if decorated else Severity.MEDIUM,
+                analyzer="collision",
+                client=sa.client if sa.client == sb.client else "multiple",
+                server=sa.name if decorated else f"{sa.name} + {sb.name}",
+                tool=name_a,
+                title=(
+                    f"Tool '{name_a}' is named as a better copy of '{name_b}'"
+                    if decorated
+                    else f"'{name_a}' and '{name_b}' are one name in two spellings"
+                ),
+                description=(
+                    f"Server '{sa.name}' lists the tool '{name_a}'.  Server"
+                    f" '{sb.name}' lists '{name_b}'.  "
+                    + (
+                        "The first name is the second name plus words such as"
+                        " 'best' or 'enhanced'.  A server that wants the"
+                        " agent to call its tool in the place of a trusted one"
+                        " names it this way."
+                        if decorated
+                        else "The two names have the same words.  The agent can"
+                        " take one tool for the other."
+                    )
+                ),
+                evidence=(
+                    f"'{name_a}' ({sa.name}) and '{name_b}' ({sb.name})"
+                    " (detected via --connect live enumeration)"
+                ),
+                remediation=(
+                    f"Check that you installed '{sa.name}' on purpose and that"
+                    f" '{name_a}' does what its name says.  Remove the server"
+                    " if you did not expect a second tool for this job."
+                    if decorated
+                    else "Check that both servers are the ones you expect."
+                    " If both are, no action is needed."
+                ),
+                cwe="CWE-694",
+                owasp_mcp_top_10=["MCP03", "MCP09"],
+                finding_path=str(sa.config_path),
+            )
+        )
+
+    for tokens, members in sorted(index.items()):
+        owners = list(members)
+        # Spelling variants: same words, different text, different servers.
+        for i, a in enumerate(owners):
+            for b in owners[i + 1 :]:
+                if a[0] != b[0] and a[1] != b[1]:
+                    emit("variant", *sorted([a, b], key=lambda m: m[1]))
+        # Decorated copy: drop the decoration words and look the rest up.
+        core = tuple(t for t in tokens if t not in _DECORATION_WORDS)
+        if core == tokens or len(core) < 2:
+            continue
+        for a in owners:
+            for b in index.get(core, {}):
+                if a[0] != b[0]:
+                    emit("decorated", a, b)
     return findings

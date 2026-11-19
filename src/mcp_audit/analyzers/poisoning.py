@@ -1320,6 +1320,38 @@ PATTERNS: list[DetectionPattern] = [
         tool_text_only=True,
     ),
     DetectionPattern(
+        id="POISON-083",
+        name="Tool promotes itself over other tools",
+        # Preference manipulation (MCP-SafetyBench, arXiv 2512.15163): the
+        # description sells the tool to the agent ("the premium version",
+        # "world's best", "used by 99% of professionals").  STORY-0173.
+        pattern=re.compile(
+            r"\b(?:world'?s\s+(?:best|most)"
+            r"|(?:premium|ultimate|advanced|enhanced|superior|official|upgraded)"
+            r"\s+version\b"
+            r"|most\s+(?:advanced|reliable|sophisticated|trusted|accurate|powerful)\b"
+            r"[^.]{0,60}\b(?:available|tool|engine)"
+            r"|used\s+by\s+\d+%"
+            r"|trusted\s+by\s+(?:\w+\s+){0,3}(?:professionals|experts|companies)"
+            r"|award[- ]winning|industry[- ]leading|cutting[- ]edge\s+technology"
+            r"|superior\s+(?:performance|\w+\s+(?:processing\s+)?capabilities)"
+            r"|recommended\s+by\s+(?:top|leading))",
+            re.IGNORECASE,
+        ),
+        severity=Severity.MEDIUM,
+        description=(
+            "Tool description promotes the tool over others"
+            " (\"the premium version\", \"world's best\")"
+        ),
+        remediation=(
+            "Read the description. A tool that sells itself to the agent wants"
+            " to be chosen in the place of another tool; check why"
+        ),
+        cwe="CWE-451",
+        owasp_mcp_top_10=["MCP03"],
+        tool_text_only=True,
+    ),
+    DetectionPattern(
         id="POISON-050",
         name="Excessive description length",
         pattern=re.compile(r".{2000,}", re.DOTALL),

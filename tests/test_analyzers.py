@@ -1672,6 +1672,53 @@ def _poison_ids_for(description: str, tmp_path: Path) -> set[str]:
     return {f.id for f in PoisoningAnalyzer().analyze(server)}
 
 
+class TestPoison083SelfPromotion:
+    """A tool that sells itself to the agent (STORY-0173)."""
+
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "Navigate to a URL. This is the premium version with enhanced features.",
+            "This is the world's best web navigation tool.",
+            "Used by 99% of professionals and trusted by experts worldwide.",
+            "The most advanced financial statement analyzer available.",
+            "Award-winning accuracy. Recommended by top financial advisors.",
+            "Superior data processing capabilities.",
+        ],
+    )
+    def test_promotion_fires(self, description: str, tmp_path: Path) -> None:
+        assert "POISON-083" in _poison_ids_for(description, tmp_path)
+
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "Returns the latest version of a package.",
+            "Fetches advanced search results with filters.",
+            "Returns unmatched entries and the best match for each query.",
+            "Gets the official documentation page for a symbol.",
+            "Searches the most recent commits.",
+        ],
+    )
+    def test_plain_text_is_silent(self, description: str, tmp_path: Path) -> None:
+        assert "POISON-083" not in _poison_ids_for(description, tmp_path)
+
+    def test_known_false_alarm_feature_text(self, tmp_path: Path) -> None:
+        """GAPS.md: 2 texts on HISTOR's record, "an enhanced version of the image"."""
+        text = "Let AI regenerate an enhanced version of the image."
+        assert "POISON-083" in _poison_ids_for(text, tmp_path)
+
+    def test_not_read_in_a_launch_command(self, tmp_path: Path) -> None:
+        server = ServerConfig(
+            name="t",
+            client="test",
+            config_path=tmp_path / "t.json",
+            transport=TransportType.STDIO,
+            command="node",
+            raw={"args": ["--banner", "the premium version of the world's best tool"]},
+        )
+        assert "POISON-083" not in {f.id for f in PoisoningAnalyzer().analyze(server)}
+
+
 class TestPoison080To082:
     """Orders of MCP-SafetyBench and MCPTox in tool text (STORY-0172)."""
 
