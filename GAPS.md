@@ -352,7 +352,8 @@ detection logic.
   `read_file` (MEDIUM), `read_file_premium` beside `read_file` (HIGH) and
   `read_file_v2` beside `read_file` (MEDIUM).  It does not compare one-word
   names, it does not read a misspelling (`read_flie`), joined words, a digit
-  suffix or a letter that is not ASCII, and a copy that adds a word with a
+  suffix, a letter that is not ASCII or a copy of a name that itself holds
+  a decoration word (`premium_get_best_price` beside `get_best_price`), and a copy that adds a word with a
   meaning (`read_file_new`) gets no finding.  An honest pair fires:
   `send_secure_message` beside `send_message` and `get_best_price` beside
   `get_price` are MEDIUM, and `best_get_price` beside `get_price` is HIGH.
