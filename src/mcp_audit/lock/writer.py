@@ -100,6 +100,16 @@ def _relative_config_path(config_path: Path, root: Path) -> str:
     return relative if relative is not None else config_path.resolve().name
 
 
+def _file_name(command: str) -> str:
+    """Return the file name of *command*, for a POSIX or a Windows path.
+
+    Same rule as ``runtime.wrapping.is_wrapper_command``: ``PurePath`` of the
+    platform that runs ``lock`` reads ``C:\\tools\\credenzo.exe`` as one name
+    on macOS and Linux.
+    """
+    return PurePath(command.replace("\\", "/")).name
+
+
 def build_entry(
     server: ServerConfig,
     root: Path,
@@ -152,13 +162,15 @@ def build_entry(
         "hashes": compute_hashes(server),
     }
     wrapper = server.raw.get("command") if server.wrapped else None
-    if isinstance(wrapper, str) and wrapper != PurePath(wrapper).name:
+    if isinstance(wrapper, str) and wrapper != _file_name(wrapper):
         # The entry launches through `credenzo run` at a written path.  The
         # person who locks it approves that path; its digest (never the path)
         # lets `lock --verify` on another machine tell it from a file that is
         # only named like Credenzo (STORY-0178).  A bare name is not recorded
         # (what it runs is whatever PATH finds), and an entry that is not
-        # wrapped is written exactly as before.
+        # wrapped is written exactly as before.  ``_file_name`` reads a
+        # Windows path as a path on every platform, so the same config gives
+        # the same record wherever `lock` runs.
         entry["wrapper"] = wrapper_digest(wrapper)
     return entry
 

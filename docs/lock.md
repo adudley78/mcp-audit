@@ -558,6 +558,10 @@ If you expect the tool (a fork, a gateway beside the server that it fronts, one 
 
 Limits: a first lock has no earlier record, so it records both tools; `scan --connect` reports the pair as COLLIDE-003. A server that you locked first counts as the original, whoever wrote it. A copy with a description in new words is recorded like each other tool. When the server of the approved tool does not answer, or lists only part of its tools, the copy has no partner and is recorded. The measurements are in [research/copy-checks/](research/copy-checks/README.md).
 
+A tool that `lock --connect` did not record is also what `credenzo guard`
+denies in a Claude Code session, for a remote server as well as a local one
+([guard.md](guard.md)).
+
 ## Saved tool text (`--save-tool-text`)
 
 The tools section stores digests, so `LOCK-007` and `LOCK-008` can say that a tool changed but not

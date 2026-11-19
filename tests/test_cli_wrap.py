@@ -14,6 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from mcp_audit.cli import app
+from mcp_audit.runtime.wrapping import wrapper_digest
 
 runner = CliRunner()
 PY = sys.executable
@@ -251,6 +252,21 @@ class TestAFileNamedLikeCredenzo:
         config.write_text(json.dumps(doc))
         result = runner.invoke(app, ["lock", str(repo), "--verify"])
         assert result.exit_code == 1 and "LOCK-001" in result.output
+
+    def test_a_windows_wrapper_path_is_recorded_on_every_platform(
+        self, repo: Path
+    ) -> None:
+        """A Windows path is a path, not a bare name, where ``lock`` runs on POSIX."""
+        config = _config(repo, {"srv": SERVER})
+        doc = json.loads(config.read_text())
+        entry = doc["mcpServers"]["srv"]
+        entry["args"] = ["run", "--", entry["command"], *entry["args"]]
+        entry["command"] = "C:\\tools\\credenzo.exe"
+        config.write_text(json.dumps(doc))
+        _cli("lock", str(repo), "--offline")
+        lock = json.loads((repo / "mcp-lock.json").read_text())
+        (locked,) = lock["servers"].values()
+        assert locked["wrapper"] == wrapper_digest("C:\\tools\\credenzo.exe")
 
     def test_an_entry_that_is_not_wrapped_gets_no_wrapper_field(
         self, repo: Path

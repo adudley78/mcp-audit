@@ -145,6 +145,41 @@ def _describe_change(identity: object, argv: Sequence[str]) -> str:
     return "its arguments changed"
 
 
+def read_lock(lock: Path) -> tuple[dict, None] | tuple[None, GateResult]:
+    """Read *lock* and return ``(document, None)`` or ``(None, RUN-002 result)``.
+
+    Shared by the launch gate and the tool-call guard
+    (:mod:`mcp_audit.runtime.guard`): a lock that cannot be read, is not a
+    lock, or is a newer ``lock_version`` than this Credenzo reads is never
+    used for an approval.
+    """
+    try:
+        doc = json.loads(lock.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError):
+        return None, GateResult(
+            "RUN-002",
+            f"{lock.name} can't be read or isn't valid JSON",
+            "restore it from version control or run `credenzo lock`",
+        )
+    servers = doc.get("servers") if isinstance(doc, dict) else None
+    if not isinstance(servers, dict) or not all(
+        isinstance(e, dict) for e in servers.values()
+    ):
+        return None, GateResult(
+            "RUN-002",
+            f"{lock.name} has no valid servers section",
+            "restore it from version control or run `credenzo lock`",
+        )
+    newer = unsupported_version(doc)
+    if newer is not None:
+        return None, GateResult(
+            "RUN-002",
+            f"{lock.name} is lock_version {newer}, newer than this Credenzo reads",
+            "upgrade mcp-audit",
+        )
+    return doc, None
+
+
 def check_launch(
     argv: Sequence[str],
     *,
@@ -172,30 +207,10 @@ def check_launch(
             "run `credenzo lock` in the project, or pass --lock",
         )
 
-    try:
-        doc = json.loads(lock.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, ValueError):
-        return GateResult(
-            "RUN-002",
-            f"{lock.name} can't be read or isn't valid JSON",
-            "restore it from version control or run `credenzo lock`",
-        )
-    servers = doc.get("servers") if isinstance(doc, dict) else None
-    if not isinstance(servers, dict) or not all(
-        isinstance(e, dict) for e in servers.values()
-    ):
-        return GateResult(
-            "RUN-002",
-            f"{lock.name} has no valid servers section",
-            "restore it from version control or run `credenzo lock`",
-        )
-    newer = unsupported_version(doc)
-    if newer is not None:
-        return GateResult(
-            "RUN-002",
-            f"{lock.name} is lock_version {newer}, newer than this Credenzo reads",
-            "upgrade mcp-audit",
-        )
+    doc, problem = read_lock(lock)
+    if problem is not None:
+        return problem
+    servers = doc["servers"]
 
     key = match_key(config_path, lock.parent, server_name)
     if key is None:

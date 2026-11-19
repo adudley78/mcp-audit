@@ -61,8 +61,8 @@ Credenzo executable named by absolute path or bare name counts as the
 wrapper; a relative `./mcp-audit` in a cloned repository is analysed as the
 command it is.
 
-A file that is only *named* `credenzo` is not Credenzo. `lock --verify`
-reports LOCK-001 for a wrapped entry when its wrapper is a
+A file that is only *named* `credenzo` is not Credenzo. `lock --verify` and
+`credenzo guard` report LOCK-001 for a wrapped entry when its wrapper is a
 file inside the repository that is not the Credenzo that runs the check and
 is not recorded in the lock, or when the lock recorded another wrapper.
 "The repository" is the git repository that holds the lock, also when the

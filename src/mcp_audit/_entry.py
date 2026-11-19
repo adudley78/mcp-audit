@@ -1,9 +1,10 @@
 """Console-script entry point for ``credenzo`` (and its old name, ``mcp-audit``).
 
-``credenzo run`` sits on every wrapped MCP server's launch path, so it is
-dispatched here, before the Typer app (and with it the scanner, analyzers and
-registry) is imported. Every other subcommand goes to :mod:`mcp_audit.cli`
-unchanged.
+``credenzo run`` sits on every wrapped MCP server's launch path, and
+``credenzo guard`` runs before every MCP tool call of a Claude Code session, so
+both are dispatched here, before the Typer app (and with it the scanner,
+analyzers and registry) is imported. Every other subcommand goes to
+:mod:`mcp_audit.cli` unchanged.
 """
 
 from __future__ import annotations
@@ -52,6 +53,13 @@ def main() -> None:
         from mcp_audit.runtime.cli import main as run_main
 
         _exit_now(run_main(sys.argv[2:]))
+
+    if sys.argv[1:2] == ["guard"]:
+        # A Claude Code hook that runs before every MCP tool call (STORY-0176):
+        # same lean path, no Typer app, no scanner.
+        from mcp_audit.runtime.guard import main as guard_main
+
+        sys.exit(guard_main(sys.argv[2:]))
 
     _old_name_notice()
 

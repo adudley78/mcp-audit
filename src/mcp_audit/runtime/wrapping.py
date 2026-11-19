@@ -127,7 +127,7 @@ def _inside(path: Path, root: Path) -> bool:
 def wrapper_trusted(command: object, *, root: Path | None, recorded: object) -> bool:
     """Whether a wrapped entry's wrapper may stand for the server it runs.
 
-    ``lock --verify`` compares a wrapped entry by its
+    ``lock --verify`` and ``credenzo guard`` compare a wrapped entry by its
     inner launch.  That is only right when the wrapper is Credenzo.  A file
     that is merely *named* ``credenzo`` can be anything, and a repository can
     hold one at a path that is known in advance (a CI checkout, a dev
