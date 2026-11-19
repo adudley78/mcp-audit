@@ -5,7 +5,9 @@ Credenzo flags 108 of the 154 distinct poisoned tools of MCP-SafetyBench
 (70.1%), 51 at HIGH or above. The text checks alone flag 88 (57.1%), 40 at
 HIGH or above. The text count was 26 before STORY-0171, 30 before STORY-0172
 and 56 before STORY-0173. STORY-0172 and STORY-0173 wrote checks from these
-texts, so the current counts are in-sample.
+texts, so the current counts are in-sample. They did not hold on a new set:
+on MCP Security Bench the word lists of STORY-0173 found 0 of 42 tools
+(`docs/research/copy-checks/`).
 
 ## The benchmark
 

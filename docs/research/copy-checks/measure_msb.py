@@ -23,7 +23,8 @@ Controls for COLLIDE-003 (it needs real descriptions):
 
 Usage::
 
-    uv run python docs/research/msb/measure.py MSB_REPO MCPTOX_DIR CHANGES_GZ
+    uv run python docs/research/copy-checks/measure_msb.py \\
+        MSB_REPO MCPTOX_DIR CHANGES_GZ
 """
 
 from __future__ import annotations
