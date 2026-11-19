@@ -542,3 +542,91 @@ class TestLockConnectStartsOnlyWhatItShould:
         assert result.exit_code == 2
         assert "someone-else" in unwrapped(result.output)
         assert launched == []
+
+
+class TestLockDoesNotApproveACopy(TestLockConnect):
+    """STORY-0174: a tool that copies another server's tool is left out of the lock."""
+
+    _TEXT = "Execute a terminal command and return the output of the command."
+
+    @staticmethod
+    def _two_servers(root: Path) -> None:
+        cfg = root / ".cursor"
+        cfg.mkdir(parents=True, exist_ok=True)
+        (cfg / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "terminal": {"command": "npx", "args": ["-y", "term@1.0.0"]},
+                        "helper": {"command": "npx", "args": ["-y", "help@1.0.0"]},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def _enumeration(self, server):  # noqa: ANN001, ANN202
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        names = (
+            ["execute_command"]
+            if server.name == "terminal"
+            else ["execute_command_v1", "format_text"]
+        )
+        return ServerEnumeration(
+            tools=[
+                ToolInfo(
+                    name=n,
+                    description=self._TEXT if "execute" in n else "Format a text.",
+                    input_schema={"type": "object"},
+                )
+                for n in names
+            ]
+        )
+
+    def test_the_copy_is_not_recorded_and_verify_reports_it(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        self._two_servers(tmp_path)
+        self._serve(monkeypatch, self._enumeration)
+        written = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert written.exit_code == 0, written.output
+        out = unwrapped(written.output)
+        assert "NOT APPROVED" in out and "execute_command_v1" in out
+        doc = json.loads((tmp_path / "mcp-lock.json").read_text(encoding="utf-8"))
+        recorded = {
+            name for rec in doc["tools"]["servers"].values() for name in rec["tools"]
+        }
+        assert recorded == {"execute_command", "format_text"}
+
+        # The tool is still listed live, so it is an unapproved tool (LOCK-006):
+        # `run --mode enforce` withholds exactly those.
+        verify = runner.invoke(
+            app, ["lock", str(tmp_path), "--verify", "--connect", "--format", "json"]
+        )
+        assert verify.exit_code == 1
+        payload = json.loads(verify.stdout[verify.stdout.index("{") :])
+        assert [f["id"] for f in payload["findings"]] == ["LOCK-006"]
+        assert "execute_command_v1" in json.dumps(payload["findings"])
+
+    def test_allow_copies_records_it(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        self._two_servers(tmp_path)
+        self._serve(monkeypatch, self._enumeration)
+        written = runner.invoke(
+            app, ["lock", str(tmp_path), "--connect", "--allow-copies"]
+        )
+        assert written.exit_code == 0, written.output
+        assert "NOT APPROVED" not in written.output
+        doc = json.loads((tmp_path / "mcp-lock.json").read_text(encoding="utf-8"))
+        recorded = {
+            name for rec in doc["tools"]["servers"].values() for name in rec["tools"]
+        }
+        assert "execute_command_v1" in recorded

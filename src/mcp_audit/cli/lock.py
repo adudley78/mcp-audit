@@ -143,6 +143,46 @@ def _sdk_problem() -> str | None:
     return None
 
 
+def _withhold_copies(
+    servers: list[ServerConfig],
+    enumerations: dict[tuple[str, str], ServerEnumeration],
+) -> list[tuple[str, str, str]]:
+    """Take each tool that copies another server's tool out of *enumerations*.
+
+    A copy is a HIGH COLLIDE-002 or COLLIDE-003 finding: the facts that the
+    scan reports with ``--connect``.  A tool that is not recorded is not
+    approved, so ``lock --verify --connect`` reports it (LOCK-006) and ``run
+    --mode enforce`` withholds it.  The agent then sees the original only.
+
+    Returns:
+        ``(server key, tool name, finding title)`` for each tool taken out.
+    """
+    from mcp_audit.analyzers.collision import (  # noqa: PLC0415
+        detect_description_copies,
+        detect_tool_name_squats,
+    )
+
+    pairs = [(s, enumerations[tool_digests.enumeration_key(s)]) for s in servers]
+    found = detect_tool_name_squats(pairs) + detect_description_copies(pairs)
+    copies = {
+        (f.server, f.tool): f"{f.id}: {f.title}"
+        for f in found
+        if f.severity == Severity.HIGH and f.tool
+    }
+    out: list[tuple[str, str, str]] = []
+    for server, enumeration in pairs:
+        kept = []
+        for tool in enumeration.tools:
+            why = copies.get((server.name, tool.name))
+            if why is None:
+                kept.append(tool)
+            else:
+                out.append((server_key(server), tool.name, why))
+        if len(kept) != len(enumeration.tools):
+            enumeration.tools = kept
+    return out
+
+
 def _enumerate_tools(
     servers: list[ServerConfig], auth_token: str | None
 ) -> dict[tuple[str, str], ServerEnumeration]:
@@ -226,6 +266,16 @@ def lock(
             "tools added (LOCK-006), changed (LOCK-007 schema/annotations, "
             "LOCK-008 description only) or removed (LOCK-009). Requires the "
             "mcp extra."
+        ),
+    ),
+    allow_copies: bool = typer.Option(  # noqa: B008
+        False,
+        "--allow-copies",
+        help=(
+            "With --connect: also record a tool that copies another server's "
+            "tool (its name is the other name plus a word and it carries the "
+            "other description, COLLIDE-002/003 at HIGH). By default such a "
+            "tool is left out of the lock, so `run --mode enforce` withholds it."
         ),
     ),
     connect_token: str | None = typer.Option(  # noqa: B008
@@ -334,6 +384,7 @@ def lock(
         accept=accept,
         connect=connect,
         connect_token=connect_token,
+        allow_copies=allow_copies,
         tool_text_file=text_path if save_tool_text else None,
     )
 
@@ -348,6 +399,7 @@ def _run_write(
     accept: bool,
     connect: bool = False,
     connect_token: str | None = None,
+    allow_copies: bool = False,
     tool_text_file: Path | None = None,
 ) -> None:
     """Handle plain ``lock`` and ``lock --accept`` (same regeneration)."""
@@ -378,6 +430,7 @@ def _run_write(
 
     tool_records: dict[str, dict] | None = None
     tool_failures: list[tuple[str, str]] = []
+    withheld_copies: list[tuple[str, str, str]] = []
     text_records: dict[str, dict] = {}
     discarded = False
     if connect:
@@ -388,6 +441,8 @@ def _run_write(
             raise typer.Exit(2) from None
         discarded = tools_tampered(existing_doc)
         enumerations = _enumerate_tools(servers, connect_token)
+        if not allow_copies:
+            withheld_copies = _withhold_copies(servers, enumerations)
         tool_records = {}
         for server in servers:
             enumeration = enumerations[tool_digests.enumeration_key(server)]
@@ -466,6 +521,13 @@ def _run_write(
             f"Tool definitions recorded for {len(tool_records or {})} of "
             f"{len(servers)} server(s)."
         )
+        for key, tool, why in withheld_copies:
+            console.print(
+                f"[red]NOT APPROVED[/red] {key}: tool '{escape(tool)}' — "
+                f"{escape(why)}. It is not in the lock, so `credenzo run --mode "
+                "enforce` withholds it. Remove the server, or lock again with "
+                "--allow-copies if you expect this tool."
+            )
         for key, problem in tool_failures:
             kept = " (kept the previous record)" if key in recorded else ""
             console.print(
