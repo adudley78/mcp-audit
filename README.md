@@ -501,7 +501,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-10,712 tests validate detection accuracy and guard against regressions.
+10,729 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -516,7 +516,7 @@ Every command is available to every user — no tier, no license required.
 | `credenzo vet <package>` | `--ecosystem`, `--format json`, `--badge`, `--online`, `--strict` | Pre-install verdict: verification status, known CVEs, capabilities. Ask before you install. Offline by default |
 | `credenzo check` | `--path`, `--verbose`, `--json`, `--no-lock` | One-command security verdict: grade, top findings, fix hints. Auto-verifies `mcp-lock.json` when present. Recommended entry point for new users |
 | `credenzo fix` | `--path`, `--input`, `--apply`, `--fix-type`, `--offline` | Apply safe remediations (credential redaction, transport upgrade, package pinning — including pinning a floating version from `mcp-lock.json`) directly to config files; dry-run by default |
-| `credenzo scan` | `--connect`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--check-vulns`, `--vex`, `--bundle`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--project`, `--include-extensions`, `--include-agent-files`, `--no-lock` | Run all analyzers and report findings. Auto-verifies `mcp-lock.json` when present |
+| `credenzo scan` | `--connect`, `--identify-as`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--check-vulns`, `--vex`, `--bundle`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--project`, `--include-extensions`, `--include-agent-files`, `--no-lock` | Run all analyzers and report findings. Auto-verifies `mcp-lock.json` when present |
 | `credenzo dashboard` | `--path`, `--port`, `--connect`, `--no-open` | Generate and open the interactive attack graph dashboard |
 | `credenzo watch` | `--path`, `--format`, `--severity-threshold`, `--connect` | Monitor config files and re-scan on any change |
 | `credenzo discover` | — | List all detected MCP clients and their configured servers |
@@ -733,7 +733,7 @@ git clone https://github.com/adudley78/credenzo.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 10,712 tests
+uv run pytest                        # Run all 10,729 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

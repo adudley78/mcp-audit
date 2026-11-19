@@ -116,7 +116,7 @@ src/mcp_audit/
 ├── owasp_mcp.py       # Single source of truth for OWASP MCP Top 10 codes/names (MCP01–MCP10)
 ├── verdict.py         # Pure verdict builder for `vet` (shared with the mcp-audit.dev generator)
 ├── watcher.py         # Filesystem watcher for continuous monitoring (credenzo watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
-├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect); build_runtime_server_config passes every lock-digested tool field (title, input/output schema, annotations) to the text checks (STORY-0099); a failed stdio handshake keeps the server's stderr (last 64 KiB), unwraps the TaskGroup ExceptionGroup and redacts both (redact_server_text, STORY-0105)
+├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect); connect_identity(server) = the clientInfo sent in `initialize` (STORY-0177): `--identify-as` (set_connect_identity) wins, a `claude-code*` server gets CLAUDE_CODE_IDENTITY (captured from a live 2.1.328 session), any other client the SDK default `mcp`; bound through `_session_class` (functools.partial), so the transport helpers are unchanged; build_runtime_server_config passes every lock-digested tool field (title, input/output schema, annotations) to the text checks (STORY-0099); a failed stdio handshake keeps the server's stderr (last 64 KiB), unwraps the TaskGroup ExceptionGroup and redacts both (redact_server_text, STORY-0105)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
 ├── _network.py        # NetworkPolicy + require_offline_compatible() — centralised --offline mutual-exclusion enforcement for network-touching flags
 ├── _entry.py          # Console-script entry: dispatches `run` to runtime/ before the Typer app (and the scanner) is imported (EPIC-0009)
@@ -650,7 +650,7 @@ What each feature does is in `README.md`, `docs/README.md` (the index of every d
 Counts that `scripts/update_test_count.py` keeps in sync:
 
 - 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
-- 10712 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 10729 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - 34 top-level CLI commands: affected, vet, reach, check, fix, run, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `credenzo --help` before each release
 - 56-entry curated dataset of legitimate MCP servers (`registry/known-servers.json`, `docs/registry.md`)
 - 42 community rules ship bundled; the breakdown is under "Data files at project root" above

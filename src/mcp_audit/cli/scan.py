@@ -1862,6 +1862,18 @@ def scan(
             "Silently ignored for stdio servers. Never stored or logged."
         ),
     ),
+    identify_as: str | None = typer.Option(  # noqa: B008
+        None,
+        "--identify-as",
+        metavar="NAME[@VERSION]",
+        help=(
+            "With --connect: the client name (and version) to give each "
+            "server in the MCP handshake. By default a server from a Claude "
+            "Code config is asked as Claude Code, and any other server with "
+            "the MCP SDK's default name. A server can list other tools for "
+            "another client."
+        ),
+    ),
     verbose: bool = typer.Option(  # noqa: B008
         False,
         "--verbose",
@@ -2089,6 +2101,17 @@ def scan(
     """Scan MCP configurations for security issues."""
     fmt = "json" if json_flag else output_format
     con = _status_console(fmt)
+    if identify_as is not None:
+        if not connect:
+            con.print("[red]Error:[/red] --identify-as needs --connect.")
+            raise typer.Exit(2)
+        from mcp_audit import mcp_client as _mcp_client  # noqa: PLC0415
+
+        try:
+            _mcp_client.set_connect_identity(identify_as)
+        except ValueError as exc:
+            con.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from exc
     if configs and len(configs) > 1:
         con.print(
             "[red]Error:[/red] scan accepts a single config path. "

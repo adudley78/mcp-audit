@@ -419,6 +419,7 @@ lock time) — never confirmed against the registry
 | `--allow-copies` | off | With `--connect`: also record a new tool that carries the description of a tool of another server that the lock held before. See [A copy is not approved](#a-copy-is-not-approved-story-0174). |
 | `--tool-text-path` | `<lock dir>/mcp-lock.tools.json` | Where the tool-text file is written (with `--save-tool-text`) or read (with `--verify --connect`) |
 | `--connect-token` | none | Bearer token sent to remote (SSE/HTTP) servers during `--connect`. Never stored or logged. |
+| `--identify-as NAME[@VERSION]` | per client | With `--connect`: the client name given to each server in the MCP handshake. By default a Claude Code server is asked as Claude Code and any other with the MCP SDK's default name. See [live-connection.md](live-connection.md). |
 | `--include-user` | off | Also lock user-global configs (for dotfiles repositories) |
 | `--offline` | off | Never touch the network while writing the lock |
 | `--output / -o` | `<root>/mcp-lock.json` | Write to a custom path |

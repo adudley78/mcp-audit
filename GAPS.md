@@ -807,6 +807,8 @@ Poddar, [#88](https://github.com/adudley78/credenzo/issues/88), 2026-09-21; see 
 
 ## Live connection (`--connect`)
 
+**The client identity is partly copied (STORY-0177).** `--connect` asks a Claude Code server as Claude Code (the `clientInfo` a live 2.1.328 session sent). It does not copy the declared capabilities (`elicitation`, `roots`), the protocol version, or anything a server can read from the network. For every other client it sends the MCP SDK's default name `mcp`, because the names those clients send are not verified here; `--identify-as` sets a name by hand. A server that lists other tools for a scanner than for the agent can still do so by those signals. No check connects under two names and compares the tool lists. The captured version (`2.1.328`) is fixed in the code and gets old.
+
 **Tested against few servers.** The `--connect` feature has been tested against the official `@modelcontextprotocol/server-filesystem` server and, for STORY-0086, two Python test servers under `mcp` 1.27 and 2.3. Before STORY-0086, enumeration read only the first `tools/list` page and, under `mcp` 2.x, lost every tool's input schema (both fixed 2026-10-13). Behavior against the broader ecosystem of MCP servers (different transports, authentication requirements, non-standard handshakes) is unknown.
 
 **Server stderr output leaks to terminal.** When `--connect` launches a stdio server, the server's stderr output (warnings, logs, startup messages) appears in the user's terminal interleaved with Credenzo output. This should be captured and suppressed or redirected.

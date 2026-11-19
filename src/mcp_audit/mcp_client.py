@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import inspect
 import os
+import re
 import sys
 import tempfile
 from typing import Any
@@ -193,6 +195,83 @@ def build_runtime_server_config(
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 
+#: What Claude Code sends as ``clientInfo`` in ``initialize``.  Captured from
+#: a live Claude Code 2.1.328 session on 2026-11-19 (a local stdio server
+#: wrote down ``session.client_params``).  The version is the captured one;
+#: it is not read from the machine.
+CLAUDE_CODE_IDENTITY: dict[str, str] = {
+    "name": "claude-code",
+    "title": "Claude Code",
+    "version": "2.1.328",
+    "websiteUrl": "https://claude.com/claude-code",
+    "description": "Anthropic's agentic coding tool",
+}
+
+#: ``--identify-as``: the identity every connection of this process uses.
+_identity_override: dict[str, str] | None = None
+
+_IDENTITY_TEXT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._+/-]{0,99}$")
+
+
+def set_connect_identity(spec: str | None) -> None:
+    """Set (or with ``None`` clear) the identity ``--connect`` presents.
+
+    Args:
+        spec: ``NAME`` or ``NAME@VERSION`` (``--identify-as``).
+
+    Raises:
+        ValueError: *spec* is empty or holds characters outside letters,
+            digits, space and ``. _ + / -``, or is over 100 characters a part.
+    """
+    global _identity_override  # noqa: PLW0603 - one process-wide CLI setting
+    if spec is None:
+        _identity_override = None
+        return
+    name, _, version = spec.partition("@")
+    version = version or "1.0.0"
+    if not _IDENTITY_TEXT.match(name) or not _IDENTITY_TEXT.match(version):
+        raise ValueError(
+            "--identify-as takes NAME or NAME@VERSION (letters, digits, space "
+            "and . _ + / -; at most 100 characters each)"
+        )
+    _identity_override = {"name": name, "version": version}
+
+
+def connect_identity(server: ServerConfig) -> dict[str, str] | None:
+    """Return the ``clientInfo`` to connect to *server* with, or ``None``.
+
+    A server can show one tool list to a scanner and another to the agent: it
+    reads the client's name in ``initialize``.  The MCP SDK's default name is
+    ``mcp`` (version ``0.1.0``), which no agent sends.  So:
+
+    - ``--identify-as`` wins when it is set;
+    - a server from a Claude Code config (client ``claude-code*``) is asked
+      as Claude Code, with the identity a live Claude Code session sent;
+    - any other server gets ``None``: the SDK default.  The names other
+      clients send are not verified here, and a wrong guess would record
+      tools that the real client never sees.
+    """
+    if _identity_override is not None:
+        return dict(_identity_override)
+    if server.client.startswith("claude-code"):
+        return dict(CLAUDE_CODE_IDENTITY)
+    return None
+
+
+def _session_class(client_session_cls: Any, server: ServerConfig) -> Any:
+    """Return *client_session_cls* bound to the identity for *server*."""
+    identity = connect_identity(server)
+    if identity is None:
+        return client_session_cls
+    try:
+        from mcp.types import Implementation  # type: ignore[import-untyped]
+
+        info = Implementation(**identity)
+    except Exception:  # noqa: BLE001 - an SDK without these fields: default identity
+        return client_session_cls
+    return functools.partial(client_session_cls, client_info=info)
+
+
 async def _enumerate(
     server: ServerConfig,
     auth_token: str | None = None,
@@ -208,13 +287,14 @@ async def _enumerate(
     except ImportError:
         return ServerEnumeration(error=_mcp_missing_message())
 
+    session_cls = _session_class(ClientSession, server)
     if server.transport in (TransportType.SSE, TransportType.STREAMABLE_HTTP):
         return await _enumerate_sse(
-            server, ClientSession, sse_client, auth_token=auth_token
+            server, session_cls, sse_client, auth_token=auth_token
         )
     if server.transport == TransportType.STDIO:
         return await _enumerate_stdio(
-            server, ClientSession, stdio_client, StdioServerParameters
+            server, session_cls, stdio_client, StdioServerParameters
         )
     return ServerEnumeration(
         error=f"Transport {server.transport!r} does not support live enumeration"
