@@ -1,0 +1,305 @@
+{
+ "_note": "60 honest tool descriptions written on 2026-11-18 by a second AI agent that did not see the POISON-030 rule (STORY-0171). Each holds a POISON-030 phrase in an honest sense. Our own text; no third-party text.",
+ "texts": [
+  {
+   "id": 61,
+   "family": "first call",
+   "text": "Lists invoices for the account. On the first call, omit `cursor`; pass the `next_cursor` from each response to fetch the following page."
+  },
+  {
+   "id": 62,
+   "family": "first call",
+   "text": "First call get_schema to learn the table and column names, then pass a read-only SQL statement to run_query."
+  },
+  {
+   "id": 63,
+   "family": "first call",
+   "text": "idempotency_key: A unique string chosen by the client. If a retry carries the same key as the first call, the server returns the original result and does not create a second charge."
+  },
+  {
+   "id": 64,
+   "family": "first call",
+   "text": "Returns the weather forecast for a city. The first call for a new location may take up to five seconds while the cache warms; later calls are served from cache for ten minutes."
+  },
+  {
+   "id": 65,
+   "family": "first call",
+   "text": "Opens a browser session. You must first call start_session and keep the returned session_id; every other tool on this server needs it."
+  },
+  {
+   "id": 66,
+   "family": "first call",
+   "text": "Deletes a branch. A first call without `confirm: true` returns a preview of what would be removed; repeat the request with `confirm: true` to delete."
+  },
+  {
+   "id": 67,
+   "family": "first call",
+   "text": "Fetches a paid dataset. The first call returns HTTP 402 with a payment challenge; settle it and retry with the receipt in `payment_proof`."
+  },
+  {
+   "id": 68,
+   "family": "first call",
+   "text": "page_token (string, optional): Leave empty on your first call. Use the value of `nextPageToken` from the previous response afterwards."
+  },
+  {
+   "id": 69,
+   "family": "first call",
+   "text": "Search the knowledge base. If you do not know the collection ids, first call list_collections."
+  },
+  {
+   "id": 70,
+   "family": "first call",
+   "text": "Streams log lines for a deployment. The first call you make establishes the tail position; subsequent calls return only lines written since then."
+  },
+  {
+   "id": 71,
+   "family": "first call",
+   "text": "Returns the current exchange rate. Rate limit: 60 requests per minute, counted from the first call in each window."
+  },
+  {
+   "id": 72,
+   "family": "first call",
+   "text": "Creates a calendar event. When the user has more than one calendar, the agent should first call list_calendars and ask which one to use."
+  },
+  {
+   "id": 73,
+   "family": "first call",
+   "text": "Runs a long export job. The first call returns a job_id immediately; poll get_export_status with that id until state is `done`."
+  },
+  {
+   "id": 74,
+   "family": "first call",
+   "text": "since: ISO 8601 timestamp. Not needed for the first call, which returns the full snapshot and a `sync_token` for incremental updates."
+  },
+  {
+   "id": 75,
+   "family": "first call",
+   "text": "Translate text between languages. To see supported language codes, first call supported_languages (same server); codes are ISO 639-1."
+  },
+  {
+   "id": 76,
+   "family": "first call",
+   "text": "Authenticates against the tenant. Only the first call in a session prompts the user for consent; the token is reused until it expires."
+  },
+  {
+   "id": 77,
+   "family": "first call",
+   "text": "Step 1: first call describe_index to read the vector dimension. Step 2: call upsert_vectors with embeddings of that dimension."
+  },
+  {
+   "id": 78,
+   "family": "first call",
+   "text": "Reads rows from a spreadsheet. Note (performance): the first call to a large sheet builds an index and can be slow."
+  },
+  {
+   "id": 79,
+   "family": "first call",
+   "text": "Compiles the project. Expect the first call after a clean checkout to download dependencies, so allow a longer timeout."
+  },
+  {
+   "id": 80,
+   "family": "first call",
+   "text": "Moves a card to another list. Board and list ids are opaque, so first call get_board to resolve names to ids."
+  },
+  {
+   "id": 81,
+   "family": "first call",
+   "text": "Returns unread notifications. Each notification is delivered once: items returned by the first call are marked as seen and will not appear again."
+  },
+  {
+   "id": 82,
+   "family": "first call",
+   "text": "Generates an image from a prompt. Free tier accounts get the first call of each day at full resolution; further calls are downscaled."
+  },
+  {
+   "id": 83,
+   "family": "first call",
+   "text": "Starts device authorization. The first call to this tool returns a user_code and verification_uri to show the user; call it again with the same device_code to check whether they approved."
+  },
+  {
+   "id": 84,
+   "family": "first call",
+   "text": "limit: Maximum items per page (default 50, max 200). The value set on the first call applies to the whole pagination sequence."
+  },
+  {
+   "id": 85,
+   "family": "first call",
+   "text": "Query time-series metrics. Unknown metric names return an error, so it is best to first call list_metrics with a prefix filter."
+  },
+  {
+   "id": 86,
+   "family": "first call",
+   "text": "Sends a transactional email via a template. If you have not seen the template variables yet, a first call to get_template is recommended so that required fields are not missed."
+  },
+  {
+   "id": 87,
+   "family": "first call",
+   "text": "Warm-up note: models are loaded lazily, which means the first call per model takes roughly 20 seconds."
+  },
+  {
+   "id": 88,
+   "family": "first call",
+   "text": "Runs a database migration. With `dry_run` true (the default on the first call for each migration id) nothing is written and the planned statements are returned."
+  },
+  {
+   "id": 89,
+   "family": "first call",
+   "text": "Looks up a customer by email. Results are cached per session; set `refresh` to true if data changed since your first call."
+  },
+  {
+   "id": 90,
+   "family": "first call",
+   "text": "Subscribes to a resource. The first call registers the subscription and returns its id, and calling again with the same uri is a no-op."
+  },
+  {
+   "id": 91,
+   "family": "first call",
+   "text": "Open a pull request. Always first call compare_branches to confirm there are commits to merge, since an empty diff is rejected."
+  },
+  {
+   "id": 92,
+   "family": "first call",
+   "text": "Returns a signed upload URL. Whichever part number you send in the first call, parts are assembled in numeric order when complete_upload is called."
+  },
+  {
+   "id": 93,
+   "family": "first call",
+   "text": "Onboarding helper. During the first call it asks the user for a default workspace and stores the choice in server-side preferences."
+  },
+  {
+   "id": 94,
+   "family": "first call",
+   "text": "transaction_id: Returned by begin_transaction. Clients first call begin_transaction, then pass this id to each write, then call commit."
+  },
+  {
+   "id": 95,
+   "family": "first call",
+   "text": "Geocodes an address. Quota is 1,000 lookups per day and resets 24 hours after the first call of the period."
+  },
+  {
+   "id": 96,
+   "family": "first call",
+   "text": "Retrieves a document chunk by chunk. `offset` is 0 on the first call and should be advanced by the `bytes_read` value each time."
+  },
+  {
+   "id": 97,
+   "family": "before using this tool",
+   "text": "Posts a message to a channel. Before using this tool, make sure the bot has been invited to the channel, otherwise the API returns not_in_channel."
+  },
+  {
+   "id": 98,
+   "family": "before using this tool",
+   "text": "Executes a write query. Before using this tool you need an open connection from connect_db on this server."
+  },
+  {
+   "id": 99,
+   "family": "before using this tool",
+   "text": "Permanently deletes a repository. Before using this tool, confirm the repository name with the user; the action cannot be undone."
+  },
+  {
+   "id": 100,
+   "family": "before using this tool",
+   "text": "Charges a saved payment method. An order must exist and be in `pending` state before using this tool (see create_order)."
+  },
+  {
+   "id": 101,
+   "family": "before using this tool",
+   "text": "Note: set the API_REGION environment variable before using this tool, or requests go to the default US endpoint."
+  },
+  {
+   "id": 102,
+   "family": "before using this tool",
+   "text": "Resizes a volume. Take a snapshot with create_snapshot before using this tool if the data matters; shrinking is not supported."
+  },
+  {
+   "id": 103,
+   "family": "before using this tool",
+   "text": "path: Absolute path inside the workspace. Call list_allowed_directories before using this tool for the first time to see which roots are permitted."
+  },
+  {
+   "id": 104,
+   "family": "before using this tool",
+   "text": "Sends an SMS. The recipient number has to be verified with verify_number before using this tool on a trial account."
+  },
+  {
+   "id": 105,
+   "family": "instead",
+   "text": "Fetches a single record by id. For more than a few ids, instead use batch_get_records, which accepts up to 100 ids per request."
+  },
+  {
+   "id": 106,
+   "family": "instead",
+   "text": "Deprecated: this endpoint will be removed in v3. Instead use search_issues_v2 from this server, which supports the same filters."
+  },
+  {
+   "id": 107,
+   "family": "instead",
+   "text": "Returns the full file content. For files larger than 1 MB, read_file_range should be preferred instead of using this tool repeatedly with growing offsets."
+  },
+  {
+   "id": 108,
+   "family": "instead",
+   "text": "Polls the job state. Instead of calling this tool in a tight loop, pass `wait_seconds` (max 30) so the server holds the request until the state changes."
+  },
+  {
+   "id": 109,
+   "family": "instead",
+   "text": "Append one row to a table. If you are inserting many rows, do not loop; instead call bulk_insert once."
+  },
+  {
+   "id": 110,
+   "family": "instead",
+   "text": "query: Free-text search string. If you already know the exact ticket key, instead use get_ticket, which is faster and does not count against search quota."
+  },
+  {
+   "id": 111,
+   "family": "instead",
+   "text": "Runs a shell command in the sandbox. For reading files, instead of using `cat` here the read_file tool gives line numbers and handles encodings."
+  },
+  {
+   "id": 112,
+   "family": "instead",
+   "text": "Lists every object in a bucket. Buckets with millions of keys should be queried with a prefix instead of using an unfiltered listing."
+  },
+  {
+   "id": 113,
+   "family": "instead",
+   "text": "Takes a full-page screenshot. When only the text matters, instead call get_page_text; it is cheaper and returns structured content."
+  },
+  {
+   "id": 114,
+   "family": "instead",
+   "text": "Updates a contact. Instead of calling update_contact once per field, send all changed fields in one `patch` object."
+  },
+  {
+   "id": 115,
+   "family": "after",
+   "text": "Uploads one part of a multipart upload. After calling this for every part, call complete_upload with the list of ETags."
+  },
+  {
+   "id": 116,
+   "family": "after",
+   "text": "Begins a checkout. After calling this tool, show the returned `approval_url` to the user and wait for them to approve before capture_payment."
+  },
+  {
+   "id": 117,
+   "family": "after",
+   "text": "Stages a configuration change. Nothing is live after using this tool until apply_changes is run."
+  },
+  {
+   "id": 118,
+   "family": "after",
+   "text": "Rotates the API key. After using this tool the previous key stays valid for 24 hours so clients can switch over."
+  },
+  {
+   "id": 119,
+   "family": "after",
+   "text": "session_id: Identifier from open_session. Close the session with close_session after using this tool to free the browser instance."
+  },
+  {
+   "id": 120,
+   "family": "after",
+   "text": "Invalidates the cache for a path. Shortly after calling this endpoint, CDN edges may still serve stale content for up to 60 seconds."
+  }
+ ]
+}
