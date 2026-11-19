@@ -10,9 +10,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from mcp_audit.analyzers.collision import (
+    MAX_NAME_COPY_FINDINGS,
     _is_registry_known,
     _server_identity,
     detect_tool_collisions,
+    detect_tool_name_squats,
 )
 from mcp_audit.models import (
     ServerConfig,
@@ -408,3 +410,152 @@ class TestClientField:
         pairs = [(s1, _make_enum("tool")), (s2, _make_enum("tool"))]
         f = detect_tool_collisions(pairs)[0]
         assert f.client == "multiple"
+
+
+# ── COLLIDE-002: a tool named after another server's tool (STORY-0173) ────────
+
+
+def _pair(server: str, *tools: str) -> tuple[ServerConfig, ServerEnumeration]:
+    return (
+        _make_server(server, args=[server]),
+        ServerEnumeration(tools=[ToolInfo(name=t, description="") for t in tools]),
+    )
+
+
+class TestToolNameSquats:
+    def test_decorated_copy_is_high_and_on_the_copy(self) -> None:
+        found = detect_tool_name_squats(
+            [
+                _pair("finance", "get_stock_info", "get_news"),
+                _pair("helper", "best_get_stock_info"),
+            ]
+        )
+        assert [(f.id, f.severity, f.server, f.tool) for f in found] == [
+            ("COLLIDE-002", Severity.HIGH, "helper", "best_get_stock_info")
+        ]
+
+    def test_other_decorations(self) -> None:
+        for name in (
+            "playwright_navigate_enhanced",
+            "ultimate_playwright_navigate",
+        ):
+            found = detect_tool_name_squats(
+                [_pair("browser", "playwright_navigate"), _pair("x", name)]
+            )
+            assert [f.severity for f in found] == [Severity.HIGH], name
+
+    def test_words_with_a_meaning_are_not_decoration(self) -> None:
+        # HISTOR's tool names: "get_new_tokens" beside "get_tokens" and
+        # "web_fetch_tool" beside "web-fetch" are honest (STORY-0173).
+        for base, other in (
+            ("get_tokens", "get_new_tokens"),
+            ("list_page_items", "list_next_page_items"),
+            ("read_file_v1", "read_the_file_v1"),
+        ):
+            found = detect_tool_name_squats([_pair("a", base), _pair("b", other)])
+            assert found == [], other
+
+    def test_spelling_variant_is_medium_and_reported_once(self) -> None:
+        found = detect_tool_name_squats(
+            [_pair("mail-a", "searchEmails"), _pair("mail-b", "search-emails")]
+        )
+        assert [(f.id, f.severity) for f in found] == [("COLLIDE-002", Severity.MEDIUM)]
+        assert set(found[0].server.split(" + ")) == {"mail-a", "mail-b"}
+
+    def test_same_name_is_collide_001_only(self) -> None:
+        pairs = [_pair("a", "read_file"), _pair("b", "read_file")]
+        assert detect_tool_name_squats(pairs) == []
+        assert [f.id for f in detect_tool_collisions(pairs)] == ["COLLIDE-001"]
+
+    def test_honest_neighbours_are_silent(self) -> None:
+        found = detect_tool_name_squats(
+            [
+                _pair("github", "list_issues", "create_issue", "search"),
+                _pair("gitlab", "gitlab_list_issues", "web_search", "new_issue"),
+                _pair("notes", "fast_search", "search_notes"),
+            ]
+        )
+        assert found == []
+
+    def test_one_word_name_is_not_a_decorated_copy(self) -> None:
+        """GAPS.md: ``best_search`` beside ``search`` is too common to report."""
+        assert (
+            detect_tool_name_squats([_pair("a", "search"), _pair("b", "best_search")])
+            == []
+        )
+
+    def test_same_server_is_silent(self) -> None:
+        assert (
+            detect_tool_name_squats(
+                [_pair("a", "get_page", "getPage", "best_get_page"), _pair("b", "x")]
+            )
+            == []
+        )
+
+    def test_failed_enumeration_is_ignored(self) -> None:
+        bad = (_make_server("b", args=["b"]), ServerEnumeration(error="boom"))
+        assert detect_tool_name_squats([_pair("a", "get_page"), bad]) == []
+
+    def test_long_names_are_linear(self) -> None:
+        import time  # noqa: PLC0415
+
+        pairs = [
+            _pair("a", *[f"fetch_{i}_item" for i in range(3000)], "a" * 100_000),
+            _pair("b", *[f"best_fetch_{i}_item" for i in range(3000)], "B_" * 50_000),
+        ]
+        start = time.perf_counter()
+        found = detect_tool_name_squats(pairs)
+        assert time.perf_counter() - start < 5.0
+        assert len(found) == MAX_NAME_COPY_FINDINGS
+
+    def test_many_spellings_of_one_name_are_one_finding(self) -> None:
+        # Review of PR #335: two servers with 1,000 spellings each gave
+        # 1,000,000 findings in 17 seconds.
+        import time  # noqa: PLC0415
+
+        seps = ["_", "-", ".", "~", "+", "__", "--", "_-"]
+        a = [
+            f"get{x}page{y}item{'!' * i}" for i in range(125) for x in seps for y in "_"
+        ]
+        b = [
+            f"Get{x}Page{y}Item{'?' * i}" for i in range(125) for x in seps for y in "-"
+        ]
+        start = time.perf_counter()
+        found = detect_tool_name_squats(
+            [_pair("a", *a), _pair("b", *b), _pair("c", "best_get_page_item")]
+        )
+        assert time.perf_counter() - start < 2.0
+        assert sorted(f.severity for f in found) == [Severity.HIGH, Severity.MEDIUM]
+
+    def test_praise_inside_the_name_is_medium(self) -> None:
+        # Review of PR #335, round 2: honest phrases.
+        for base, other in (
+            ("get_price", "get_best_price"),
+            ("list_plans", "list_premium_plans"),
+            ("list_users", "list_super_users"),
+        ):
+            found = detect_tool_name_squats([_pair("a", base), _pair("b", other)])
+            assert [f.severity for f in found] == [Severity.MEDIUM], other
+
+    def test_the_cap_keeps_a_high_finding(self) -> None:
+        # Round 2: 150 MEDIUM copies that sort first must not push out a HIGH.
+        names = [f"alpha_{i}_item" for i in range(150)]
+        found = detect_tool_name_squats(
+            [
+                _pair("honest", *names, "send_email"),
+                _pair("noise", *[f"advanced_{n}" for n in names]),
+                _pair("evil", "send_email_premium"),
+            ]
+        )
+        assert len(found) == MAX_NAME_COPY_FINDINGS
+        assert [f.server for f in found if f.severity == Severity.HIGH] == ["evil"]
+
+    def test_a_word_with_an_honest_use_is_medium(self) -> None:
+        for base, other in (
+            ("send_message", "send_secure_message"),
+            ("get_issue", "get_issue_v2"),
+            ("search_code", "advanced_search_code"),
+            ("list_devices", "list_trusted_devices"),
+        ):
+            found = detect_tool_name_squats([_pair("a", base), _pair("b", other)])
+            assert [f.severity for f in found] == [Severity.MEDIUM], other

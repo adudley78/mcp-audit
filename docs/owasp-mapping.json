@@ -1287,6 +1287,19 @@
       "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     },
     {
+      "finding_id": "COLLIDE-002",
+      "finding_title": "Tool name copies another server's tool name",
+      "owasp_codes": [
+        "MCP03",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Shadow MCP Servers"
+      ],
+      "notes": "Requires --connect. A tool name is another server's tool name of two or more words plus only decoration words: HIGH when each added word only praises ('best', 'premium', 'enhanced') and stands before or after the whole name, MEDIUM when one has an honest use ('secure', 'v2') or stands inside the name ('get_best_price'). MEDIUM also when two servers list the same words in another spelling (searchEmails / search-emails). Names only; 100 findings a scan at most, HIGH first. Shape from the Tool Shadowing, Function Overlapping and Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. Control: 21 of 5,000 random five-server sessions of HISTOR's tool names get a MEDIUM finding, 0 a HIGH (the word list was cut with this control in view). CWE-694. STORY-0173."
+    },
+    {
       "finding_id": "ANNOT-001",
       "finding_title": "Tool annotation contradicts the tool's own input schema",
       "owasp_codes": [
@@ -2395,6 +2408,17 @@
         "Tool Poisoning"
       ],
       "notes": "Tool text names /etc/passwd, /etc/shadow or /etc/sudoers. Tool text only. MEDIUM: a list of mounted paths is honest (2 changes on HISTOR's record). CWE-200. Shape from MCP-SafetyBench and MCPTox cases. STORY-0172."
+    },
+    {
+      "finding_id": "POISON-083",
+      "finding_title": "Tool promotes itself over other tools",
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ],
+      "notes": "Tool text sells the tool to the agent: 'the premium version', 'world's best', 'used by 99% of professionals', 'industry-leading'. Tool text only. MEDIUM: marketing text is not an order. CWE-451. Shape from the Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. 2 rows on HISTOR's record, both honest. STORY-0173."
     },
     {
       "finding_id": "MEM-005",

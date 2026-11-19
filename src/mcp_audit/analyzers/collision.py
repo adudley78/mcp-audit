@@ -29,6 +29,8 @@ Research basis:
 
 from __future__ import annotations
 
+import re
+
 from mcp_audit.models import Finding, ServerConfig, ServerEnumeration, Severity
 from mcp_audit.registry.loader import KnownServerRegistry
 
@@ -196,4 +198,220 @@ def detect_tool_collisions(
             )
         )
 
+    return findings
+
+
+# ── COLLIDE-002: a tool named after another server's tool (STORY-0173) ────────
+#
+# COLLIDE-001 needs the same name on two servers.  The Function Overlapping
+# and Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163) add
+# a tool whose name is another server's tool name in other dress:
+# ``Playwright_Navigate`` beside ``playwright_navigate``, or
+# ``best_playwright_navigate``, ``playwright_navigate_enhanced``.  A scanner
+# that reads one description at a time cannot see this; it needs the session.
+
+#: Words that dress a copied name up as the better tool.  A name that adds
+#: only these words to another server's tool name is a decorated copy.
+_DECORATION_WORDS: frozenset[str] = frozenset(
+    [
+        "best",
+        "premium",
+        "enhanced",
+        "advanced",
+        "ultimate",
+        "pro",
+        "plus",
+        "v2",
+        "v3",
+        "improved",
+        "better",
+        "fast",
+        "faster",
+        "secure",
+        "safe",
+        "official",
+        "optimized",
+        "super",
+        "smart",
+        "turbo",
+        "max",
+        "ultra",
+        "original",
+        "verified",
+        "trusted",
+    ]
+)
+#: Decoration words that only praise.  A copy that adds only these is HIGH.
+#: The other decoration words have a use in honest names ("secure", "safe",
+#: "verified", "max", "v2": ``send_secure_message`` beside ``send_message``),
+#: so a copy that adds one of them is MEDIUM.
+_PROMOTION_WORDS: frozenset[str] = frozenset(
+    [
+        "best",
+        "premium",
+        "enhanced",
+        "ultimate",
+        "improved",
+        "better",
+        "super",
+        "turbo",
+        "ultra",
+    ]
+)
+#: Findings one scan reports.  A hostile server chooses its tool names.
+MAX_NAME_COPY_FINDINGS = 100
+_CAMEL_BOUNDARY = re.compile(r"([a-z0-9])([A-Z])")
+_NOT_ALNUM = re.compile(r"[^A-Za-z0-9]+")
+#: Tool names longer than this are not compared (a name is a few words).
+_MAX_NAME_CHARS = 200
+
+
+def _name_tokens(name: str) -> tuple[str, ...]:
+    """Return the lowercase words of a tool name (``getPage`` → get, page)."""
+    spaced = _CAMEL_BOUNDARY.sub(r"\1_\2", name[:_MAX_NAME_CHARS])
+    return tuple(t for t in _NOT_ALNUM.split(spaced.lower()) if t)
+
+
+def detect_tool_name_squats(
+    pairs: list[tuple[ServerConfig, ServerEnumeration]],
+) -> list[Finding]:
+    """Report a tool whose name copies another server's tool name (COLLIDE-002).
+
+    Two shapes, compared on the words of the names:
+
+    - **Decorated copy.** The name is another server's tool name of two or
+      more words plus only decoration words: ``best_get_stock_info`` beside
+      ``get_stock_info``.  HIGH when each added word only praises ("best",
+      "premium", "enhanced") and stands before or after the whole name;
+      MEDIUM when one has a use in honest names ("secure", "v2") or stands
+      inside the name (``get_best_price``).  The finding is on the
+      decorated tool.
+    - **Spelling variant (MEDIUM).** The same words in another spelling on
+      two servers: ``searchEmails`` and ``search-emails``.  The agent sees two
+      tools that read as one.  One finding names both.
+
+    The same name on two servers is COLLIDE-001 and is not reported here.
+    Runs after COLLIDE-001 on the same ``--connect`` pairs; reads names only.
+
+    Args:
+        pairs: ``(ServerConfig, ServerEnumeration)`` from the ``--connect`` loop.
+            Pairs with enumeration errors are ignored.
+
+    Returns:
+        ``COLLIDE-002`` findings: at most one spelling finding per set of
+        words, one decorated finding per server and set of words, and
+        ``MAX_NAME_COPY_FINDINGS`` in all, HIGH first.  Each server counts
+        with the first spelling it lists; a spelling finding names two
+        servers.
+    """
+    live = [(s, e) for s, e in pairs if not e.error]
+    if len(live) < 2:
+        return []
+    by_identity: dict[tuple, ServerConfig] = {}
+    # words of a name -> server -> the first spelling that server lists.  One
+    # spelling per server keeps the work linear in the number of tools: a
+    # server that lists 10,000 spellings of one name counts once.
+    index: dict[tuple[str, ...], dict[tuple, str]] = {}
+    for server, enum in live:
+        identity = _server_identity(server)
+        by_identity.setdefault(identity, server)
+        for tool in enum.tools:
+            tokens = _name_tokens(tool.name)
+            if tokens:
+                index.setdefault(tokens, {}).setdefault(identity, tool.name)
+
+    findings: list[Finding] = []
+
+    def emit(
+        kind: str,
+        a: tuple[tuple, str],
+        b: tuple[tuple, str],
+        severity: Severity = Severity.MEDIUM,
+    ) -> None:
+        """Add one finding for tool *a*, which copies tool *b*."""
+        (ida, name_a), (idb, name_b) = a, b
+        sa, sb = by_identity[ida], by_identity[idb]
+        decorated = kind == "decorated"
+        findings.append(
+            Finding(
+                id="COLLIDE-002",
+                severity=severity,
+                analyzer="collision",
+                client=sa.client if sa.client == sb.client else "multiple",
+                server=sa.name if decorated else f"{sa.name} + {sb.name}",
+                tool=name_a,
+                title=(
+                    f"Tool '{name_a}' is named as a better copy of '{name_b}'"
+                    if decorated
+                    else f"'{name_a}' and '{name_b}' are one name in two spellings"
+                ),
+                description=(
+                    f"Server '{sa.name}' lists the tool '{name_a}'.  Server"
+                    f" '{sb.name}' lists '{name_b}'.  "
+                    + (
+                        "The first name is the second name plus words such as"
+                        " 'best' or 'enhanced'.  A server that wants the"
+                        " agent to call its tool in the place of a trusted one"
+                        " names it this way."
+                        if decorated
+                        else "The two names have the same words.  The agent can"
+                        " take one tool for the other."
+                    )
+                ),
+                evidence=(
+                    f"'{name_a}' ({sa.name}) and '{name_b}' ({sb.name})"
+                    " (detected via --connect live enumeration)"
+                ),
+                remediation=(
+                    f"Check that you installed '{sa.name}' on purpose and that"
+                    f" '{name_a}' does what its name says.  Remove the server"
+                    " if you did not expect a second tool for this job."
+                    if decorated
+                    else "Check that both servers are the ones you expect."
+                    " If both are, no action is needed."
+                ),
+                cwe="CWE-694",
+                owasp_mcp_top_10=["MCP03", "MCP09"],
+                finding_path=str(sa.config_path),
+            )
+        )
+
+    # Collect light records first, HIGH before MEDIUM, and build Finding
+    # objects only for the ones that fit under the cap.  A server that lists
+    # many MEDIUM copies cannot push a HIGH copy out of the report.
+    high: list[tuple[str, tuple[tuple, str], tuple[tuple, str]]] = []
+    medium: list[tuple[str, tuple[tuple, str], tuple[tuple, str]]] = []
+    for tokens, members in sorted(index.items()):
+        # Spelling variant: same words, different text, different servers.
+        # One finding per set of words, for the first two spellings.
+        spellings: dict[str, tuple] = {}
+        for identity, name in members.items():
+            spellings.setdefault(name, identity)
+        if len(spellings) >= 2:
+            (name_a, ida), (name_b, idb) = sorted(spellings.items())[:2]
+            medium.append(("variant", (ida, name_a), (idb, name_b)))
+        # Decorated copy: drop the decoration words and look the rest up.
+        core = tuple(t for t in tokens if t not in _DECORATION_WORDS)
+        if core == tokens or len(core) < 2:
+            continue
+        originals = index.get(core, {})
+        if not originals:
+            continue
+        # HIGH needs words that only praise, put before or after the whole
+        # name: "best_get_price".  Inside the name they are often part of an
+        # honest phrase: "get_best_price", "list_premium_plans".
+        added = {t for t in tokens if t in _DECORATION_WORDS}
+        start = next(i for i, t in enumerate(tokens) if t not in _DECORATION_WORDS)
+        around = tokens[start : start + len(core)] == core
+        bucket = high if around and added <= _PROMOTION_WORDS else medium
+        for identity, name in members.items():
+            other = next((i for i in originals if i != identity), None)
+            if other is not None:
+                bucket.append(
+                    ("decorated", (identity, name), (other, originals[other]))
+                )
+    for kind, a, b in high[:MAX_NAME_COPY_FINDINGS]:
+        emit(kind, a, b, Severity.HIGH)
+    for kind, a, b in medium[: MAX_NAME_COPY_FINDINGS - len(findings)]:
+        emit(kind, a, b)
     return findings

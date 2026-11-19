@@ -159,6 +159,35 @@ The cost on HISTOR's record is 3 rows of POISON-082 in 2 changes: a list of moun
 
 **These numbers are in-sample.** The three checks were written from the texts of MCP-SafetyBench and MCPTox that Credenzo missed. They show that the checks read those texts. They do not show what the checks catch on an attack written tomorrow. The false-alarm side is measured on HISTOR's tool text only.
 
+## Checks that read the whole session (STORY-0173, measured 2026-11-19)
+
+A scanner that reads one tool description cannot see that a second server copies the name of a tool. `scan --connect` has each server's tool list, so Credenzo can compare them. STORY-0173 adds one check on names and one check on text.
+
+| ID | What fires | Severity |
+|---|---|---|
+| COLLIDE-002 | A tool name is another server's tool name of two or more words plus only words that praise: "best", "premium", "enhanced", "ultimate", "improved", "better", "super", "turbo", "ultra", put before or after the whole name (`best_get_stock_info`) | HIGH |
+| COLLIDE-002 | The same, where an added word has a use in honest names: "secure", "safe", "verified", "trusted", "official", "advanced", "pro", "plus", "max", "fast", "smart", "v2"; or a word that praises stands inside the name (`get_best_price`) | MEDIUM |
+| COLLIDE-002 | Two servers list the same words in another spelling (`searchEmails`, `search-emails`) | MEDIUM |
+| POISON-083 | Tool text sells the tool: "the premium version", "world's best", "used by 99% of professionals" | MEDIUM |
+
+`docs/research/mcp-safetybench/measure_session.py` puts each of the 154 poisoned tools of MCP-SafetyBench in the session of its domain, with the benchmark's own servers. A changed tool stays on its server. An added tool is on a server of its own.
+
+| MCP-SafetyBench, 154 poisoned tools | Any severity | HIGH or above |
+|---|---|---|
+| Text checks before STORY-0173 | 56 | 40 |
+| Text checks with POISON-083 | 88 | 40 |
+| Text checks and session checks (COLLIDE-002, DELEG-001..003) | 108 | 51 |
+
+By attack category, text checks alone and then with the session checks: Function Overlapping 14 and 17 of 20, Preference Manipulation 18 and 20 of 20, Tool Shadowing 11 and 19 of 21, Parameter Poisoning 12 and 18 of 18. Before STORY-0173 the first two categories had no finding (`docs/research/mcp-safetybench/README.md`, the table of 2026-11-18). MCPTox does not change: 1,005 of 1,312 cases and 2 of 353 clean tools.
+
+**The cost.** POISON-083 adds 2 rows on HISTOR's record of 126,105 real changes ("the premium version of the game", "an enhanced version of the image"). Both are honest. Flagged changes go from 487 to 489. COLLIDE-002 was run on real tool names (`name_copy_controls.py`). With the 353 clean tools of MCPTox's 45 servers in one session it gives 1 MEDIUM finding. In 5,000 random sessions of five servers from HISTOR's record, 21 sessions get a MEDIUM finding and 0 get a HIGH finding. The five sessions of MCP-SafetyBench with no attack get no finding. The first list of decoration words held "new" and "tool" and gave 2 HIGH findings on honest pairs (`get_new_tokens` beside `get_tokens`); those words were removed and the benchmark count did not change. So "0 HIGH" is a number that the list was fitted to. The control also draws servers at random. Two servers for one job (two git hosts, two file servers) share more names, and a user installs such pairs more often than chance does.
+
+**Honest names and text that fire.** A reviewer wrote 36 honest pairs of names to probe COLLIDE-002, and 27 fired at HIGH with the first word list. Words with an honest use now give MEDIUM: `send_secure_message` beside `send_message`, `get_issue_v2` beside `get_issue`, `advanced_search_code` beside `search_code`. A word that praises inside a name is often an honest phrase (`get_best_price`, `list_premium_plans`, `list_super_users`); a second review found 20 such pairs at HIGH, and they now give MEDIUM. HIGH stays for a word that praises before or after the whole name, and an honest pair can still have that shape (`best_get_price`, `search_flights_premium`). The same reviewer wrote 30 honest descriptions to probe POISON-083 and 27 fired; "official version", "upgraded version", "advanced version" and a bare "world's most" were then removed. "Check whether the user is on the premium version", "the world's best-selling books" and "the most accurate time available" still fire. Neither probe is a rate, because the texts were written to hit the shapes.
+
+**What COLLIDE-002 does not read.** A one-word name. A misspelling (`read_flie`). A digit or a word with a meaning at the end (`get_stock_info2`, `read_file_new`, `read_file_latest`). Words run together (`bestgetstockinfo`). A copy of a tool whose own name holds a decoration word (`premium_get_best_price` beside `get_best_price`). A letter that is not ASCII: `get_pagé` reads as "get pag". A name is read to 200 characters. Each server counts with the first spelling it lists, and a spelling finding names two servers when three share the words. One scan lists 100 findings at most, HIGH first; a line in the scan's errors says that findings were left out.
+
+**These numbers are in-sample too.** POISON-083 and COLLIDE-002 were written from the MCP-SafetyBench cases that Credenzo missed. DELEG-001..003 were written before, from MCPTox; they fire on 17, 6 and 8 of the 154 tools. The session count needs `--connect`; a scan of a config file alone does not get it. The numbers of Cisco's rules and SkillSpector below are for the text of one tool, which is all that those two modes read.
+
 ## Compared with Cisco mcp-scanner's YARA rules (measured 2026-11-18)
 
 | Set | Credenzo | Cisco YARA |

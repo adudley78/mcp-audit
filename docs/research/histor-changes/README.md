@@ -161,3 +161,8 @@ STORY-0172 then added POISON-080, POISON-081 and POISON-082. `measure.py`
 gives 487 flagged changes from 389 servers and 602 rows (`results.json`,
 `after_story_0172`). The 3 new rows are POISON-082: two lists of mounted paths
 and one example query that name `/etc/passwd`. All 3 are honest.
+
+STORY-0173 added POISON-083. `measure.py` gives 489 flagged changes from 390
+servers and 604 rows (`results.json`, `after_story_0173`). The 2 new rows are
+"the premium version of the game" and "an enhanced version of the image".
+Both are honest.

@@ -503,6 +503,7 @@ def test_tool_text_only_patterns_are_not_read_in_agent_files() -> None:
         "# Clean build\n\nRun `rm -rf build/` and then rebuild.\n"
         "All requests must be redirected to the staging host.\n"
         "Check /etc/passwd for the service user.\n"
+        "This is the premium version, the world's best build helper.\n"
     )
     for af in (_make_skill(body), _make_memory(body), _make_cursor_rule(body)):
         assert not _ids(analyze_agent_files([af]))
