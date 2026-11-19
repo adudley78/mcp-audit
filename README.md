@@ -85,7 +85,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Cross-server toxic flows** — capability tagging and 12 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, a data source next to a server that posts to GitHub, GitLab, Slack or Jira, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `credenzo dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
-- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) and a tool name that copies another server's tool name (`COLLIDE-002`) — the namespace-shadowing attack named in NSA's MCP security guidance — and descriptions that steer the agent to another server's tools or rewrite their arguments (`DELEG-001..003`). Measured on MCPTox before shipping: with the poisoned tool on its own server, the two together flag 98.2% of the poisoned descriptions that carry no keyword wrapper (the poisoning patterns alone: 23.7%), and the new checks flag 1 of MCPTox's 353 real tools; that clean set and 640 of 855 real descriptions also checked informed the design, and 0 of the other 215, held out, were flagged ([docs/poisoning.md](docs/poisoning.md#cross-tool-delegation-deleg-001003))
+- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) and a tool that copies another server's tool name or description (`COLLIDE-002`, `COLLIDE-003`) — the namespace-shadowing attack named in NSA's MCP security guidance — and descriptions that steer the agent to another server's tools or rewrite their arguments (`DELEG-001..003`). Measured on MCPTox before shipping: with the poisoned tool on its own server, the two together flag 98.2% of the poisoned descriptions that carry no keyword wrapper (the poisoning patterns alone: 23.7%), and the new checks flag 1 of MCPTox's 353 real tools; that clean set and 640 of 855 real descriptions also checked informed the design, and 0 of the other 215, held out, were flagged ([docs/poisoning.md](docs/poisoning.md#cross-tool-delegation-deleg-001003))
 - **Project-level config scan** — `scan --project <dir>` walks a cloned repo for project-level MCP config files and emits `TRUST-001` (HIGH) before you click "Trust this folder" in your AI editor (Adversa TrustFall / CVE-2026-30615); also flags repo-planted IDE auto-execution files — `.vscode/tasks.json` tasks that run on folder open and command-bearing `.vscode/settings.json` keys (`TRUST-003`, HIGH/CRITICAL) — the persistence mechanism used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026); and other harnesses' auto-run files — Gemini CLI hooks and `.gemini/.env`, Codex `config.toml`/`hooks.json` (`notify`, `approval_policy = "never"`, `danger-full-access`, hooks), Claude Code scheduled tasks and workflows (`TRUST-008`); and project settings whose `env` sends API traffic to another host (`CFHYG-007`, CVE-2026-21852). A plain `scan`/`check` reads the `TRUST-003` and `TRUST-008` files at the root of the folder it runs in. See [`docs/agent-execution-surface.md`](docs/agent-execution-surface.md)
 - **SAST rule pack** — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
@@ -501,7 +501,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-10,645 tests validate detection accuracy and guard against regressions.
+10,674 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -733,7 +733,7 @@ git clone https://github.com/adudley78/credenzo.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 10,645 tests
+uv run pytest                        # Run all 10,674 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

@@ -30,6 +30,7 @@ from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
 from mcp_audit.lock import guardrail_section, tool_digests, tool_text
+from mcp_audit.lock.core import index_locked_entries, match_key
 from mcp_audit.lock.identity import launch_carries_secret
 from mcp_audit.lock.model import LOCK_FILENAME
 from mcp_audit.lock.verifier import render_pr_comment, servers_to_connect
@@ -143,6 +144,77 @@ def _sdk_problem() -> str | None:
     return None
 
 
+def _withhold_copies(
+    servers: list[ServerConfig],
+    enumerations: dict[tuple[str, str], ServerEnumeration],
+    existing_doc: dict | None,
+    root: Path,
+    *,
+    withhold: bool = True,
+) -> tuple[list[tuple[str, str, str, str]], list[str]]:
+    """Take each new tool that copies an approved tool out of *enumerations*.
+
+    The lock that exists says which tools the user approved before.  A tool
+    that is not in it and carries the description of an approved tool of
+    another server is a copy (see ``collision.copies_of_approved_tools``).  A
+    tool that is not recorded is not approved, so ``lock --verify --connect``
+    reports it (LOCK-006) and ``run --mode enforce`` withholds it.
+
+    With no earlier tool record there is no order, so nothing is taken out.
+    With ``withhold=False`` (``--allow-copies``) the copies are returned and
+    stay in *enumerations*, so the command can list what it allowed.
+    When the work budget ran out, a new tool that was not compared is not
+    approved either (the original tool of those rows is ``""``).
+
+    Returns:
+        ``(server key, tool, original server key, original tool)`` for each
+        tool taken out, and the lines for bounds that left comparisons out.
+    """
+    from mcp_audit.analyzers.collision import (  # noqa: PLC0415
+        copies_of_approved_tools,
+    )
+
+    section = (existing_doc or {}).get(tool_digests.TOOLS_KEY)
+    if not tool_digests.is_owned(section) or not tool_digests.checksum_ok(section):
+        return [], []
+    recorded: dict = section.get("servers") or {}
+    # The lock entry of a server is found by (config file, name), as verify
+    # finds it.  The key `<client>/<name>` is not enough: a second config
+    # file can hold a server with the same client label and name, and that
+    # entry must not inherit the first one's approvals.
+    locked = index_locked_entries((existing_doc or {}).get("servers") or {})
+
+    def is_approved(server: ServerConfig, tool: str) -> bool:
+        match = match_key(server.config_path, root, server.name)
+        entry = locked.get(match) if match is not None else None
+        if entry is None:
+            return False
+        return tool in (recorded.get(entry[0]) or {}).get("tools", {})
+
+    pairs = [(s, enumerations[tool_digests.enumeration_key(s)]) for s in servers]
+    notes: list[str] = []
+    files: dict[str, set[str]] = {}
+    for server in servers:
+        files.setdefault(server_key(server), set()).add(str(server.config_path))
+    for key, paths in sorted(files.items()):
+        if len(paths) > 1:
+            notes.append(
+                f"{key} is in {len(paths)} config files; the lock holds one record"
+                " for that name, and only the entry that it held before counts"
+                " as approved"
+            )
+    copies = copies_of_approved_tools(pairs, is_approved, notes)
+    drop = {(id(server), tool) for server, tool, _, _ in copies} if withhold else set()
+    for server, enumeration in pairs:
+        kept = [t for t in enumeration.tools if (id(server), t.name) not in drop]
+        if len(kept) != len(enumeration.tools):
+            enumeration.tools = kept
+    return [
+        (server_key(server), tool, server_key(original), original_tool)
+        for server, tool, original, original_tool in copies
+    ], notes
+
+
 def _enumerate_tools(
     servers: list[ServerConfig], auth_token: str | None
 ) -> dict[tuple[str, str], ServerEnumeration]:
@@ -228,6 +300,16 @@ def lock(
             "mcp extra."
         ),
     ),
+    allow_copies: bool = typer.Option(  # noqa: B008
+        False,
+        "--allow-copies",
+        help=(
+            "With --connect: also record a new tool that carries the "
+            "description of a tool of another server that the lock held "
+            "before. By default such a tool is left out of the lock, so `run "
+            "--mode enforce` withholds it."
+        ),
+    ),
     connect_token: str | None = typer.Option(  # noqa: B008
         None,
         "--connect-token",
@@ -294,6 +376,9 @@ def lock(
             "[red]Error:[/red] --save-tool-text and --tool-text-path need --connect."
         )
         raise typer.Exit(2)
+    if allow_copies and not connect:
+        console.print("[red]Error:[/red] --allow-copies needs --connect.")
+        raise typer.Exit(2)
     if save_tool_text and verify:
         console.print(
             "[red]Error:[/red] --save-tool-text writes; it cannot be used "
@@ -334,6 +419,7 @@ def lock(
         accept=accept,
         connect=connect,
         connect_token=connect_token,
+        allow_copies=allow_copies,
         tool_text_file=text_path if save_tool_text else None,
     )
 
@@ -348,6 +434,7 @@ def _run_write(
     accept: bool,
     connect: bool = False,
     connect_token: str | None = None,
+    allow_copies: bool = False,
     tool_text_file: Path | None = None,
 ) -> None:
     """Handle plain ``lock`` and ``lock --accept`` (same regeneration)."""
@@ -378,6 +465,8 @@ def _run_write(
 
     tool_records: dict[str, dict] | None = None
     tool_failures: list[tuple[str, str]] = []
+    withheld_copies: list[tuple[str, str, str, str]] = []
+    copy_notes: list[str] = []
     text_records: dict[str, dict] = {}
     discarded = False
     if connect:
@@ -388,6 +477,9 @@ def _run_write(
             raise typer.Exit(2) from None
         discarded = tools_tampered(existing_doc)
         enumerations = _enumerate_tools(servers, connect_token)
+        withheld_copies, copy_notes = _withhold_copies(
+            servers, enumerations, existing_doc, root, withhold=not allow_copies
+        )
         tool_records = {}
         for server in servers:
             enumeration = enumerations[tool_digests.enumeration_key(server)]
@@ -395,9 +487,13 @@ def _run_write(
             if problem:
                 tool_failures.append((server_key(server), problem))
                 continue
-            tool_records[server_key(server)] = tool_digests.server_record(
-                enumeration.tools
-            )
+            record = tool_digests.server_record(enumeration.tools)
+            earlier = tool_records.get(server_key(server))
+            if earlier is not None:
+                # Two config files give one key.  Keep the tools of both
+                # entries; an entry with no tool left must not wipe the other.
+                record = {"tools": {**record["tools"], **earlier["tools"]}}
+            tool_records[server_key(server)] = record
             text_records[server_key(server)] = tool_text.server_text(enumeration.tools)
 
     registry = None if offline else _load_registry(registry_path, console)
@@ -466,6 +562,38 @@ def _run_write(
             f"Tool definitions recorded for {len(tool_records or {})} of "
             f"{len(servers)} server(s)."
         )
+        for key, tool, original_key, original_tool in withheld_copies:
+            if allow_copies:
+                console.print(
+                    f"[yellow]COPY ALLOWED[/yellow] {key}: new tool "
+                    f"'{escape(tool)}'"
+                    + (
+                        f" carries the description of '{escape(original_tool)}' "
+                        f"({original_key}). "
+                        if original_tool
+                        else " was not compared with the approved tools. "
+                    )
+                    + "It is recorded because of --allow-copies."
+                )
+                continue
+            if not original_tool:
+                console.print(
+                    f"[red]NOT APPROVED[/red] {key}: new tool '{escape(tool)}' "
+                    "was not compared with the tools that the lock holds (the "
+                    "servers list too much tool text). It is not in the lock. "
+                    "Lock again with --allow-copies if you expect it."
+                )
+                continue
+            console.print(
+                f"[red]NOT APPROVED[/red] {key}: tool '{escape(tool)}' is new and "
+                f"carries the description of '{escape(original_tool)}' "
+                f"({original_key}), a tool that the lock held before. It is not "
+                "in the lock, so `credenzo run --mode enforce` withholds it. "
+                "Remove the server, or lock again with --allow-copies if you "
+                "expect this tool."
+            )
+        for note in copy_notes:
+            console.print(f"[yellow]WARN[/yellow] {escape(note)}")
         for key, problem in tool_failures:
             kept = " (kept the previous record)" if key in recorded else ""
             console.print(

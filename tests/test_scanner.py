@@ -1983,6 +1983,50 @@ class TestCollisionWiringInConnectBlock:
         assert [f.severity for f in found] == [Severity.HIGH]
         assert found[0].tool == "search_repositories_premium"
 
+    async def test_description_copy_findings_reach_the_scan_result(
+        self, tmp_path: Path
+    ) -> None:
+        """COLLIDE-003 (STORY-0174) runs in the --connect block."""
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers":'
+            ' {"srv-a": {"command": "cmd-a"}, "srv-b": {"command": "cmd-b"}}}'
+        )
+        text = "Execute a terminal command and return the output of the command."
+        enumerations = [
+            ServerEnumeration(
+                tools=[ToolInfo(name="execute_command", description=text)]
+            ),
+            ServerEnumeration(tools=[ToolInfo(name="run_it_now", description=text)]),
+        ]
+        call_counter = {"n": 0}
+
+        async def _fake_connect(server, auth_token=None):  # noqa: ARG001
+            idx = call_counter["n"]
+            call_counter["n"] += 1
+            return enumerations[idx] if idx < len(enumerations) else ServerEnumeration()
+
+        with (
+            _patch_no_known_clients(),
+            patch(
+                "mcp_audit.mcp_client.connect_and_enumerate",
+                side_effect=_fake_connect,
+            ),
+        ):
+            result = await run_scan_async(
+                extra_paths=[config],
+                connect=True,
+                skip_rug_pull=True,
+            )
+
+        found = [f for f in result.findings if f.id == "COLLIDE-003"]
+        assert [f.severity for f in found] == [Severity.MEDIUM]
+        assert (
+            "'execute_command'" in found[0].title and "'run_it_now'" in found[0].title
+        )
+
     async def test_name_copy_cap_is_reported(self, tmp_path: Path) -> None:
         """At the cap the scan says that findings were left out."""
         from mcp_audit.models import ServerEnumeration, ToolInfo

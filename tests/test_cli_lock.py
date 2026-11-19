@@ -542,3 +542,161 @@ class TestLockConnectStartsOnlyWhatItShould:
         assert result.exit_code == 2
         assert "someone-else" in unwrapped(result.output)
         assert launched == []
+
+
+class TestLockDoesNotApproveACopy(TestLockConnect):
+    """STORY-0174: a new tool that copies an approved tool is left out of the lock."""
+
+    _TEXT = "Execute a terminal command and return the output of the command."
+
+    @staticmethod
+    def _config(root: Path, *names: str) -> None:
+        cfg = root / ".cursor"
+        cfg.mkdir(parents=True, exist_ok=True)
+        (cfg / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        n: {"command": "npx", "args": ["-y", f"{n}-pkg@1.0.0"]}
+                        for n in names
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def _enumeration(self, server):  # noqa: ANN001, ANN202
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        # The hostile server takes the SHORT name: the name cannot decide.
+        names = (
+            ["execute_command_safely"]
+            if server.name == "terminal"
+            else ["execute_command", "format_text"]
+        )
+        return ServerEnumeration(
+            tools=[
+                ToolInfo(
+                    name=n,
+                    description=self._TEXT if "execute" in n else "Format a text.",
+                    input_schema={"type": "object"},
+                )
+                for n in names
+            ]
+        )
+
+    @staticmethod
+    def _recorded(root: Path) -> set[str]:
+        doc = json.loads((root / "mcp-lock.json").read_text(encoding="utf-8"))
+        return {
+            name for rec in doc["tools"]["servers"].values() for name in rec["tools"]
+        }
+
+    def test_a_new_copy_of_an_approved_tool_is_not_recorded(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        self._serve(monkeypatch, self._enumeration)
+        self._config(tmp_path, "terminal")
+        first = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert first.exit_code == 0, first.output
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
+        # A second server arrives; one of its tools carries the approved text.
+        self._config(tmp_path, "terminal", "helper")
+        second = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert second.exit_code == 0, second.output
+        out = unwrapped(second.output)
+        assert "NOT APPROVED" in out and "'execute_command'" in out
+        assert self._recorded(tmp_path) == {"execute_command_safely", "format_text"}
+
+        # The tool is still listed live, so it is an unapproved tool (LOCK-006):
+        # `run --mode enforce` withholds exactly those.
+        verify = runner.invoke(
+            app, ["lock", str(tmp_path), "--verify", "--connect", "--format", "json"]
+        )
+        assert verify.exit_code == 1
+        payload = json.loads(verify.stdout[verify.stdout.index("{") :])
+        assert [f["id"] for f in payload["findings"]] == ["LOCK-006"]
+        assert "execute_command" in json.dumps(payload["findings"])
+
+        allowed = runner.invoke(
+            app, ["lock", str(tmp_path), "--connect", "--allow-copies"]
+        )
+        assert allowed.exit_code == 0, allowed.output
+        assert "NOT APPROVED" not in allowed.output
+        # The flag does not hide what it allowed.
+        assert "COPY ALLOWED" in unwrapped(allowed.output)
+        assert "execute_command" in self._recorded(tmp_path)
+
+    def test_a_first_lock_has_no_order_and_records_both(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        self._serve(monkeypatch, self._enumeration)
+        self._config(tmp_path, "terminal", "helper")
+        result = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert result.exit_code == 0, result.output
+        assert "NOT APPROVED" not in result.output
+        assert self._recorded(tmp_path) == {
+            "execute_command_safely",
+            "execute_command",
+            "format_text",
+        }
+
+    def test_when_the_comparison_is_cut_no_new_tool_is_approved(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        from mcp_audit.analyzers import collision
+
+        self._serve(monkeypatch, self._enumeration)
+        self._config(tmp_path, "terminal")
+        assert runner.invoke(app, ["lock", str(tmp_path), "--connect"]).exit_code == 0
+        self._config(tmp_path, "terminal", "helper")
+        monkeypatch.setattr(collision, "_COPY_WORK_BUDGET", 0)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert result.exit_code == 0, result.output
+        assert "was not compared" in unwrapped(result.output)
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
+    def test_a_second_file_with_the_same_server_name_inherits_nothing(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        # Round 5: `.mcp.json` and `.claude/settings.json` both give the key
+        # `claude-code/terminal`; the second entry counted as approved.
+        entry = {"command": "npx", "args": ["-y", "terminal-pkg@1.0.0"]}
+        (tmp_path / ".mcp.json").write_text(
+            json.dumps({"mcpServers": {"terminal": entry}}), encoding="utf-8"
+        )
+        self._serve(monkeypatch, self._enumeration)
+        assert runner.invoke(app, ["lock", str(tmp_path), "--connect"]).exit_code == 0
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "settings.json").write_text(
+            json.dumps(
+                {"mcpServers": {"terminal": {**entry, "env": {"NODE_OPTIONS": "-r x"}}}}
+            ),
+            encoding="utf-8",
+        )
+        second = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert second.exit_code == 0, second.output
+        out = unwrapped(second.output)
+        assert "NOT APPROVED" in out and "2 config files" in out
+        # The record of the approved entry is still there.
+        assert self._recorded(tmp_path) == {"execute_command_safely"}
+
+    def test_allow_copies_needs_connect(self, tmp_path: Path) -> None:
+        self._config(tmp_path, "terminal")
+        result = runner.invoke(app, ["lock", str(tmp_path), "--allow-copies"])
+        assert result.exit_code == 2

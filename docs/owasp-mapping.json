@@ -1300,6 +1300,19 @@
       "notes": "Requires --connect. A tool name is another server's tool name of two or more words plus only decoration words: HIGH when each added word only praises ('best', 'premium', 'enhanced') and stands before or after the whole name, MEDIUM when one has an honest use ('secure', 'v2') or stands inside the name ('get_best_price'). MEDIUM also when two servers list the same words in another spelling (searchEmails / search-emails). Names only; 100 findings a scan at most, HIGH first. Shape from the Tool Shadowing, Function Overlapping and Preference Manipulation cases of MCP-SafetyBench (arXiv 2512.15163); in-sample there. Control: 21 of 5,000 random five-server sessions of HISTOR's tool names get a MEDIUM finding, 0 a HIGH (the word list was cut with this control in view). CWE-694. STORY-0173."
     },
     {
+      "finding_id": "COLLIDE-003",
+      "finding_title": "Two tools on two servers carry one description",
+      "owasp_codes": [
+        "MCP03",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Shadow MCP Servers"
+      ],
+      "notes": "Requires --connect. One tool's description holds the description of a tool on another server (other name). MEDIUM: the fact is the same for an attack and for an honest duplicate, and the text does not show which tool was first, so the finding names both. Nothing that a server chooses changes the severity. No word list. 0 findings in 5,000 random five-server sessions of real descriptions. lock --connect does not approve a new tool that carries the description of a tool the lock held before. CWE-694. STORY-0174."
+    },
+    {
       "finding_id": "ANNOT-001",
       "finding_title": "Tool annotation contradicts the tool's own input schema",
       "owasp_codes": [
