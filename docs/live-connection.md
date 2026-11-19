@@ -107,6 +107,9 @@ agent sends. Until STORY-0177 Credenzo connected with that default.
   scope) is now asked as Claude Code. The identity is the one a live Claude
   Code 2.1.328 session sent on 2026-11-19: name `claude-code`, title
   `Claude Code`, version `2.1.328`.
+- The rule goes by the client that Credenzo found the file for. A file named
+  with `scan --path` has the client `custom`, also when it is a `.mcp.json`:
+  it keeps the SDK default. Use `--identify-as claude-code@2.1.328` there.
 - A server from any other client's config keeps the SDK default. The names
   that other clients send are not verified here. A wrong guess would make
   `lock --connect` record tools that the real client never sees.

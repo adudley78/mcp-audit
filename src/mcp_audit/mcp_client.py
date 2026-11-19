@@ -210,7 +210,7 @@ CLAUDE_CODE_IDENTITY: dict[str, str] = {
 #: ``--identify-as``: the identity every connection of this process uses.
 _identity_override: dict[str, str] | None = None
 
-_IDENTITY_TEXT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._+/-]{0,99}$")
+_IDENTITY_TEXT = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._+/-]{0,99}")
 
 
 def set_connect_identity(spec: str | None) -> None:
@@ -227,9 +227,10 @@ def set_connect_identity(spec: str | None) -> None:
     if spec is None:
         _identity_override = None
         return
-    name, _, version = spec.partition("@")
-    version = version or "1.0.0"
-    if not _IDENTITY_TEXT.match(name) or not _IDENTITY_TEXT.match(version):
+    name, at, version = spec.partition("@")
+    if not at:
+        version = "1.0.0"
+    if not _IDENTITY_TEXT.fullmatch(name) or not _IDENTITY_TEXT.fullmatch(version):
         raise ValueError(
             "--identify-as takes NAME or NAME@VERSION (letters, digits, space "
             "and . _ + / -; at most 100 characters each)"
@@ -264,6 +265,9 @@ def _session_class(client_session_cls: Any, server: ServerConfig) -> Any:
     if identity is None:
         return client_session_cls
     try:
+        if "client_info" not in inspect.signature(client_session_cls).parameters:
+            # An SDK whose session takes no identity: connect as before.
+            return client_session_cls
         from mcp.types import Implementation  # type: ignore[import-untyped]
 
         info = Implementation(**identity)
