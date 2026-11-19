@@ -528,7 +528,8 @@ def detect_description_copies(
     by_first: dict[str, list[_Described]] = {}
     for tool in tools:
         if tool.long and tool.long_words >= _MIN_COPIED_WORDS:
-            owners = by_long.setdefault(tool.long[0], [])
+            # The longest sentence says most about which tool this is.
+            owners = by_long.setdefault(max(tool.long, key=len), [])
             if len(owners) < _MAX_OWNERS_PER_SENTENCE:
                 owners.append(tool)
         if tool.all and tool.words >= _MIN_COPIED_WORDS_WITH_NAME:
@@ -543,6 +544,8 @@ def detect_description_copies(
 
     def record(a: _Described, b: _Described, long_copy: bool) -> None:
         """Add the pair once, on the tool that is the copy."""
+        if b.words - a.words >= _ADDED_WORDS:
+            return  # b holds a's text and more: seen with the roles the other way
         added = a.words - b.words >= _ADDED_WORDS
         if _is_name_plus_words(a.name, b.name):
             copy, original, bucket = a, b, high
