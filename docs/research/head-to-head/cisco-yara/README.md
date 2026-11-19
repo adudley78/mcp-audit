@@ -35,6 +35,9 @@ input schema), or the added text of each changed field in HISTOR's record, as
 | HISTOR: servers flagged | 389 | 2,889 |
 | HISTOR: changes flagged at HIGH or above (each vendor's own scale) | 46 | 3,259 |
 
+Before any correction made with this record in view, Credenzo flagged 784
+changes (STORY-0169). That is the like-for-like number against Cisco's 3,435.
+
 On real changes, a flag is almost never an attack. In Credenzo's labelled set
 (280 flagged rows, STORY-0169) 0 are malicious. In a random sample of 150
 texts that Cisco's rules flagged, 0 are malicious, 146 are honest and 4 steer
@@ -50,9 +53,10 @@ the agent (`labels.json`). Honest text that Cisco's rules flag: the word
   and Credenzo did not. Before them Credenzo flagged 30 of 154 on
   MCP-SafetyBench, fewer than Cisco's 36, and 124 of 485 on MCPTox. No public
   attack set remains that Credenzo has not been tuned on.
-- **The HISTOR numbers are independent.** No check of either tool was written
-  from HISTOR's flagged rows before STORY-0169, and POISON-080..082 added 2
-  flagged changes there.
+- **The HISTOR numbers are not independent now.** They were on the first run
+  (Credenzo 784). STORY-0170 and STORY-0171 then corrected Credenzo's checks
+  with HISTOR's flagged rows in view, and that took it to 487. Cisco's rules
+  had no such correction. The like-for-like number is 784 and 3,435.
 - **The scopes differ.** Cisco's rules also name risky capabilities (code
   execution, SQL injection strings, script injection). Credenzo's POISON-*
   checks look for text that attacks the agent. A flag on "this tool runs a
