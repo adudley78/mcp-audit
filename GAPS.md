@@ -2539,6 +2539,32 @@ a ClawHub-side matter and not checked.
 - **Calls before listing.** Enforce mode denies a `tools/call` for any tool a
   checked `tools/list` hasn't shown yet. Real clients list first; a client
   that calls a tool by a remembered name without listing gets an error.
+- **Six fields are compared.** The lock holds digests of `name`, `title`,
+  `description`, `inputSchema`, `outputSchema` and `annotations`. Each other
+  key of a tool (`_meta`, `icons`, a key outside the MCP specification) is not
+  in the digest. `lock --verify --connect` does not report a change to such a
+  key, and enforce mode forwards the key of an approved tool as the server
+  sent it. A client that shows such a key to the model gives the server a
+  place for text that Credenzo does not check. The stable lock format
+  (`docs/lock-format.md`) does not let the digest change, so this needs a new
+  optional field in the lock, not a change to `definition`.
+- **A tool list is read in one place.** Enforce mode checks `result.tools` of
+  an answer (and empties it in a batch). It does not read a `tools` key in
+  another place: a `result` that is a list, `error.data`, the `params` of a
+  notification. No MCP client is known to read a tool list from those places.
+- **Enforce mode drops server lines that are not JSON-RPC text.** A server
+  that writes log lines to stdout loses them in enforce mode, with one line
+  on stderr. The same holds for a line that Python does not read as JSON (a
+  number of more than 4,300 digits, one key twice in an object) and for a
+  line of more than 64 MiB. Monitor mode changes no byte.
+- **Large client lines are not read.** A line of more than 64 MiB from the
+  client goes to the server unread, so a `tools/call` in it is not checked.
+  The client is the agent host, which Credenzo trusts; the model does not
+  choose how the host frames a call.
+- **Client lines are read by one parser.** A client line that holds one key
+  twice is read as Python reads it (the last value). A server that takes the
+  first value could run a `tools/call` that Credenzo read as another method.
+  Only the agent host can write such a line.
 
 ## Guard hooks that will never run (HOOK-004/005, analyzers/hook_runnable.py — STORY-0156)
 

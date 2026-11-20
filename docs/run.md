@@ -182,6 +182,16 @@ client the answer with no tools and writes one line to stderr. It does not
 forward an answer that it did not check. An entry of the list that is not an
 object is not forwarded in enforce mode.
 
+The lock compares six fields of a tool: `name`, `title`, `description`,
+`inputSchema`, `outputSchema` and `annotations`. A tool is also withheld when
+one of these fields has the wrong type: a `name`, `title` or `description`
+that is not text, or a schema or `annotations` that is not an object. The
+digest does not read such a field, so the field could hold text that the lock
+never saw. The finding is `LOCK-007` when the lock holds the name and
+`LOCK-006` when it does not. Each other key of an approved tool (`_meta`,
+`icons`, a key that the MCP specification does not define) goes to the client
+as the server sent it. The lock does not compare these keys.
+
 In enforce mode the client gets only what Credenzo read:
 
 - A line from the server that Credenzo cannot read as JSON is not forwarded.
@@ -198,7 +208,12 @@ In enforce mode the client gets only what Credenzo read:
   since protocol 2025-06-18.
 - A line of more than 64 MiB from the server is not forwarded.
 
-Lines from the client to the server are not changed by these rules.
+Lines from the client to the server are not changed by these rules. Enforce
+mode stops a `tools/call` to a tool that is not approved in three forms: a
+request (the client gets an error), a message with no `id` (dropped; no
+answer is due), and a call inside a batch (the batch is not forwarded, and
+each request in it gets an error). A line of more than 64 MiB from the client
+is forwarded and not read.
 
 "Withheld" means two things in enforce mode:
 
