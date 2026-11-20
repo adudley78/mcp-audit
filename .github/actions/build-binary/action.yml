@@ -102,6 +102,11 @@ runs:
       shell: bash
       env:
         PYTHON_VERSION: ${{ inputs.python-version }}
+        # `uv python install` downloads CPython: the same limits as the
+        # dependency step below, for the same reason.
+        UV_HTTP_TIMEOUT: "120"
+        UV_HTTP_CONNECT_TIMEOUT: "30"
+        UV_HTTP_RETRIES: "8"
       run: |
         set -euo pipefail
         # The value goes into the environment file of the job. Accept only a

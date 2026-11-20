@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Binary build: a runner that cannot reach the package index for a minute no longer fails the build.** The build step waited 10 seconds for a connection to pypi.org and tried a request 3 more times, 54 seconds in all. On 2026-11-20 a macOS runner failed this way on `main`. The step now waits 30 seconds for a connection and tries a request 8 more times. The same step builds the release binaries.
+- **Binary build: a runner that cannot reach the package index for a minute no longer fails the build.** The build step waited 10 seconds for a connection to pypi.org and tried a request 3 more times, 54 seconds in all. On 2026-11-20 a macOS runner failed this way on `main`. The step now waits 30 seconds for a connection and tries a request 8 more times, and the step that downloads CPython has the same limits. The same steps build the release binaries.
 
 ### Documentation
 

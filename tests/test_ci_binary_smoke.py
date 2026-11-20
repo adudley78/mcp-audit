@@ -284,6 +284,10 @@ def test_dependency_install_waits_longer_for_a_slow_download() -> None:
     # A runner that cannot connect to the index for a minute (2026-11-20).
     assert step["env"]["UV_HTTP_CONNECT_TIMEOUT"] == "30"
     assert step["env"]["UV_HTTP_RETRIES"] == "8"
+    # `uv python install` downloads CPython and gets the same limits.
+    python = _action_step("Set up Python")
+    for name in ("UV_HTTP_TIMEOUT", "UV_HTTP_CONNECT_TIMEOUT", "UV_HTTP_RETRIES"):
+        assert python["env"][name] == step["env"][name], name
     assert step["run"] == "uv sync --all-extras --locked"
 
 
