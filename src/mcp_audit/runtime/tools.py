@@ -41,9 +41,17 @@ a change: it is approved and nothing is reported.
 added and changed tools are judged page by page, removed tools once the
 last page (no ``nextCursor``) has arrived.
 
+A tool that cannot be digested (its definition is past the limits of the
+canonical form: 64 levels, 100,000 nodes) cannot equal a lock record, so it
+is LOCK-006 when the lock does not hold its name and LOCK-007 when it does.
+When a ``tools/list`` answer cannot be checked at all, enforce mode withholds
+every tool in that answer and says so; it never forwards an answer that it
+did not check.
+
 Only lines that parse as JSON-RPC objects are inspected; anything else
 passes untouched. Enforce mode rewrites a ``tools/list`` response only when
-it withholds something, so an unchanged server's bytes are relayed exactly.
+it withholds something (a tool, or an entry of the list that is not an
+object), so an unchanged server's bytes are relayed exactly.
 """
 
 from __future__ import annotations
@@ -170,7 +178,12 @@ class ToolGuard:
     # ── server → client ────────────────────────────────────────────────────
 
     def server_line(self, line: bytes) -> bytes:
-        """Inspect one server line; return what the client should receive."""
+        """Inspect one server line; return what the client should receive.
+
+        Never raises on a ``tools/list`` answer. An answer that cannot be
+        checked is not forwarded in enforce mode: the client gets the answer
+        with no tools.
+        """
         msg = _parse(line)
         if msg is None or "id" not in msg or "result" not in msg:
             return line
@@ -182,21 +195,57 @@ class ToolGuard:
         tools = result.get("tools") if isinstance(result, dict) else None
         if not isinstance(tools, list):
             return line
-        return self._check_page(msg, result, tools, new_listing=new_listing, raw=line)
+        try:
+            return self._check_page(
+                msg, result, tools, new_listing=new_listing, raw=line
+            )
+        except Exception as exc:  # noqa: BLE001 - fail closed, keep the session
+            return self._unchecked_page(msg, result, tools, exc, raw=line)
+
+    def _unchecked_page(
+        self, msg: dict, result: dict, tools: list, exc: Exception, *, raw: bytes
+    ) -> bytes:
+        """Handle a ``tools/list`` answer that could not be checked."""
+        names = {str(t.get("name", "")) for t in tools if isinstance(t, dict)}
+        why = f"the tool list could not be checked ({type(exc).__name__})"
+        server = repr(self.server_name)
+        if not self.enforce:
+            self._report(
+                f"monitor: server {server}: {why} (enforce mode would withhold "
+                "every tool in this answer)"
+            )
+            return raw
+        with self._lock:
+            self.approved.difference_update(names)
+            self._approved_now.difference_update(names)
+        self._report(
+            f"withheld: server {server}: {why}; every tool in this answer is "
+            "withheld. Fix: run `credenzo lock --verify --connect` to see the tool"
+        )
+        filtered = dict(msg)
+        filtered["result"] = {**result, "tools": []}
+        return (
+            json.dumps(filtered, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
+            + b"\n"
+        )
 
     def _check_page(
         self, msg: dict, result: dict, tools: list, *, new_listing: bool, raw: bytes
     ) -> bytes:
         valid = [t for t in tools if isinstance(t, dict)]
-        definitions = [wire_definition(t) for t in valid]
         day = self._today()
-        current = digests_of_definitions(definitions, day=day)
-        # The same tools as a lock written under mcp SDK 2.x digests them
-        # (non-spec annotation keys dropped); a match in either form counts.
-        spec_only = digests_of_definitions(
-            [wire_definition(t, spec_annotations_only=True) for t in valid],
-            day=day,
-        )
+        undigested: set[str] = set()
+        try:
+            definitions, current, spec_only = _digests(valid, day)
+        except ValueError:  # CanonicalError: nested too deeply, or too large
+            # A tool that cannot be digested cannot equal a lock record.
+            undigested = {
+                str(t.get("name", "")) for t in valid if not _digestable(t, day)
+            }
+            valid = [t for t in valid if str(t.get("name", "")) not in undigested]
+            definitions, current, spec_only = _digests(valid, day)
         last_page = not result.get("nextCursor")
 
         with self._lock:
@@ -205,8 +254,9 @@ class ToolGuard:
                 self._withheld_now = {}
                 self._approved_now = set()
             self._seen.update(current)
+            self._seen.update(undigested)
             if self.record is None:
-                page_withheld = dict.fromkeys(current, "RUN-003")
+                page_withheld = dict.fromkeys([*current, *undigested], "RUN-003")
                 diff = None
             else:
                 diff = compare(self.record, current)
@@ -219,6 +269,10 @@ class ToolGuard:
                 page_withheld = dict.fromkeys(diff.added, "LOCK-006")
                 page_withheld.update(dict.fromkeys(diff.contract_changed, "LOCK-007"))
                 page_withheld.update(dict.fromkeys(diff.text_changed, "LOCK-008"))
+                locked = self.record.get("tools")
+                locked = locked if isinstance(locked, dict) else {}
+                for name in undigested:
+                    page_withheld[name] = "LOCK-007" if name in locked else "LOCK-006"
         if self.poison is not None:
             hits = self.poison.over_threshold(  # type: ignore[attr-defined]
                 [d for d in definitions if d["name"] not in page_withheld]
@@ -229,7 +283,8 @@ class ToolGuard:
 
         with self._lock:
             self._withheld_now.update(page_withheld)
-            page_approved = set(current) - set(page_withheld)
+            self._approved_now.difference_update(page_withheld)
+            page_approved = set(current) - set(self._withheld_now)
             self._approved_now.update(page_approved)
             removed: list[str] = []
             if last_page:
@@ -247,12 +302,14 @@ class ToolGuard:
 
         self._report_page(page_withheld, removed)
 
-        if not (self.enforce and page_withheld):
+        junk = any(not isinstance(t, dict) for t in tools)
+        if not (self.enforce and (page_withheld or junk)):
             return raw
+        # An entry that is not an object is not a tool: it is not forwarded.
         kept = [
             t
             for t in tools
-            if not (isinstance(t, dict) and str(t.get("name", "")) in page_withheld)
+            if isinstance(t, dict) and str(t.get("name", "")) not in page_withheld
         ]
         filtered = dict(msg)
         filtered["result"] = {**result, "tools": kept}
@@ -312,6 +369,29 @@ class ToolGuard:
         if self.enforce:
             return f"withheld: {head}. Fix: {fix}"
         return f"monitor: {head} (enforce mode would withhold them). Fix: {fix}"
+
+
+def _digests(valid: list[dict], day: str) -> tuple[list[dict], dict, dict]:
+    """Return the definitions of *valid* and their digests in both forms.
+
+    The second form is the tools as a lock written under mcp SDK 2.x digests
+    them (non-spec annotation keys dropped); a match in either form counts.
+    """
+    definitions = [wire_definition(t) for t in valid]
+    current = digests_of_definitions(definitions, day=day)
+    spec_only = digests_of_definitions(
+        [wire_definition(t, spec_annotations_only=True) for t in valid], day=day
+    )
+    return definitions, current, spec_only
+
+
+def _digestable(wire: dict, day: str) -> bool:
+    """Whether one tool, as it arrived, can be digested in both forms."""
+    try:
+        _digests([wire], day)
+    except ValueError:
+        return False
+    return True
 
 
 def _parse(line: bytes) -> dict | None:

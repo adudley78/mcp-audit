@@ -174,6 +174,14 @@ A tool whose text holds a date that moved with the calendar since the lock
 is not a change. It is approved and nothing is reported. The rule is in
 [lock.md](lock.md#tool-definitions---connect).
 
+A tool that cannot be digested cannot equal a lock record. Its definition is
+past the limits of the canonical form (64 levels, 100,000 nodes). It is
+`LOCK-006` when the lock does not hold its name and `LOCK-007` when it does.
+When a `tools/list` answer cannot be checked at all, enforce mode gives the
+client the answer with no tools and writes one line to stderr. It does not
+forward an answer that it did not check. An entry of the list that is not an
+object is not forwarded in enforce mode.
+
 "Withheld" means two things in enforce mode:
 
 - The tool is removed from the `tools/list` result the client sees, so the
