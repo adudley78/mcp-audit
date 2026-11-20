@@ -1,0 +1,86 @@
+name: 'Credenzo Team'
+description: 'Verify mcp-lock.json and send a drift alert (a GitHub issue, and a webhook message) when an MCP server or one of its tools changed without review.'
+author: 'Adam Dudley'
+
+branding:
+  icon: 'bell'
+  color: 'red'
+
+# Put `credenzo` on PATH first (the `adudley78/credenzo/setup-action` step, or
+# `pip install 'credenzo[mcp]'` when `connect` is true). This action runs
+# `credenzo lock --verify`; the result of that command is the result of the
+# step. Who gets alerts, and what leaves the runner: docs/team.md.
+
+inputs:
+  path:
+    description: 'Project root that holds mcp-lock.json.'
+    required: false
+    default: '.'
+  connect:
+    description: >
+      Also start each locked server and compare its tools with the lock
+      (`lock --verify --connect`). Use it on a schedule to see a server that
+      changed its tools with no commit. Needs `pip install 'credenzo[mcp]'`;
+      the release binary cannot connect.
+    required: false
+    default: 'false'
+  resolve:
+    description: 'Also compare each floating package version with the registry (`lock --verify --resolve`).'
+    required: false
+    default: 'false'
+  alert-issue:
+    description: >
+      Open one issue in this repository when the check fails, update it when
+      the findings change and close it when the check passes again. Needs
+      `issues: write` on the job.
+    required: false
+    default: 'true'
+  alert-webhook:
+    description: >
+      HTTPS URL that gets a JSON POST `{"text": "..."}` when the check fails
+      (a Slack incoming webhook accepts it). Pass it from a secret. With
+      alert-issue on, the message is sent once for each new set of findings.
+    required: false
+    default: ''
+  fail-on-drift:
+    description: 'Fail the step when the lock check reports drift.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token for the issue. Defaults to the workflow GITHUB_TOKEN.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  drift:
+    description: '"true" when the lock check did not pass.'
+    value: ${{ steps.team.outputs.drift }}
+  plan:
+    description: 'Why alerts are on or off: personal, public, licensed, preview, unchecked or unlicensed.'
+    value: ${{ steps.team.outputs.plan }}
+  alert:
+    description: 'What the action did about alerts in this run.'
+    value: ${{ steps.team.outputs.alert }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Verify the lock and send alerts
+      id: team
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_CONNECT: ${{ inputs.connect }}
+        INPUT_RESOLVE: ${{ inputs.resolve }}
+        INPUT_ALERT_ISSUE: ${{ inputs.alert-issue }}
+        INPUT_ALERT_WEBHOOK: ${{ inputs.alert-webhook }}
+        INPUT_FAIL_ON_DRIFT: ${{ inputs.fail-on-drift }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        TEAM_SCRIPT: ${{ github.action_path }}/credenzo_team.py
+      run: |
+        PYTHON=$(command -v python3 || command -v python || true)
+        if [ -z "$PYTHON" ]; then
+          echo "::error title=Credenzo Team::Python 3 is not on this runner."
+          exit 2
+        fi
+        "$PYTHON" -I "$TEAM_SCRIPT"

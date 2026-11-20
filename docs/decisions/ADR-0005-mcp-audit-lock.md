@@ -715,3 +715,22 @@ per-section rule. Practitioner detail is in `docs/lock.md` ("lock_version 2").
 - **Versioning.** The verifier accepts 1 and 2. A version-1 lock is verified exactly as before
   (pinned by `tests/test_lock_v2.py` against locks and outcomes recorded from the version-1 code);
   a version above 2 is refused, and `lock` will not overwrite it.
+
+
+## Amendment (2026-11-20): the format is frozen
+
+`EXPERIMENTAL` was meant to last one release (v0.17.0) and lasted until 0.34.0. From 0.35.0 the
+format is stable, and `docs/lock-format.md` holds the promises: Credenzo reads every `lock_version`
+that it ever wrote; a field keeps its name and meaning; a release adds optional fields and does not
+rename or remove one; a change that cannot be an addition gets a new `lock_version`.
+
+- **`section_digests` is the final name in `lock_version` 2.** The confirmation from the `trees`
+  producer that the STORY-0116 amendment waited for has not come (#88 was last active on
+  2026-10-27). A file format that other people commit cannot stay provisional for a name. If a
+  different name is agreed later, it ships as `lock_version` 3 and a version-2 lock keeps its name.
+- **Why now.** `credenzo run` and `credenzo guard` enforce the lock, and Credenzo Team
+  (`docs/team.md`) sends alerts from it. A team cannot build a control on a file whose shape may
+  change in a minor release.
+- **Held by tests.** `tests/fixtures/lock_v2_frozen/mcp-lock.json` (written by 0.34.0, never
+  rewritten) and `tests/test_lock_format_stability.py`, beside the version-1 corpus.
+

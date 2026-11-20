@@ -372,8 +372,8 @@ def lock(
     state instead (offline by default; ``--resolve`` also asks the registry).
     ``--accept`` re-writes the lock, preserving each surviving entry's
     ``first_locked`` — the explicit "I reviewed the drift" step after a
-    failed ``--verify``.  EXPERIMENTAL for one release: ``lock_version`` may
-    change before it is frozen. See docs/lock.md.
+    failed ``--verify``.  The file format is stable: a lock that verifies
+    today verifies with every later release. See docs/lock-format.md.
     """
     if verify and accept:
         console.print("[red]Error:[/red] --verify and --accept are mutually exclusive.")

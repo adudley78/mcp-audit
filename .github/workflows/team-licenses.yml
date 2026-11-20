@@ -1,0 +1,126 @@
+name: Team licence list
+
+# Twice an hour: read the Credenzo Team subscriptions from Stripe and publish
+# the licence list (`index.json`) to the `team-licenses` branch. The Team
+# action (`team/`) reads that file to decide whether an organization gets
+# drift alerts. Method and privacy: docs/team.md, scripts/team_licenses.py.
+#
+# Why a workflow and not a server: there is nothing to run, patch or pay for,
+# and a subscriber needs no key. They type their GitHub owner name at checkout
+# and the action works within the hour.
+#
+# The schedule does nothing until the repository variable TEAM_LICENSES_LIVE
+# is `true`. Set it when the Stripe payment link exists (docs/team.md,
+# "Opening subscriptions").
+#
+# Two jobs, split for the same reason as advisory-feed-publish.yml:
+#
+#   build:   contents: read. `environment: team-licenses` (restricted to
+#            `main`) holds the two secrets: STRIPE_API_KEY, a restricted key
+#            that can read Checkout Sessions and Subscriptions and nothing
+#            else, and TEAM_INDEX_SALT. Runs scripts/team_licenses.py, which
+#            uses the standard library only, so no package is installed.
+#   publish: contents: write. No secret, no repository code. It checks the
+#            file and replaces the branch with one commit that holds it.
+#
+# The log of this repository is public. Neither job prints a subscriber, a
+# count of subscribers or an amount.
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: team-licenses
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the licence list
+    if: github.event_name != 'schedule' || vars.TEAM_LICENSES_LIVE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: team-licenses
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read Stripe and write the list
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          TEAM_INDEX_SALT: ${{ secrets.TEAM_INDEX_SALT }}
+        run: python3 -I scripts/team_licenses.py --out out
+
+      - name: Hand the list to the publish job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: team-licenses
+          path: out/index.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish to the team-licenses branch
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Download the list
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: team-licenses
+          path: incoming
+
+      - name: Check and place the file
+        run: |
+          python3 -I - <<'PY'
+          import json, os, re, shutil, sys
+          src = "incoming/index.json"
+          if os.path.islink(src) or os.path.getsize(src) > 1024 * 1024:
+              sys.exit("index.json: not a plain file under 1 MiB")
+          data = json.load(open(src, encoding="utf-8"))
+          owners = data.get("owners") if isinstance(data, dict) else None
+          if (
+              data.get("schema_version") != 1
+              or set(data) != {"schema_version", "offer", "owners"}
+              or not isinstance(data.get("offer"), dict)
+              or not isinstance(owners, list)
+              or not owners
+              or len(owners) % 64
+              or owners != sorted(set(owners))
+              or not all(isinstance(o, str) and re.fullmatch(r"[0-9a-f]{64}", o) for o in owners)
+          ):
+              sys.exit("index.json: not the expected document")
+          shutil.copyfile(src, "index.json")
+          PY
+
+      - name: Commit and push
+        # One commit with no parent, pushed with --force: the branch holds
+        # the current list and no earlier one, so its history does not show
+        # when the list changed.
+        run: |
+          if git fetch -q --depth 1 origin team-licenses 2>/dev/null \
+            && git show FETCH_HEAD:index.json 2>/dev/null | cmp -s - index.json; then
+            echo "No change to publish."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan team-licenses-next
+          git rm -rfq --cached .
+          git add index.json
+          git commit -q -m "Team licence list"
+          git push -q --force origin team-licenses-next:team-licenses

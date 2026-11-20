@@ -1,2 +1,4 @@
 # Hash-pinned benchmark corpus: keep the bytes exact on every OS (no CRLF conversion).
 docs/research/head-to-head/corpus/** -text
+# A lock that 0.34.0 wrote, compared byte for byte (tests/test_lock_format_stability.py).
+tests/fixtures/lock_v2_frozen/** -text

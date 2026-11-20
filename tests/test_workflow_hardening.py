@@ -26,6 +26,7 @@ PUSHING_JOBS = {
     ("advisory-feed-publish.yml", "publish"),
     ("drift-index.yml", "publish"),
     ("release.yml", "tag-major"),
+    ("team-licenses.yml", "publish"),
 }
 
 

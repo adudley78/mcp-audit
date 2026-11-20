@@ -248,6 +248,7 @@ def test_dependabot_scans_every_composite() -> None:
     assert "/" in directories
     assert "/.github/actions/*" in directories
     assert "/setup-action" in directories
+    assert "/team" in directories
     assert "directory" not in actions_update
     assert actions_update["open-pull-requests-limit"] == 5
     group = actions_update["groups"]["github-actions"]
@@ -255,7 +256,11 @@ def test_dependabot_scans_every_composite() -> None:
     assert group["group-by"] == "dependency-name"
 
     # Every third-party-action composite is a scanned directory.
-    scanned_roots = {ROOT / ".github" / "actions", ROOT / "setup-action"}
+    scanned_roots = {
+        ROOT / ".github" / "actions",
+        ROOT / "setup-action",
+        ROOT / "team",
+    }
     for action_yml in ROOT.rglob("action.yml"):
         if "examples" in action_yml.parts or action_yml == ROOT / "action.yml":
             continue
