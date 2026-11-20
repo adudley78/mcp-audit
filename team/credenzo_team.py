@@ -639,6 +639,10 @@ def _alerts(
         )
     except OSError:
         print("::warning title=Credenzo Team::The step summary could not be written.")
+    if drift:
+        # The same text in the run log: a person who opens a failed step reads
+        # the log first. Each line starts with a word or "- ", never "::".
+        print(text)
 
     state = {"plan": "unchecked", "alert": "failed"}
     try:

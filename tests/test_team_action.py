@@ -330,6 +330,34 @@ def test_a_clean_lock_passes_and_sends_nothing(project: Path, tmp_path: Path) ->
 
 
 @needs_cli
+def test_drift_is_in_the_run_log_on_each_event(
+    project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A failed step with an empty log sends the reader to look for the reason."""
+    _drift(project)
+    net = Net(index=_index("acme"))
+    code, out = _run(project, tmp_path, net, event_name="pull_request")
+    assert code == 1
+    assert out["alert"] == "not on this event"
+    log = capsys.readouterr().out
+    assert "MCP lock drift in `acme/app`." in log
+    assert "LOCK-002 (HIGH)" in log
+    assert "credenzo lock --accept" in log
+    # The log holds the cleaned name, and no line is a workflow command.
+    assert "<!here>" not in log
+    assert not [line for line in log.splitlines() if line.lstrip().startswith("::")]
+
+
+@needs_cli
+def test_a_clean_lock_prints_no_drift_text(
+    project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, _ = _run(project, tmp_path, Net(index=_index("acme")))
+    assert code == 0
+    assert "MCP lock" not in capsys.readouterr().out
+
+
+@needs_cli
 def test_drift_opens_an_issue_and_sends_the_webhook(
     project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
