@@ -13,14 +13,18 @@ snapshots. For each such server:
 - ``added`` / ``removed``: tool names in only one snapshot.
 - ``definition_changed``: same name, different ``definition`` digest (any part
   of the tool changed, text included).
-- ``calendar_only``: same name, different ``definition`` digest, but the same
-  ``undated`` digest in both snapshots. The tool writes a date into its text
-  (an example query for "today"), so its digest is new each day with no change
-  by its author. These tools are not in ``definition_changed`` and do not make
-  a server ``changed``. A snapshot from before 2026-11-20 has no ``undated``
-  digests; a comparison with one counts such a tool as changed, as before.
-- ``contract_changed``: the subset whose ``contract`` digest changed too (name,
-  input schema or annotations; not only prose).
+- ``calendar_only``: same name, different ``definition`` digest, and the only
+  difference is that the dates in the text moved with the calendar (an example
+  query for "today"). The snapshot holds, for a tool whose text has ISO dates,
+  the digest of the text with the dates replaced (``undated``) and the dates
+  themselves (``dates``). A tool is ``calendar_only`` when ``undated`` is the
+  same in both snapshots and each date is the same, or moved by the number of
+  days between the two snapshots, or is the first day of a month and moved by
+  the number of months between them. A date that an author moved in another
+  way is a change. These tools are not in ``definition_changed`` or
+  ``contract_changed`` and do not make a server ``changed``; each one is
+  listed by name. A snapshot from before 2026-11-20 has no ``undated``
+  digests; a comparison with one counts such a tool as changed.
 - ``bumped``: the version string differs.
 
 Stdlib only, no network, no package code. Tool names are recorded; tool text
@@ -34,6 +38,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -62,8 +67,59 @@ def _connected_rows(snapshot: dict[str, Any]) -> dict[tuple[str, str], dict[str,
     return out
 
 
-def compare_row(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
-    """Compare one server's tools in two snapshots."""
+def _date(text: object) -> dt.date | None:
+    """Return *text* as a date when it is exactly ``YYYY-MM-DD``."""
+    if not isinstance(text, str) or len(text) != 10:
+        return None
+    try:
+        return dt.date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def moved_with_calendar(
+    old: dict[str, Any], new: dict[str, Any], day_old: dt.date, day_new: dt.date
+) -> bool:
+    """Whether a tool's only difference is that its dates followed the calendar.
+
+    *old* and *new* are the tool's records in two snapshots made on *day_old*
+    and *day_new*. True needs the same ``undated`` digest and, for each pair
+    of dates in order, one of: the same date; a move by the days between the
+    snapshots; two first days of a month, moved by the months between them.
+    """
+    undated = old.get("undated")
+    if not isinstance(undated, str) or not undated or undated != new.get("undated"):
+        return False
+    dates_old, dates_new = old.get("dates"), new.get("dates")
+    if not isinstance(dates_old, list) or not isinstance(dates_new, list):
+        return False
+    if not dates_old or len(dates_old) != len(dates_new):
+        return False
+    days = (day_new - day_old).days
+    months = (day_new.year - day_old.year) * 12 + day_new.month - day_old.month
+    for text_old, text_new in zip(dates_old, dates_new, strict=True):
+        a, b = _date(text_old), _date(text_new)
+        if a is None or b is None:
+            return False
+        if a == b or (b - a).days == days:
+            continue
+        if a.day == b.day == 1 and (b.year - a.year) * 12 + b.month - a.month == months:
+            continue
+        return False
+    return True
+
+
+def compare_row(
+    old: dict[str, Any],
+    new: dict[str, Any],
+    day_old: dt.date | None = None,
+    day_new: dt.date | None = None,
+) -> dict[str, Any]:
+    """Compare one server's tools in two snapshots.
+
+    *day_old* and *day_new* are the dates of the two snapshots. With no dates
+    no tool is ``calendar_only``.
+    """
     d_old: dict[str, dict[str, str]] = old["digests"]
     d_new: dict[str, dict[str, str]] = new["digests"]
     added = sorted(set(d_new) - set(d_old))
@@ -75,8 +131,9 @@ def compare_row(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
     calendar_only = [
         t
         for t in differs
-        if d_old[t].get("undated")
-        and d_old[t].get("undated") == d_new[t].get("undated")
+        if day_old is not None
+        and day_new is not None
+        and moved_with_calendar(d_old[t], d_new[t], day_old, day_new)
     ]
     definition_changed = [t for t in differs if t not in calendar_only]
     contract_changed = sorted(
@@ -125,8 +182,9 @@ def compare(older: dict[str, Any], newer: dict[str, Any]) -> dict[str, Any]:
     """Return the index record for the step from *older* to *newer*."""
     old_rows = _connected_rows(older)
     new_rows = _connected_rows(newer)
+    day_old, day_new = _date(older.get("label")), _date(newer.get("label"))
     rows = [
-        compare_row(old_rows[key], new_rows[key])
+        compare_row(old_rows[key], new_rows[key], day_old, day_new)
         for key in sorted(set(old_rows) & set(new_rows))
     ]
     by_type = {
@@ -148,8 +206,9 @@ def compare(older: dict[str, Any], newer: dict[str, Any]) -> dict[str, Any]:
             "date and started with no network and no credentials. A server is "
             "compared when it listed tools on both dates. A change is a tool "
             "added, removed, or with a different definition digest. A tool "
-            "whose definition differs only in a calendar date is not a change; "
-            "calendar_only counts the servers with only such tools."
+            "whose only difference is that its dates moved with the calendar "
+            "is not a change; calendar_only counts the servers whose only "
+            "differences are of that kind."
         ),
         "rows": [r for r in rows if r["changed"] or r["bumped"] or r["calendar_only"]],
     }

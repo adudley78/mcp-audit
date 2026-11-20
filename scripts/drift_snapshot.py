@@ -294,48 +294,66 @@ def remove_prefix(cfg: Settings, path: str) -> None:
         _run(cfg, ["rm", "-rf", "--", path])
 
 
-#: An ISO calendar date, with an optional time. A tool that writes today's date
-#: into its description (an example query, a "valid from" line) gets a new
-#: definition digest each day with no change by its author.
-_ISO_DATE = re.compile(
-    r"(?<![0-9])[0-9]{4}-[0-9]{2}-[0-9]{2}"
-    r"(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,9})?)?"
-    r"(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?"
-    r"(?![0-9])"
-)
+#: An ISO calendar date. A tool that writes the date of the day into its
+#: description (an example query for "today") gets a new definition digest each
+#: day with no change by its author.
+_ISO_DATE = re.compile(r"(?<![0-9])([0-9]{4})-([0-9]{2})-([0-9]{2})(?![0-9])")
+
+#: A tool with more dates than this gets no ``undated`` record.
+MAX_DATES = 200
 
 
-def without_dates(value: Any) -> Any:
-    """Return *value* with each ISO date in its strings replaced by one token.
+def without_dates(value: Any, found: list[str]) -> Any:
+    """Return *value* with each ISO date in its strings replaced by ``<date>``.
 
-    Keys are not changed. Only dates are replaced: no other text is treated as
-    the same, so a changed word still gives a changed digest.
+    Each date that is replaced is added to *found*, in a fixed order (keys
+    sorted). Text that is not a real date (``1111-22-33``, month 13) is not
+    replaced. Keys are not changed.
     """
     if isinstance(value, str):
-        return _ISO_DATE.sub("<date>", value)
+
+        def token(match: re.Match[str]) -> str:
+            try:
+                dt.date(int(match[1]), int(match[2]), int(match[3]))
+            except ValueError:
+                return match[0]
+            found.append(match[0])
+            return "<date>"
+
+        return _ISO_DATE.sub(token, value)
     if isinstance(value, list):
-        return [without_dates(item) for item in value]
+        return [without_dates(item, found) for item in value]
     if isinstance(value, dict):
-        return {key: without_dates(item) for key, item in value.items()}
+        return {key: without_dates(value[key], found) for key in sorted(value)}
     return value
 
 
 def add_undated(
-    digests: dict[str, dict[str, str]], definitions: list[dict[str, Any]]
-) -> dict[str, dict[str, str]]:
-    """Add an ``undated`` digest to each tool whose definition holds a date.
+    digests: dict[str, dict[str, Any]], definitions: list[dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Record the dates of each tool whose definition holds an ISO date.
 
-    ``undated`` is the definition digest of the tool with its ISO dates
-    replaced. ``drift_compare.py`` uses it to tell a tool whose text changed
-    from a tool whose text only shows another day. A tool with no date gets no
-    extra digest.
+    Such a tool gets two more fields: ``undated``, the digest of its
+    definition with each date replaced by one token, and ``dates``, the dates
+    themselves in order. ``drift_compare.py`` uses them to tell a tool whose
+    text changed from a tool whose dates only moved with the calendar. The
+    dates are the only part of a tool's text that the snapshot holds. A tool
+    with no date, with more than ``MAX_DATES`` dates, or that shares its name
+    with another tool of the server gets neither field.
     """
-    from mcp_audit.lock.tool_digests import digests_of_definitions
+    from mcp_audit.lock.tool_digests import digest
 
-    plain = [{**without_dates(d), "name": d["name"]} for d in definitions]
-    for name, pair in digests_of_definitions(plain).items():
-        if name in digests and pair["definition"] != digests[name]["definition"]:
-            digests[name]["undated"] = pair["definition"]
+    names = Counter(d["name"] for d in definitions)
+    for definition in definitions:
+        name = definition["name"]
+        if names[name] != 1 or name not in digests:
+            continue
+        found: list[str] = []
+        rest = {key: value for key, value in definition.items() if key != "name"}
+        plain = {**without_dates(rest, found), "name": name}
+        if found and len(found) <= MAX_DATES:
+            digests[name]["undated"] = digest(plain)
+            digests[name]["dates"] = found
     return digests
 
 

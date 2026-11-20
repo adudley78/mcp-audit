@@ -1953,8 +1953,8 @@ trust"). Recorded limits:
 - **Each day is drift.** Some servers build a tool description that holds the
   date of the day (an example query for "today" and "a week ago"). The lock
   digests cover the whole description, so the day after `lock --connect` the
-  tool is `LOCK-008` in `lock --verify --connect`, and `run --mode enforce`
-  withholds it. This follows from the digest rule; it was not run against such
+  tool is `LOCK-008` in `lock --verify --connect` (`LOCK-007` when the date is
+  in the schema), and `run --mode enforce` withholds it. This follows from the digest rule; it was not run against such
   a server. One case is known: 1 of 493 servers in a daily record of 999
   packages.
 - **Not changed in the lock.** A rule that ignores dates in the lock is a
@@ -1963,7 +1963,9 @@ trust"). Recorded limits:
   (`credenzo lock --accept --connect`) or do not use `--mode enforce` for that
   server.
 - **Changed in the drift index only.** The weekly index (`docs/drift-index.md`)
-  lists such a tool as `calendar_only` and does not count it as a change.
+  lists a tool as `calendar_only`, and does not count it as a change, when
+  its text is the same without its dates and each date moved with the
+  calendar. The index holds those dates; the lock does not.
 
 ## Tool-call guard (`credenzo guard`, STORY-0176)
 
