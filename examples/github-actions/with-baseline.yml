@@ -47,7 +47,7 @@ jobs:
           fi
 
       - name: Run mcp-audit with drift detection
-        uses: adudley78/credenzo@12b4c086218cfbb218fa5f5159b4a81113110316 # v0.34.0
+        uses: adudley78/credenzo@381b99621dc6ff26d1620696dadc7f6f2f823a5f # v0.35.0
         with:
           severity-threshold: high
           baseline-name: ci-baseline

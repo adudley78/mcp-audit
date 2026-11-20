@@ -73,6 +73,8 @@ again.
    ```
 
    `alert-webhook` is optional. A Slack incoming webhook accepts the message.
+   The same workflow with every action pinned to a commit is in
+   [`examples/github-actions/team-drift-alerts.yml`](../examples/github-actions/team-drift-alerts.yml).
 
 ## When an alert is sent
 
