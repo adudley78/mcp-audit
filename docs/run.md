@@ -182,6 +182,17 @@ client the answer with no tools and writes one line to stderr. It does not
 forward an answer that it did not check. An entry of the list that is not an
 object is not forwarded in enforce mode.
 
+The lock compares six fields of a tool: `name`, `title`, `description`,
+`inputSchema`, `outputSchema` and `annotations`. A tool is also withheld when
+one of these fields has the wrong type: a `name`, `title` or `description`
+that is not text, or a schema or `annotations` that is not an object. The
+digest does not read such a field, so the field could hold text that the lock
+never saw. The finding is `LOCK-007` when the lock holds the name,
+`LOCK-006` when it does not, and `RUN-003` when the lock has no tool record
+for the server. Each other key of an approved tool (`_meta`,
+`icons`, a key that the MCP specification does not define) goes to the client
+as the server sent it. The lock does not compare these keys.
+
 In enforce mode the client gets only what Credenzo read:
 
 - A line from the server that Credenzo cannot read as JSON is not forwarded.
@@ -196,9 +207,24 @@ In enforce mode the client gets only what Credenzo read:
   `tools/list` request with its id was seen.
 - A tool list inside a batch (a JSON array) is emptied. MCP has had no batch
   since protocol 2025-06-18.
-- A line of more than 64 MiB from the server is not forwarded.
+- A line from the server that reaches 64 MiB with no newline is not
+  forwarded: no part of it, up to its newline.
 
-Lines from the client to the server are not changed by these rules.
+Toward the server, enforce mode stops a `tools/call` to a tool that is not
+approved in three forms: a request (the client gets an error), a message with
+no `id` (dropped; no answer is due), and a call inside a batch (the batch is
+not forwarded, and each request in it gets an error). A line from the client
+that Credenzo cannot read as JSON is not forwarded, by the same rule as a
+line from the server: another parser could read a call in it. A line that
+the check fails on is not forwarded. Each line that gets no answer is
+reported one time on stderr. A line from the client that reaches 64 MiB
+with no newline is not forwarded: no part of it, up to its newline. The last bytes before the
+client closes its side are checked like a line, also when they have no
+newline. Each other line from the client goes to the server with no change.
+
+MCP writes one message on one line. A host that splits one message over
+several lines (pretty-printed JSON) gets no answer in enforce mode, because
+no single line is JSON.
 
 "Withheld" means two things in enforce mode:
 

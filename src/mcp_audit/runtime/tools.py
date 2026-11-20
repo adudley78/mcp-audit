@@ -150,13 +150,37 @@ class ToolGuard:
     def client_line(self, line: bytes) -> tuple[bytes | None, bytes | None]:
         """Inspect one client line.
 
+        Never raises. In enforce mode a line that cannot be read as JSON, or
+        that fails in this check, is not forwarded: the server's parser could
+        read a ``tools/call`` in it that this check did not see. Monitor mode
+        forwards every line as it is.
+
         Returns:
             ``(to_server, to_client)``: the line to forward (``None`` to drop
             it) and a reply to send the client instead (``None`` for none).
         """
-        msg = _parse(line)
-        if msg is None:
+        try:
+            value = _read(line, strict=self.enforce)
+            return self._client_message(value, line)
+        except Exception as exc:  # noqa: BLE001 - fail closed, keep the session
+            if not self.enforce:
+                return line, None
+            why = str(exc) if isinstance(exc, _UnreadableError) else type(exc).__name__
+            self._report_once(
+                ("client-unread",),
+                f"withheld: server {self.server_name!r}: a line from the client "
+                f"that could not be checked ({why}) was not forwarded",
+            )
+            return None, None
+
+    def _client_message(
+        self, value: object, line: bytes
+    ) -> tuple[bytes | None, bytes | None]:
+        if isinstance(value, list):
+            return self._client_batch(value, line)
+        if not isinstance(value, dict):
             return line, None
+        msg = value
         method = msg.get("method")
         msg_id = msg.get("id")
         if method == "tools/list" and msg_id is not None:
@@ -165,15 +189,76 @@ class ToolGuard:
             with self._lock:
                 self._pending[_key(msg_id)] = new_listing
             return line, None
-        if method == "tools/call" and msg_id is not None and self.enforce:
-            params = msg.get("params")
-            name = params.get("name") if isinstance(params, dict) else None
-            with self._lock:
-                allowed = isinstance(name, str) and name in self.approved
-                finding = self.withheld.get(name) if isinstance(name, str) else None
-            if not allowed:
-                return None, _denial(msg_id, name, finding)
+        if method == "tools/call" and self.enforce:
+            denial = self._deny_call(msg)
+            if denial is not None:
+                if msg_id is not None:
+                    return None, _encode(denial, reply=True)
+                # A call with no id gets no answer: it is not forwarded.
+                self._silent_drop("a tools/call with no id to a withheld tool")
+                return None, None
         return line, None
+
+    def _deny_call(self, msg: dict) -> dict | None:
+        """Return the error for one ``tools/call``, or ``None`` when it may go on."""
+        params = msg.get("params")
+        name = params.get("name") if isinstance(params, dict) else None
+        with self._lock:
+            if isinstance(name, str) and name in self.approved:
+                return None
+            finding = self.withheld.get(name) if isinstance(name, str) else None
+        return _denial(msg.get("id"), name, finding)
+
+    def _client_batch(
+        self, messages: list, raw: bytes
+    ) -> tuple[bytes | None, bytes | None]:
+        """Handle a JSON array from the client (a batch; none since 2025-06-18).
+
+        In enforce mode a batch that holds a ``tools/call`` to a tool that is
+        not approved is not forwarded. Each message of the batch that has an
+        id gets an error, so the client does not wait for an answer.
+        """
+        if not self.enforce:
+            return raw, None
+        calls = [
+            m
+            for m in messages
+            if isinstance(m, dict) and m.get("method") == "tools/call"
+        ]
+        denials = {id(m): d for m in calls if (d := self._deny_call(m)) is not None}
+        # A list inside the batch is not JSON-RPC; it is not searched for calls.
+        nested = any(isinstance(m, list) for m in messages)
+        if not denials and not nested:
+            return raw, None
+        replies: list[dict] = []
+        for message in messages:
+            if not isinstance(message, dict) or message.get("id") is None:
+                continue
+            if "method" not in message:
+                continue  # an answer of the client: no reply is due
+            replies.append(
+                denials.get(id(message))
+                or {
+                    "jsonrpc": "2.0",
+                    "id": message.get("id"),
+                    "error": {
+                        "code": DENIED_TOOL_CODE,
+                        "message": "Credenzo did not forward this batch: it holds "
+                        "a call to a tool that is withheld, or a list",
+                    },
+                }
+            )
+        if replies:
+            return None, _encode(replies, reply=True)
+        self._silent_drop("a batch with a call to a withheld tool, or with a list")
+        return None, None
+
+    def _silent_drop(self, what: str) -> None:
+        """Say once on stderr that a client line got no answer and went nowhere."""
+        self._report_once(
+            ("client-drop", what),
+            f"withheld: server {self.server_name!r}: {what} was not forwarded",
+        )
 
     # ── server → client ────────────────────────────────────────────────────
 
@@ -303,12 +388,17 @@ class ToolGuard:
     ) -> bytes:
         valid = [t for t in tools if isinstance(t, dict)]
         day = self._today()
-        undigested: set[str] = set()
+        # A compared field of the wrong type (a description that is a list,
+        # a schema that is a string) is left out of the digest, so the tool
+        # could equal a lock record while it carries text that nothing read.
+        # Such a tool cannot equal a lock record.
+        undigested = {str(t.get("name", "")) for t in valid if not _well_typed(t)}
+        valid = [t for t in valid if str(t.get("name", "")) not in undigested]
         try:
             definitions, current, spec_only = _digests(valid, day)
         except ValueError:  # CanonicalError: nested too deeply, or too large
             # A tool that cannot be digested cannot equal a lock record.
-            undigested = {
+            undigested |= {
                 str(t.get("name", "")) for t in valid if not _digestable(t, day)
             }
             valid = [t for t in valid if str(t.get("name", "")) not in undigested]
@@ -447,6 +537,26 @@ def _digests(valid: list[dict], day: str) -> tuple[list[dict], dict, dict]:
     return definitions, current, spec_only
 
 
+#: The fields of a tool that the lock compares, by the type that the digest
+#: reads. ``None`` (JSON ``null`` or no key) carries no text and is accepted.
+_TEXT_FIELDS = ("title", "description")
+_OBJECT_FIELDS = ("inputSchema", "outputSchema", "annotations")
+
+
+def _well_typed(wire: dict) -> bool:
+    """Whether each compared field of one tool has the type the digest reads.
+
+    :func:`wire_definition` leaves a field of another type out of the digest.
+    A tool with such a field is not approved, because the field can hold text
+    that the lock never saw.
+    """
+    if not isinstance(wire.get("name"), str):
+        return False
+    if any(not isinstance(wire.get(k), str | None) for k in _TEXT_FIELDS):
+        return False
+    return all(isinstance(wire.get(k), dict | None) for k in _OBJECT_FIELDS)
+
+
 def _digestable(wire: dict, day: str) -> bool:
     """Whether one tool, as it arrived, can be digested in both forms."""
     try:
@@ -494,22 +604,16 @@ def _read(line: bytes, *, strict: bool) -> object:
     return value
 
 
-def _encode(message: object) -> bytes:
+def _encode(message: object, *, reply: bool = False) -> bytes:
     """Return *message* as one line of JSON.
 
     ASCII only, so a lone surrogate that the server sent as an escape goes
-    back out as the same escape and cannot fail the encoding.
+    back out as the same escape and cannot fail the encoding. A *reply* that
+    Credenzo writes itself must be JSON for each parser, so a ``NaN`` in it
+    (an ``id`` of the request) raises ``ValueError``.
     """
-    return json.dumps(message, separators=(",", ":")).encode("ascii") + b"\n"
-
-
-def _parse(line: bytes) -> dict | None:
-    """Parse one JSON-RPC line, or ``None`` when it isn't a JSON object."""
-    try:
-        msg = json.loads(line)
-    except (ValueError, UnicodeDecodeError, RecursionError, MemoryError):
-        return None
-    return msg if isinstance(msg, dict) else None
+    text = json.dumps(message, separators=(",", ":"), allow_nan=not reply)
+    return text.encode("ascii") + b"\n"
 
 
 def _key(msg_id: object) -> str:
@@ -517,7 +621,7 @@ def _key(msg_id: object) -> str:
     return json.dumps(msg_id, sort_keys=True)
 
 
-def _denial(msg_id: object, name: object, finding: str | None) -> bytes:
+def _denial(msg_id: object, name: object, finding: str | None) -> dict:
     """The JSON-RPC error a withheld tool's ``tools/call`` gets instead.
 
     *finding* is ``None`` for a tool no checked ``tools/list`` has shown yet.
@@ -528,7 +632,7 @@ def _denial(msg_id: object, name: object, finding: str | None) -> bytes:
     else:
         why = _WHY.get(finding, "its text matches a poisoning pattern")
         message = f"Credenzo withheld tool {name!r}: {finding}, {why}"
-    reply = {
+    return {
         "jsonrpc": "2.0",
         "id": msg_id,
         "error": {
@@ -537,4 +641,3 @@ def _denial(msg_id: object, name: object, finding: str | None) -> bytes:
             "data": {"finding": finding, "tool": name},
         },
     }
-    return json.dumps(reply, ensure_ascii=False, separators=(",", ":")).encode() + b"\n"
