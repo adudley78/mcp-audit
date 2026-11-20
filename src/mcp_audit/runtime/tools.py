@@ -180,27 +180,99 @@ class ToolGuard:
     def server_line(self, line: bytes) -> bytes:
         """Inspect one server line; return what the client should receive.
 
-        Never raises on a ``tools/list`` answer. An answer that cannot be
-        checked is not forwarded in enforce mode: the client gets the answer
-        with no tools.
+        Never raises. In enforce mode the client gets only what was read and,
+        for a tool list, checked:
+
+        - a line that cannot be read as JSON (not JSON, nested too deep, a
+          number too long, one key twice in an object) is not forwarded. The
+          client's parser can read a line that this one cannot, so such a
+          line could carry a tool list past the check;
+        - every answer whose ``result`` holds a ``tools`` list is checked,
+          also when no ``tools/list`` request with its id was seen;
+        - an answer that cannot be checked reaches the client with no tools;
+        - a batch (a JSON array) keeps its messages, but each tool list in it
+          is emptied: MCP has no batch since protocol 2025-06-18.
+
+        Monitor mode never changes a byte and reports what it can read.
         """
-        msg = _parse(line)
-        if msg is None or "id" not in msg or "result" not in msg:
+        try:
+            value = _read(line, strict=self.enforce)
+        except _UnreadableError as exc:
+            if not self.enforce:
+                return line
+            self._report_once(
+                ("unreadable",),
+                f"withheld: server {self.server_name!r}: a line that could not be "
+                f"read as JSON ({exc}) was not forwarded",
+            )
+            return b""
+        try:
+            return self._route(value, line)
+        except Exception as exc:  # noqa: BLE001 - fail closed, keep the session
+            if not self.enforce:
+                return line
+            self._report_once(
+                ("unrouted",),
+                f"withheld: server {self.server_name!r}: a message could not be "
+                f"checked ({type(exc).__name__}) and was not forwarded",
+            )
+            return b""
+
+    def _route(self, value: object, line: bytes) -> bytes:
+        if isinstance(value, list):
+            return self._batch(value, line)
+        if not isinstance(value, dict) or "result" not in value:
             return line
+        msg = value
         with self._lock:
-            new_listing = self._pending.pop(_key(msg["id"]), None)
-        if new_listing is None:
-            return line
+            new_listing = self._pending.pop(_key(msg.get("id")), None)
         result = msg["result"]
         tools = result.get("tools") if isinstance(result, dict) else None
         if not isinstance(tools, list):
             return line
+        if new_listing is None:
+            # An answer that nobody asked for is checked as its own listing.
+            new_listing = True
         try:
             return self._check_page(
                 msg, result, tools, new_listing=new_listing, raw=line
             )
         except Exception as exc:  # noqa: BLE001 - fail closed, keep the session
             return self._unchecked_page(msg, result, tools, exc, raw=line)
+
+    def _batch(self, messages: list, raw: bytes) -> bytes:
+        """Handle a JSON array from the server: empty each tool list in it."""
+        if not self.enforce:
+            return raw
+        names: set[str] = set()
+        out: list = []
+        for item in messages:
+            result = item.get("result") if isinstance(item, dict) else None
+            tools = result.get("tools") if isinstance(result, dict) else None
+            if isinstance(tools, list):
+                names.update(
+                    str(t.get("name", "")) for t in tools if isinstance(t, dict)
+                )
+                item = {**item, "result": {**result, "tools": []}}
+            out.append(item)
+        if out == messages:
+            return raw
+        with self._lock:
+            self.approved.difference_update(names)
+            self._approved_now.difference_update(names)
+        self._report_once(
+            ("batch",),
+            f"withheld: server {self.server_name!r}: a tool list inside a batch "
+            "is not checked; every tool in it is withheld",
+        )
+        return _encode(out)
+
+    def _report_once(self, key: tuple[str, ...], message: str) -> None:
+        with self._lock:
+            if ("", key) in self._reported:
+                return
+            self._reported.add(("", key))
+        self._report(message)
 
     def _unchecked_page(
         self, msg: dict, result: dict, tools: list, exc: Exception, *, raw: bytes
@@ -224,12 +296,7 @@ class ToolGuard:
         )
         filtered = dict(msg)
         filtered["result"] = {**result, "tools": []}
-        return (
-            json.dumps(filtered, ensure_ascii=False, separators=(",", ":")).encode(
-                "utf-8"
-            )
-            + b"\n"
-        )
+        return _encode(filtered)
 
     def _check_page(
         self, msg: dict, result: dict, tools: list, *, new_listing: bool, raw: bytes
@@ -313,12 +380,7 @@ class ToolGuard:
         ]
         filtered = dict(msg)
         filtered["result"] = {**result, "tools": kept}
-        return (
-            json.dumps(filtered, ensure_ascii=False, separators=(",", ":")).encode(
-                "utf-8"
-            )
-            + b"\n"
-        )
+        return _encode(filtered)
 
     def _report_page(self, withheld: dict[str, str], removed: list[str]) -> None:
         by_finding: dict[str, list[str]] = {}
@@ -394,11 +456,58 @@ def _digestable(wire: dict, day: str) -> bool:
     return True
 
 
+class _UnreadableError(Exception):
+    """A server line that cannot be read as JSON."""
+
+
+def _read(line: bytes, *, strict: bool) -> object:
+    """Return the JSON value of one server line (``None`` for a blank line).
+
+    The bytes are decoded as UTF-8 with replacement, as a client does that
+    reads the line as text, so a wrong byte cannot hide the line from this
+    check. With *strict*, an object that holds one key twice is not readable:
+    two parsers can then read two different messages.
+
+    Raises:
+        _UnreadableError: The line is not JSON, is nested too deep, holds a
+            number that is too long, or (with *strict*) holds one key twice.
+    """
+    text = line.decode("utf-8", errors="replace")
+    if not text.strip():
+        return None
+    twice: list[bool] = []
+
+    def pairs(items: list[tuple[str, object]]) -> dict:
+        out = dict(items)
+        if len(out) != len(items):
+            twice.append(True)
+        return out
+
+    try:
+        value = (
+            json.loads(text, object_pairs_hook=pairs) if strict else json.loads(text)
+        )
+    except (ValueError, RecursionError, MemoryError) as exc:
+        raise _UnreadableError(type(exc).__name__) from None
+    if twice:
+        raise _UnreadableError("one key is there twice")
+    return value
+
+
+def _encode(message: object) -> bytes:
+    """Return *message* as one line of JSON.
+
+    ASCII only, so a lone surrogate that the server sent as an escape goes
+    back out as the same escape and cannot fail the encoding.
+    """
+    return json.dumps(message, separators=(",", ":")).encode("ascii") + b"\n"
+
+
 def _parse(line: bytes) -> dict | None:
     """Parse one JSON-RPC line, or ``None`` when it isn't a JSON object."""
     try:
         msg = json.loads(line)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError, MemoryError):
         return None
     return msg if isinstance(msg, dict) else None
 
