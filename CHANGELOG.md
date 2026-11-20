@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-20
+
 ### Security
 
 - **Credenzo Team action: a stranger could stop the alerts.** The action read each open issue with its marker in the body as its own issue. A person who can open an issue (anyone, in a public repository) could open one with the marker of the drift to come; the action then wrote no issue and sent no webhook message. With a wrong marker, the action wrote its alert into that person's issue, who could then edit or close it. The action now reads an issue as its own only when the account of its token wrote it (`github-actions[bot]` for the workflow token), or a bot account wrote it and it has the label `credenzo-lock-drift`. Found by a review after 0.35.0 was released. The lock check itself was not affected: the step still failed on drift.

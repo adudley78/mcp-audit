@@ -11,19 +11,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "credenzo"
-version = "0.35.0"
+version = "0.36.0"
 description = "Credenzo (formerly mcp-audit): the taste test for agent tools. Offline security scanner and lock for MCP servers."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [{ name = "Adam Dudley" }]
 keywords = ["mcp", "model-context-protocol", "security", "scanner", "ai-security", "ai-agents", "supply-chain-security"]
-dependencies = ["mcp-audit-scanner==0.35.0"]
+dependencies = ["mcp-audit-scanner==0.36.0"]
 
 [project.optional-dependencies]
-attestation = ["mcp-audit-scanner[attestation]==0.35.0"]
-mcp = ["mcp-audit-scanner[mcp]==0.35.0"]
-sbom = ["mcp-audit-scanner[sbom]==0.35.0"]
+attestation = ["mcp-audit-scanner[attestation]==0.36.0"]
+mcp = ["mcp-audit-scanner[mcp]==0.36.0"]
+sbom = ["mcp-audit-scanner[sbom]==0.36.0"]
 
 [project.scripts]
 credenzo = "mcp_audit._entry:main"

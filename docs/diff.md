@@ -51,7 +51,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Credenzo
-        uses: adudley78/credenzo/setup-action@v0.35.0
+        uses: adudley78/credenzo/setup-action@v0.36.0
 
       - name: Scan base commit
         run: |
@@ -254,7 +254,7 @@ Add `mode: diff` to the existing action — no separate workflow needed:
 
 ```yaml
 - name: MCP diff
-  uses: adudley78/credenzo@v0.35.0
+  uses: adudley78/credenzo@v0.36.0
   with:
     mode: diff
     severity-threshold: medium
