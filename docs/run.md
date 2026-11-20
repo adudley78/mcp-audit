@@ -280,9 +280,13 @@ policy. An invalid policy is reported once and the default applies.
 
 ## The relay (Story 1.1)
 
-`run` changes nothing the client and server send each other:
+In monitor mode, `run` changes nothing the client and server send each other.
+In enforce mode it changes only what [Tool check](#tool-check-story-14) describes: it
+withholds tools, denies calls to them, and does not forward a line that it
+did not read.
 
-- **stdin and stdout** are copied byte for byte in both directions.
+- **stdin and stdout** are copied byte for byte in both directions (monitor
+  mode; in enforce mode, each line that is forwarded with no change).
 - **stderr** is the server's own: the server writes straight to the client's
   stderr.
 - **Signals.** SIGINT, SIGTERM and SIGHUP sent to `run` are forwarded to the
