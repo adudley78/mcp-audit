@@ -56,8 +56,9 @@ def _write_all(fd: int, data: bytes) -> None:
 
 
 #: Longest line enforce mode will hold back to inspect. MCP stdio messages
-#: are newline-delimited; a line longer than this is relayed uninspected
-#: rather than buffered without bound.
+#: are newline-delimited; a line that grows past this with no newline is
+#: dropped up to its newline, in either direction, rather than buffered
+#: without bound or forwarded unread.
 MAX_LINE = 64 * 1024 * 1024
 
 
