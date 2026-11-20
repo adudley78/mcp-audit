@@ -22,7 +22,7 @@ The corpus is the frozen list of the launch study: the npm top 100, 48 PyPI serv
 
 | File | Contents |
 |---|---|
-| `snapshots/YYYY-MM-DD.json` | One row for each package: version, connected or not, tool count, tool digests |
+| `snapshots/YYYY-MM-DD.json` | One row for each package: version, connected or not, tool count, tool digests (`contract`, `definition`, and `undated` for a tool whose text holds a date) |
 | `index/YYYY-MM-DD.json` | The comparison with the snapshot before: counts, and one row for each server that changed or got a new version |
 | `latest-snapshot.json`, `latest.json` | Copies of the newest two files |
 
@@ -41,4 +41,6 @@ The two snapshots of that date came from different machines. 2 of 167 servers we
 - About half of the corpus starts with no network and no credentials. A server that needs a key or a service is not measured.
 - A server that builds its tool list from data that it fetches at startup shows a different list offline.
 - A change with no new version can come from the server's own dependencies, which npm resolves again at each install. The record counts these separately (`changed_without_bump`); read each one before you draw a conclusion.
+- A tool can write the date of the day into its own description, for example an example query for "today". Its definition digest is then new each day, with no change by its author. From 2026-11-20 each snapshot holds a second digest for such a tool, `undated`: the definition with each ISO date replaced. A tool whose `definition` digest changed and whose `undated` digest did not is listed as `calendar_only`. It is not a change, and `calendar_only` counts the servers that have only such tools. Only ISO dates (`2026-11-20`, with an optional time) are replaced. A date in another format still counts as a change.
+- A comparison with a snapshot from before 2026-11-20 counts a date in the text as a change, because the older snapshot has no `undated` digest. Found in a private daily record: 1 of 493 servers on 2026-11-19, the first day on which the two runs were on different dates.
 - The snapshot shows that a tool changed, not that the change is harmful.

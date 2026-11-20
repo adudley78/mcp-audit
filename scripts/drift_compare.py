@@ -13,6 +13,12 @@ snapshots. For each such server:
 - ``added`` / ``removed``: tool names in only one snapshot.
 - ``definition_changed``: same name, different ``definition`` digest (any part
   of the tool changed, text included).
+- ``calendar_only``: same name, different ``definition`` digest, but the same
+  ``undated`` digest in both snapshots. The tool writes a date into its text
+  (an example query for "today"), so its digest is new each day with no change
+  by its author. These tools are not in ``definition_changed`` and do not make
+  a server ``changed``. A snapshot from before 2026-11-20 has no ``undated``
+  digests; a comparison with one counts such a tool as changed, as before.
 - ``contract_changed``: the subset whose ``contract`` digest changed too (name,
   input schema or annotations; not only prose).
 - ``bumped``: the version string differs.
@@ -63,9 +69,16 @@ def compare_row(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
     added = sorted(set(d_new) - set(d_old))
     removed = sorted(set(d_old) - set(d_new))
     both = set(d_old) & set(d_new)
-    definition_changed = sorted(
+    differs = sorted(
         t for t in both if d_old[t].get("definition") != d_new[t].get("definition")
     )
+    calendar_only = [
+        t
+        for t in differs
+        if d_old[t].get("undated")
+        and d_old[t].get("undated") == d_new[t].get("undated")
+    ]
+    definition_changed = [t for t in differs if t not in calendar_only]
     contract_changed = sorted(
         t
         for t in definition_changed
@@ -82,6 +95,7 @@ def compare_row(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
         "removed": removed,
         "definition_changed": definition_changed,
         "contract_changed": contract_changed,
+        "calendar_only": calendar_only,
     }
 
 
@@ -100,6 +114,9 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "text_only": sum(
             not r["added"] and not r["removed"] and not r["contract_changed"]
             for r in changed
+        ),
+        "calendar_only": sum(
+            bool(r["calendar_only"]) and not r["changed"] for r in rows
         ),
     }
 
@@ -130,9 +147,11 @@ def compare(older: dict[str, Any], newer: dict[str, Any]) -> dict[str, Any]:
             "Each package is installed at the version current on the snapshot "
             "date and started with no network and no credentials. A server is "
             "compared when it listed tools on both dates. A change is a tool "
-            "added, removed, or with a different definition digest."
+            "added, removed, or with a different definition digest. A tool "
+            "whose definition differs only in a calendar date is not a change; "
+            "calendar_only counts the servers with only such tools."
         ),
-        "rows": [r for r in rows if r["changed"] or r["bumped"]],
+        "rows": [r for r in rows if r["changed"] or r["bumped"] or r["calendar_only"]],
     }
 
 

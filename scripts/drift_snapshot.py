@@ -294,6 +294,51 @@ def remove_prefix(cfg: Settings, path: str) -> None:
         _run(cfg, ["rm", "-rf", "--", path])
 
 
+#: An ISO calendar date, with an optional time. A tool that writes today's date
+#: into its description (an example query, a "valid from" line) gets a new
+#: definition digest each day with no change by its author.
+_ISO_DATE = re.compile(
+    r"(?<![0-9])[0-9]{4}-[0-9]{2}-[0-9]{2}"
+    r"(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,9})?)?"
+    r"(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?"
+    r"(?![0-9])"
+)
+
+
+def without_dates(value: Any) -> Any:
+    """Return *value* with each ISO date in its strings replaced by one token.
+
+    Keys are not changed. Only dates are replaced: no other text is treated as
+    the same, so a changed word still gives a changed digest.
+    """
+    if isinstance(value, str):
+        return _ISO_DATE.sub("<date>", value)
+    if isinstance(value, list):
+        return [without_dates(item) for item in value]
+    if isinstance(value, dict):
+        return {key: without_dates(item) for key, item in value.items()}
+    return value
+
+
+def add_undated(
+    digests: dict[str, dict[str, str]], definitions: list[dict[str, Any]]
+) -> dict[str, dict[str, str]]:
+    """Add an ``undated`` digest to each tool whose definition holds a date.
+
+    ``undated`` is the definition digest of the tool with its ISO dates
+    replaced. ``drift_compare.py`` uses it to tell a tool whose text changed
+    from a tool whose text only shows another day. A tool with no date gets no
+    extra digest.
+    """
+    from mcp_audit.lock.tool_digests import digests_of_definitions
+
+    plain = [{**without_dates(d), "name": d["name"]} for d in definitions]
+    for name, pair in digests_of_definitions(plain).items():
+        if name in digests and pair["definition"] != digests[name]["definition"]:
+            digests[name]["undated"] = pair["definition"]
+    return digests
+
+
 async def one(
     cfg: Settings,
     sem: asyncio.Semaphore,
@@ -350,14 +395,17 @@ async def one(
         finally:
             remove_prefix(cfg, prefix)
             remove_prefix(cfg, home)
+    definitions = [tool_definition(t) for t in enum.tools]
     record = {
         **base,
         "bin": binary,
         "elapsed": round(time.time() - started, 1),
         "error": enum.error,
         "tools_error": enum.tools_error,
-        "definitions": [tool_definition(t) for t in enum.tools],
-        "digests": tool_digests(enum.tools) if enum.tools else {},
+        "definitions": definitions,
+        "digests": add_undated(tool_digests(enum.tools), definitions)
+        if enum.tools
+        else {},
     }
     target.write_text(json.dumps(record, indent=1))
     print(name, version, "tools", len(enum.tools), "err", enum.error, flush=True)

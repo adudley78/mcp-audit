@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The drift index counted a date in a tool description as a change (2026-11-20).** A server that writes the date of the day into a tool description (an example query for "today") got a new definition digest each day, so the index listed it as changed with no new version. `scripts/drift_snapshot.py` now records a second digest, `undated`, for a tool whose text holds an ISO date, and `scripts/drift_compare.py` lists a tool whose only difference is the date as `calendar_only` and does not count it as a change. Found in a daily record: 1 of 493 servers. Nothing in the product changed: `lock --verify --connect` still reports such a tool each day (GAPS.md).
+
 ### Documentation
 
 - **Head-to-head table with two other scanners (2026-11-19).** `scripts/bench_competitors.py` ran Credenzo, NVIDIA SkillSpector v2.12.0 (static mode) and Cisco mcp-scanner 4.8.7 (YARA only) on the same corpus, on one machine, with nothing sent away. MCPTox poisoned cases found: Credenzo 1,005 of 1,312, SkillSpector 295, Cisco 277 (MCPTox is in-sample for Credenzo, and 877 of the cases have a wrapper that Credenzo finds each time). MCPTox clean tools flagged: 2, 6 and 3 of 353. Hidden payloads found at HIGH: 8, 6 and 6 of 8. Benign checklists flagged at HIGH: 0, 1 and 2 of 4. Credenzo flags 5 of 9 harmless hiding twins below HIGH; Cisco flags none. Snyk agent-scan was not run (it needs a remote service). `docs/research/head-to-head/README.md`, `results.json`.
