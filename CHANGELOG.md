@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Example workflows use the 0.36.1 commit.** The SHA pins in `examples/github-actions/` and `.github/workflows/mcp-audit-example.yml` moved from v0.36.0 to v0.36.1. The Team example now runs the action that prints the drift text in the run log.
+
 ## [0.36.1] - 2026-11-20
 
 **Upgrade note for `credenzo run --mode enforce`.** Enforce mode now forwards, in either direction, only a line that it read. These are no longer forwarded: a line that is not one JSON message (a log line that a server writes to stdout, or a message that a host splits over several lines; MCP allows neither on stdio), a line that holds one key twice or a number of more than 4,300 digits, and a line that reaches 64 MiB with no newline. Monitor mode, the default, changes no byte.

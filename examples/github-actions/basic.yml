@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run mcp-audit
-        uses: adudley78/credenzo@43dae3c898c441932bf95204dbf0f4a43eb6ce4e # v0.36.0
+        uses: adudley78/credenzo@99c5421aaa733ac590b35d29f75a818672009cd4 # v0.36.1
         with:
           severity-threshold: info   # report everything; never fails the build
           fail-on-findings: 'false'  # explicit: convert exit 1 into step success
