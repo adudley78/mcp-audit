@@ -99,5 +99,4 @@ invalid by an upgrade of Credenzo alone.
   code, expects no finding, and fails when a frozen name is missing from a
   lock that the current code writes or from this page.
 - `tests/test_lock_calendar.py` holds the field that 0.36.0 added: a tool
-  record with no `calendar` is compared as before, and the release before
-  0.36.0 reads a record that has one.
+  record with no `calendar` is compared as before.
