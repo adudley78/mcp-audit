@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **A workflow to copy for Credenzo Team.** `examples/github-actions/team-drift-alerts.yml` verifies the lock on pull requests, on pushes to `main` and once a day, and sends the drift alert. `docs/team.md` links to it.
+- **Example workflows use the 0.35.0 commit.** The SHA pins in `examples/github-actions/` and `.github/workflows/mcp-audit-example.yml` moved from v0.34.0 to v0.35.0.
+
 ## [0.35.0] - 2026-11-20
 
 ### Added
