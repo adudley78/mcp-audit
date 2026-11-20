@@ -397,7 +397,11 @@ def run_verify(
         args.append("--connect")
     if resolve:
         args.append("--resolve")
-    done = subprocess.run(args, capture_output=True, text=True, check=False)  # noqa: S603
+    # Bytes are decoded as UTF-8 with replacement: on a Windows runner the
+    # locale encoding cannot decode every byte that the command can print.
+    done = subprocess.run(  # noqa: S603
+        args, capture_output=True, encoding="utf-8", errors="replace", check=False
+    )
     sys.stderr.write(done.stderr)
     try:
         payload = json.loads(done.stdout) if done.stdout.strip() else None

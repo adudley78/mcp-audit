@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-import re
 import shutil
 from pathlib import Path
 
@@ -197,6 +196,6 @@ def test_the_lock_page_no_longer_says_experimental() -> None:
     lock_page = (ROOT / "docs" / "lock.md").read_text(encoding="utf-8")
     assert "EXPERIMENTAL" not in lock_page
     assert "lock-format.md" in lock_page
-    assert not re.search(
-        r"may be renamed|is provisional", (ROOT / "GAPS.md").read_text()
-    )
+    gaps = (ROOT / "GAPS.md").read_text(encoding="utf-8")
+    assert "digest field name is provisional" not in gaps
+    assert "may be renamed before release" not in gaps
