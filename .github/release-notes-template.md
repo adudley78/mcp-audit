@@ -27,7 +27,7 @@ the banner: it renders first in the spliced section). A forgotten
 CHANGELOG promotion fails the tag; it does not republish the last
 release's notes.
 -->
-## mcp-audit {{VERSION}}
+## Credenzo {{VERSION}}
 
 Security scanner for MCP (Model Context Protocol) server configurations.
 Detects prompt injection, supply chain risks, credential exposure, toxic flow
@@ -107,7 +107,7 @@ changelog section above.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate server config entries (measured recall and precision on tool descriptions: [`docs/poisoning.md`](docs/poisoning.md))
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**11,135 tests · Apache 2.0 · macOS · Linux · Windows**
+**11,137 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 

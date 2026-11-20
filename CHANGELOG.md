@@ -12,6 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`credenzo run --mode enforce` forwarded a tool list that it could not check (STORY-0181).** Enforce mode must show the agent only the tools that the lock approves. A server could get a whole `tools/list` answer past the check in five ways. (1) One tool with a schema nested more than 64 levels deep (or with more than 100,000 values): its digest failed, the check stopped, and the relay forwarded the answer as it was. (2) A line that Python's JSON parser refuses and a JavaScript client reads: a number of more than 4,300 digits, or a wrong UTF-8 byte in a string. (3) An answer with an id that no `tools/list` request had. (4) A tool list inside a JSON-RPC batch. (5) A line of more than 64 MiB. In each case the agent could read the text of tools that the lock did not approve; calls to them stayed denied. Now: a tool that cannot be digested is withheld by itself (`LOCK-006` when the lock does not hold its name, `LOCK-007` when it does); a server line that cannot be read as JSON (also: one key twice in an object, nested too deep) is not forwarded; a line is read as text with each wrong byte replaced; each answer that holds a tool list is checked, asked for or not; a tool list in a batch is emptied; a line over 64 MiB from the server is not forwarded; when an answer cannot be checked for another reason the client gets it with no tools. An entry of a tool list that is not an object is not forwarded, and when two pages list one name and one of them is withheld, the tool is withheld. Monitor mode still changes no byte. `lock --connect` and `lock --verify --connect` no longer stop with a traceback on a tool that cannot be digested: `lock --connect` keeps the server's earlier record and says why, and `--verify --connect` reports the server as not verified (exit 1). Present since `run` first checked tool lists (0.30.0). The first route was found by the review of STORY-0180, the others while it was fixed. A server that writes log lines to stdout loses those lines in enforce mode.
 
+### Fixed
+
+- **Credenzo Team action: the run log of a failed check was empty.** On drift the action wrote the findings to the step summary and to the alert, and printed nothing. A person who opened the failed step saw exit code 1 and no reason. The action now also prints the text of the alert in the run log, on each event. The text holds finding IDs, severities and cleaned names only, as before.
+- **The heading of the GitHub Release notes said "mcp-audit".** The template now says "Credenzo". The names of the release binaries (`mcp-audit-<os>-<arch>`) do not change.
+
+### Documentation
+
+- **Example workflows use the 0.36.0 commit.** The SHA pins in `examples/github-actions/` and `.github/workflows/mcp-audit-example.yml` moved from v0.35.0 to v0.36.0. The Team example now runs the action with the fixes of 0.36.0.
+
 ## [0.36.0] - 2026-11-20
 
 ### Security
