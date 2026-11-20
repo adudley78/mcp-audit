@@ -294,6 +294,75 @@ def remove_prefix(cfg: Settings, path: str) -> None:
         _run(cfg, ["rm", "-rf", "--", path])
 
 
+#: An ISO calendar date. A tool that writes the date of the day into its
+#: description (an example query for "today") gets a new definition digest each
+#: day with no change by its author.
+_ISO_DATE = re.compile(r"(?<![0-9])([0-9]{4})-([0-9]{2})-([0-9]{2})(?![0-9])")
+
+#: A tool with more dates than this gets no ``undated`` record.
+MAX_DATES = 200
+
+
+def without_dates(value: Any, found: list[str]) -> Any:
+    """Return *value* with the ISO dates cut out of its strings.
+
+    Each string becomes the list of its pieces between the dates, so a string
+    with no date becomes a list of one piece. Each date that is cut out is
+    added to *found*, in a fixed order (keys sorted). The result of two
+    values is the same only when they are the same value apart from their
+    dates: no text can stand for a date, because a date leaves a gap between
+    two pieces and nothing else does. Text that is not a real date
+    (``1111-22-33``, month 13) stays in its piece. Keys are not changed.
+    """
+    if isinstance(value, str):
+        pieces: list[str] = []
+        start = 0
+        for match in _ISO_DATE.finditer(value):
+            try:
+                dt.date(int(match[1]), int(match[2]), int(match[3]))
+            except ValueError:
+                continue
+            pieces.append(value[start : match.start()])
+            found.append(match[0])
+            start = match.end()
+        pieces.append(value[start:])
+        return pieces
+    if isinstance(value, list):
+        return [without_dates(item, found) for item in value]
+    if isinstance(value, dict):
+        return {key: without_dates(value[key], found) for key in sorted(value)}
+    return value
+
+
+def add_undated(
+    digests: dict[str, dict[str, Any]], definitions: list[dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Record the dates of each tool whose definition holds an ISO date.
+
+    Such a tool gets two more fields: ``undated``, the digest of its
+    definition with each date cut out (:func:`without_dates`), and ``dates``,
+    the dates themselves in order. ``drift_compare.py`` uses them to tell a tool whose
+    text changed from a tool whose dates only moved with the calendar. The
+    dates are the only part of a tool's text that the snapshot holds. A tool
+    with no date, with more than ``MAX_DATES`` dates, or that shares its name
+    with another tool of the server gets neither field.
+    """
+    from mcp_audit.lock.tool_digests import digest
+
+    names = Counter(d["name"] for d in definitions)
+    for definition in definitions:
+        name = definition["name"]
+        if names[name] != 1 or name not in digests:
+            continue
+        found: list[str] = []
+        rest = {key: value for key, value in definition.items() if key != "name"}
+        plain = {**without_dates(rest, found), "name": name}
+        if found and len(found) <= MAX_DATES:
+            digests[name]["undated"] = digest(plain)
+            digests[name]["dates"] = found
+    return digests
+
+
 async def one(
     cfg: Settings,
     sem: asyncio.Semaphore,
@@ -350,14 +419,17 @@ async def one(
         finally:
             remove_prefix(cfg, prefix)
             remove_prefix(cfg, home)
+    definitions = [tool_definition(t) for t in enum.tools]
     record = {
         **base,
         "bin": binary,
         "elapsed": round(time.time() - started, 1),
         "error": enum.error,
         "tools_error": enum.tools_error,
-        "definitions": [tool_definition(t) for t in enum.tools],
-        "digests": tool_digests(enum.tools) if enum.tools else {},
+        "definitions": definitions,
+        "digests": add_undated(tool_digests(enum.tools), definitions)
+        if enum.tools
+        else {},
     }
     target.write_text(json.dumps(record, indent=1))
     print(name, version, "tools", len(enum.tools), "err", enum.error, flush=True)
