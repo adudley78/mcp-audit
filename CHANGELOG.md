@@ -8,9 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
+### Documentation
 
-- **The lock reported a tool that writes the date of the day into its text as changed each day (STORY-0180).** `lock --verify --connect` gave `LOCK-008` (or `LOCK-007` for a date in the schema) the day after the lock, and `run --mode enforce` withheld the tool. For a tool whose text holds an ISO date, `lock --connect` now also records `calendar`: the day of the lock, the dates in the text and the digest of the definition with each date cut out. A tool whose digests differ is not a change when the text without its dates is the same and each date is the same, moved by the days since the lock, or is a first day of a month that moved by the months since the lock. `lock --verify --connect` names such a tool in one line and under `calendar_only` in `--format json`; `credenzo run` approves it. A changed word beside a date, a date that moved in another way, a new date and a removed date are still changes. The clock of the server can be one day from UTC at each end, so a date can be two days from the exact count, and a first day of a month can be one month from it near a month boundary (GAPS.md). The field is optional: a lock from before this release has no `calendar` record and reports as before until `credenzo lock --accept --connect` runs once, and an older Credenzo ignores the field. The lock now holds the ISO dates of a tool's text, and no other tool text. The drift index and the lock use one rule (`mcp_audit.lock.calendar_text`). Limits: ISO dates only; see GAPS.md.
+- **A workflow to copy for Credenzo Team.** `examples/github-actions/team-drift-alerts.yml` verifies the lock on pull requests, on pushes to `main` and once a day, and sends the drift alert. `docs/team.md` links to it.
+- **Example workflows use the 0.35.0 commit.** The SHA pins in `examples/github-actions/` and `.github/workflows/mcp-audit-example.yml` moved from v0.34.0 to v0.35.0.
 
 ## [0.35.0] - 2026-11-20
 

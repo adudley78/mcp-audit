@@ -388,6 +388,7 @@ CI workflow and example workflows:
 - `examples/github-actions/basic.yml` — minimal setup (visibility only, never fails build)
 - `examples/github-actions/strict.yml` — fail on MEDIUM or higher
 - `examples/github-actions/with-baseline.yml` — drift detection against a committed baseline
+- `examples/github-actions/team-drift-alerts.yml` — Credenzo Team: lock check on pull requests, pushes and a daily run, with the drift alert
 - `examples/pre-commit/basic.yaml` — minimal pre-commit config (blocks on HIGH+)
 - `examples/pre-commit/strict.yaml` — strict pre-commit config (blocks on MEDIUM+)
 
