@@ -301,7 +301,9 @@ def _deep(name: str = "deep", levels: int = 70) -> dict:
     """A tool whose schema is past the 64 levels of the canonical form."""
     schema: dict = {"type": "string"}
     for _ in range(levels):
-        schema = {"x": schema}
+        # A valid schema at each level: some SDK versions refuse a tool
+        # whose inputSchema has no "type".
+        schema = {"type": "object", "properties": {"x": schema}}
     return {"name": name, "description": "Do a thing.", "inputSchema": schema}
 
 
