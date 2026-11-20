@@ -127,10 +127,10 @@ def _line_pump(
     *handle* returns ``(forward, reply)``: bytes for *dst_fd* (``None`` to
     drop the line) and bytes for *reply_fd* (the client) instead. Every write
     to the client goes through *out_lock*, so a reply never lands inside a
-    server message. Toward the server, a line *handle* fails on is forwarded
-    unchanged, and a line longer than :data:`MAX_LINE` is forwarded
-    uninspected. Toward the client (*dst_is_client*), neither is forwarded:
-    the client gets only what was read and checked.
+    server message. A line *handle* fails on is not forwarded, in either
+    direction. Toward the server, a line longer than :data:`MAX_LINE` is
+    forwarded uninspected. Toward the client (*dst_is_client*) it is not
+    forwarded: the client gets only what was read and checked.
     """
 
     def _client_write(data: bytes) -> None:
@@ -145,6 +145,7 @@ def _line_pump(
 
     pending = b""
     dropped = False
+    failed = False
     try:
         while True:
             try:
@@ -161,10 +162,16 @@ def _line_pump(
                     try:
                         forward, reply = handle(raw)
                     except Exception:  # noqa: BLE001 — never break the session
-                        # A line from the client goes on as it is. A line
-                        # from the server that could not be handled is not
-                        # forwarded: it was not checked.
-                        forward, reply = (None if dst_is_client else raw), None
+                        # A line that could not be handled was not checked:
+                        # it is not forwarded, in either direction. Toward
+                        # the server it could hold a call to a withheld tool.
+                        forward, reply = None, None
+                        if not failed:
+                            _report(
+                                "withheld: a line that could not be checked "
+                                "was not forwarded"
+                            )
+                        failed = True
                     if forward is not None:
                         _forward(forward)
                     if reply is not None and reply_fd is not None:

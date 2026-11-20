@@ -187,8 +187,9 @@ The lock compares six fields of a tool: `name`, `title`, `description`,
 one of these fields has the wrong type: a `name`, `title` or `description`
 that is not text, or a schema or `annotations` that is not an object. The
 digest does not read such a field, so the field could hold text that the lock
-never saw. The finding is `LOCK-007` when the lock holds the name and
-`LOCK-006` when it does not. Each other key of an approved tool (`_meta`,
+never saw. The finding is `LOCK-007` when the lock holds the name,
+`LOCK-006` when it does not, and `RUN-003` when the lock has no tool record
+for the server. Each other key of an approved tool (`_meta`,
 `icons`, a key that the MCP specification does not define) goes to the client
 as the server sent it. The lock does not compare these keys.
 
@@ -208,12 +209,16 @@ In enforce mode the client gets only what Credenzo read:
   since protocol 2025-06-18.
 - A line of more than 64 MiB from the server is not forwarded.
 
-Lines from the client to the server are not changed by these rules. Enforce
-mode stops a `tools/call` to a tool that is not approved in three forms: a
-request (the client gets an error), a message with no `id` (dropped; no
-answer is due), and a call inside a batch (the batch is not forwarded, and
-each request in it gets an error). A line of more than 64 MiB from the client
-is forwarded and not read.
+Toward the server, enforce mode stops a `tools/call` to a tool that is not
+approved in three forms: a request (the client gets an error), a message with
+no `id` (dropped; no answer is due), and a call inside a batch (the batch is
+not forwarded, and each request in it gets an error). A line from the client
+that Credenzo cannot read as JSON is not forwarded, by the same rule as a
+line from the server: another parser could read a call in it. A line that
+the check fails on is not forwarded. Each line that gets no answer is
+reported one time on stderr. A line of more than 64 MiB from the client is
+forwarded and not read. Each other line from the client goes to the server
+with no change.
 
 "Withheld" means two things in enforce mode:
 

@@ -2561,10 +2561,11 @@ a ClawHub-side matter and not checked.
   client goes to the server unread, so a `tools/call` in it is not checked.
   The client is the agent host, which Credenzo trusts; the model does not
   choose how the host frames a call.
-- **Client lines are read by one parser.** A client line that holds one key
-  twice is read as Python reads it (the last value). A server that takes the
-  first value could run a `tools/call` that Credenzo read as another method.
-  Only the agent host can write such a line.
+- **Enforce mode drops client lines that it cannot read.** A line from the
+  client that is not JSON, holds one key twice, or holds a number of more
+  than 4,300 digits is not forwarded in enforce mode, with one line on
+  stderr and no answer to the client. A host that writes such a line gets no
+  answer to that request.
 
 ## Guard hooks that will never run (HOOK-004/005, analyzers/hook_runnable.py — STORY-0156)
 

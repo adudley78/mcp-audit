@@ -266,11 +266,16 @@ class TestProtocolEdges:
     )
     def test_non_messages_pass_through(self, line: bytes) -> None:
         guard, _ = _guard(_record(ECHO), True)
-        assert guard.client_line(line) == (line, None)
         monitor, _ = _guard(_record(ECHO), False)
         assert monitor.server_line(line) is line
+        assert monitor.client_line(line) == (line, None)
         if line != b"not json\n":
             assert guard.server_line(line) is line
+            assert guard.client_line(line) == (line, None)
+        else:
+            # Enforce mode forwards, in each direction, only what it read.
+            assert guard.server_line(line) == b""
+            assert guard.client_line(line) == (None, None)
 
     def test_error_answer_to_tools_list_passes(self) -> None:
         guard, said = _guard(_record(ECHO), True)
@@ -788,6 +793,41 @@ class TestEndToEnd:
         call = next(m for m in msgs if m["id"] == 3)
         assert call["error"]["data"] == {"finding": "LOCK-007", "tool": "add"}
 
+    def test_enforce_stops_a_call_whose_denial_python_could_not_encode(
+        self, locked_repo
+    ) -> None:
+        """Through the real relay: the id holds a lone surrogate, as a
+        JavaScript host writes it. The call must not reach the server."""
+        config, tools, argv = locked_repo
+        tools.write_text(json.dumps([ECHO, {**ADD, "description": "changed"}]))
+        proc = subprocess.Popen(  # noqa: S603
+            [
+                PY, "-m", "mcp_audit._entry", "run", "--config", str(config),
+                "--server", "fx", "--mode", "enforce", "--", *argv,
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )  # fmt: skip
+        assert proc.stdin is not None and proc.stdout is not None
+        call = (
+            b'{"jsonrpc":"2.0","id":"\\ud800","method":"tools/call",'
+            b'"params":{"name":"add"}}\n'
+        )
+        raw = b""
+        for line in [*(_line(m) for m in HANDSHAKE[:3]), call]:
+            proc.stdin.write(line)
+            proc.stdin.flush()
+            if b'"id"' in line:
+                raw += proc.stdout.readline()
+        proc.stdin.close()
+        raw += proc.stdout.read()
+        assert proc.wait(timeout=60) == 0
+        assert b"ran add" not in raw
+        answer = json.loads(raw.splitlines()[-1])
+        assert answer["id"] == "\ud800"
+        assert answer["error"]["data"] == {"finding": "LOCK-008", "tool": "add"}
+
     def test_enforce_never_forwards_a_line_that_it_cannot_read(
         self, locked_repo
     ) -> None:
@@ -1032,12 +1072,13 @@ def _call_msg(name: str, msg_id: object = 9) -> dict:
 
 class TestClientSideInEnforce:
     def test_a_call_with_no_id_to_a_withheld_tool_is_not_forwarded(self) -> None:
-        guard, _ = _guard(_record(ECHO), True)
+        guard, said = _guard(_record(ECHO), True)
         _listed(guard, [ECHO, ADD])
         note = _line(
             {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "add"}}
         )
         assert guard.client_line(note) == (None, None)
+        assert "with no id" in said[-1]
 
     def test_a_call_with_no_id_to_an_approved_tool_passes(self) -> None:
         guard, _ = _guard(_record(ECHO), True)
@@ -1078,7 +1119,79 @@ class TestClientSideInEnforce:
         raw = _batch(_call_msg("add", 6))
         assert guard.client_line(raw) == (raw, None)
 
-    @pytest.mark.parametrize("line", [b"[]\n", b'[1, "x", null]\n', b"7\n", b"x\n"])
+    @pytest.mark.parametrize("line", [b"[]\n", b'[1, "x", null]\n', b"7\n", b"\n"])
     def test_other_lines_pass(self, line: bytes) -> None:
         guard, _ = _guard(_record(ECHO), True)
         assert guard.client_line(line) == (line, None)
+
+    # Each line holds a call to the withheld tool "add". Python's parser
+    # refuses the line or the reply; another parser reads the call.
+    UNREAD = [
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":"\\ud800","method":"tools/call",'
+            b'"params":{"name":"add"}}\n',
+            id="lone-surrogate-id",
+        ),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+            b'"params":{"name":"\\udc00"}}\n',
+            id="lone-surrogate-name",
+        ),
+        pytest.param(
+            b'[{"jsonrpc":"2.0","id":"\\ud800","method":"tools/call",'
+            b'"params":{"name":"add"}}]\n',
+            id="lone-surrogate-in-batch",
+        ),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":' + b"1" * 5000 + b',"method":"tools/call",'
+            b'"params":{"name":"add"}}\n',
+            id="number-of-5000-digits",
+        ),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+            b'"params":{"name":"add","arguments":{"x":"\xff"}}}\n',
+            id="wrong-utf8-byte",
+        ),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":1,"method":"tools/call","method":"ping",'
+            b'"params":{"name":"add"}}\n',
+            id="method-twice",
+        ),
+        pytest.param(
+            b'[[{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+            b'"params":{"name":"add"}}]]\n',
+            id="list-in-a-batch",
+        ),
+        pytest.param(b"not json\n", id="not-json"),
+    ]
+
+    @pytest.mark.parametrize("line", UNREAD)
+    def test_a_line_that_cannot_be_checked_is_not_forwarded(self, line: bytes) -> None:
+        guard, said = _guard(_record(ECHO), True)
+        _listed(guard, [ECHO, ADD])
+        said.clear()
+        to_server, reply = guard.client_line(line)  # must not raise
+        assert to_server is None
+        if reply is not None:
+            reply.decode("ascii")
+            answers = json.loads(reply)
+            answers = answers if isinstance(answers, list) else [answers]
+            assert all(a["error"]["code"] == DENIED_TOOL_CODE for a in answers)
+        else:
+            # No answer is due, so stderr says where the line went.
+            assert len(said) == 1 and "was not forwarded" in said[0]
+
+    @pytest.mark.parametrize("line", UNREAD)
+    def test_monitor_forwards_such_a_line_unchanged(self, line: bytes) -> None:
+        guard, _ = _guard(_record(ECHO), False)
+        assert guard.client_line(line) == (line, None)
+
+    def test_a_check_that_fails_does_not_forward_the_line(self) -> None:
+        guard, said = _guard(_record(ECHO), True)
+
+        def boom(_value: object, _line: bytes) -> tuple[bytes | None, bytes | None]:
+            raise RuntimeError("boom")
+
+        guard._client_message = boom  # type: ignore[method-assign]
+        assert guard.client_line(_call("echo")) == (None, None)
+        assert "could not be checked" in said[0]

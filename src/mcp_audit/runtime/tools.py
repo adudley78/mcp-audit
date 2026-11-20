@@ -150,11 +150,32 @@ class ToolGuard:
     def client_line(self, line: bytes) -> tuple[bytes | None, bytes | None]:
         """Inspect one client line.
 
+        Never raises. In enforce mode a line that cannot be read as JSON, or
+        that fails in this check, is not forwarded: the server's parser could
+        read a ``tools/call`` in it that this check did not see. Monitor mode
+        forwards every line as it is.
+
         Returns:
             ``(to_server, to_client)``: the line to forward (``None`` to drop
             it) and a reply to send the client instead (``None`` for none).
         """
-        value = _parse_any(line)
+        try:
+            value = _read(line, strict=self.enforce)
+            return self._client_message(value, line)
+        except Exception as exc:  # noqa: BLE001 - fail closed, keep the session
+            if not self.enforce:
+                return line, None
+            why = str(exc) if isinstance(exc, _UnreadableError) else type(exc).__name__
+            self._report_once(
+                ("client-unread",),
+                f"withheld: server {self.server_name!r}: a line from the client "
+                f"that could not be checked ({why}) was not forwarded",
+            )
+            return None, None
+
+    def _client_message(
+        self, value: object, line: bytes
+    ) -> tuple[bytes | None, bytes | None]:
         if isinstance(value, list):
             return self._client_batch(value, line)
         if not isinstance(value, dict):
@@ -171,8 +192,11 @@ class ToolGuard:
         if method == "tools/call" and self.enforce:
             denial = self._deny_call(msg)
             if denial is not None:
+                if msg_id is not None:
+                    return None, _encode(denial)
                 # A call with no id gets no answer: it is not forwarded.
-                return None, (_encode_reply(denial) if msg_id is not None else None)
+                self._silent_drop("a tools/call with no id to a withheld tool")
+                return None, None
         return line, None
 
     def _deny_call(self, msg: dict) -> dict | None:
@@ -202,7 +226,9 @@ class ToolGuard:
             if isinstance(m, dict) and m.get("method") == "tools/call"
         ]
         denials = {id(m): d for m in calls if (d := self._deny_call(m)) is not None}
-        if not denials:
+        # A list inside the batch is not JSON-RPC; it is not searched for calls.
+        nested = any(isinstance(m, list) for m in messages)
+        if not denials and not nested:
             return raw, None
         replies: list[dict] = []
         for message in messages:
@@ -218,11 +244,21 @@ class ToolGuard:
                     "error": {
                         "code": DENIED_TOOL_CODE,
                         "message": "Credenzo did not forward this batch: it holds "
-                        "a call to a tool that is withheld",
+                        "a call to a tool that is withheld, or a list",
                     },
                 }
             )
-        return None, (_encode_reply(replies) if replies else None)
+        if replies:
+            return None, _encode(replies)
+        self._silent_drop("a batch with a call to a withheld tool, or with a list")
+        return None, None
+
+    def _silent_drop(self, what: str) -> None:
+        """Say once on stderr that a client line got no answer and went nowhere."""
+        self._report_once(
+            ("client-drop", what),
+            f"withheld: server {self.server_name!r}: {what} was not forwarded",
+        )
 
     # ── server → client ────────────────────────────────────────────────────
 
@@ -575,19 +611,6 @@ def _encode(message: object) -> bytes:
     back out as the same escape and cannot fail the encoding.
     """
     return json.dumps(message, separators=(",", ":")).encode("ascii") + b"\n"
-
-
-def _parse_any(line: bytes) -> object:
-    """Parse one client line, or ``None`` when it isn't JSON."""
-    try:
-        return json.loads(line)
-    except (ValueError, UnicodeDecodeError, RecursionError, MemoryError):
-        return None
-
-
-def _encode_reply(reply: object) -> bytes:
-    """Return a reply to the client as one line of JSON."""
-    return json.dumps(reply, ensure_ascii=False, separators=(",", ":")).encode() + b"\n"
 
 
 def _key(msg_id: object) -> str:

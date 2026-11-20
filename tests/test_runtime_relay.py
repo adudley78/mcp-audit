@@ -365,9 +365,9 @@ class TestMonitorTapOrder:
 
 
 class TestEnforceForwardsOnlyWhatItRead:
-    """`_line_pump` toward the client (STORY-0181)."""
+    """`_line_pump` in enforce mode (STORY-0181, STORY-0183)."""
 
-    def _pump(self, data: bytes, handle) -> bytes:  # noqa: ANN001
+    def _pump(self, data: bytes, handle, *, to_client: bool = True) -> bytes:  # noqa: ANN001
         import os
         import threading
 
@@ -382,7 +382,7 @@ class TestEnforceForwardsOnlyWhatItRead:
             kwargs={
                 "handle": handle,
                 "out_lock": threading.Lock(),
-                "dst_is_client": True,
+                "dst_is_client": to_client,
             },
         )
         thread.start()
@@ -405,6 +405,20 @@ class TestEnforceForwardsOnlyWhatItRead:
             return line, None
 
         assert self._pump(b"one\nbad\ntwo\n", handle) == b"one\ntwo\n"
+
+    def test_toward_the_server_such_a_line_is_not_forwarded_either(
+        self, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        """A client line that was not checked could hold a withheld call."""
+
+        def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
+            if b"bad" in line:
+                raise RuntimeError("boom")
+            return line, None
+
+        out = self._pump(b"one\nbad\nbad 2\ntwo\n", handle, to_client=False)
+        assert out == b"one\ntwo\n"
+        assert capfd.readouterr().err.count("was not forwarded") == 1
 
     def test_a_line_over_the_limit_is_not_forwarded(
         self, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
