@@ -362,10 +362,20 @@ def verify(
                 tool_items.append(problem)
             else:
                 enumeration = tool_enumerations[tool_digests.enumeration_key(server)]
-                diff = tool_digests.compare(
-                    locked_tool_servers[key],
-                    tool_digests.tool_digests(enumeration.tools, day=day),
-                )
+                try:
+                    current_digests = tool_digests.tool_digests(
+                        enumeration.tools, day=day
+                    )
+                except ValueError as exc:  # past the limits of the canonical form
+                    tool_items.append(
+                        UnverifiedItem(
+                            kind="entry",
+                            name=key,
+                            reason=f"a tool definition cannot be digested: {exc}",
+                        )
+                    )
+                    continue
+                diff = tool_digests.compare(locked_tool_servers[key], current_digests)
                 if diff.calendar_only:
                     calendar_only[key] = diff.calendar_only
                 details = _tool_details(

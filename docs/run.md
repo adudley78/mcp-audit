@@ -174,6 +174,32 @@ A tool whose text holds a date that moved with the calendar since the lock
 is not a change. It is approved and nothing is reported. The rule is in
 [lock.md](lock.md#tool-definitions---connect).
 
+A tool that cannot be digested cannot equal a lock record. Its definition is
+past the limits of the canonical form (64 levels, 100,000 nodes). It is
+`LOCK-006` when the lock does not hold its name and `LOCK-007` when it does.
+When a `tools/list` answer cannot be checked at all, enforce mode gives the
+client the answer with no tools and writes one line to stderr. It does not
+forward an answer that it did not check. An entry of the list that is not an
+object is not forwarded in enforce mode.
+
+In enforce mode the client gets only what Credenzo read:
+
+- A line from the server that Credenzo cannot read as JSON is not forwarded.
+  That is a line that is not JSON, is nested too deep, holds a number of
+  more than 4,300 digits, or holds one key twice in one object. Another
+  parser can read some of these lines, so such a line could carry a tool
+  list past the check. A log line that a server writes to stdout is dropped
+  in the same way; a client cannot use it.
+- A line is read as UTF-8 text with each wrong byte replaced, as a client
+  reads it. A wrong byte does not hide a tool list.
+- Each answer whose `result` holds a `tools` list is checked, also when no
+  `tools/list` request with its id was seen.
+- A tool list inside a batch (a JSON array) is emptied. MCP has had no batch
+  since protocol 2025-06-18.
+- A line of more than 64 MiB from the server is not forwarded.
+
+Lines from the client to the server are not changed by these rules.
+
 "Withheld" means two things in enforce mode:
 
 - The tool is removed from the `tools/list` result the client sees, so the

@@ -362,3 +362,70 @@ class TestMonitorTapOrder:
         assert json.loads(out)["result"]["tools"][0]["name"] == "echo"
         assert result["code"] == 0
         assert state["seen_at_answer"] is True
+
+
+class TestEnforceForwardsOnlyWhatItRead:
+    """`_line_pump` toward the client (STORY-0181)."""
+
+    def _pump(self, data: bytes, handle) -> bytes:  # noqa: ANN001
+        import os
+        import threading
+
+        from mcp_audit.runtime import relay
+
+        src_r, src_w = os.pipe()
+        dst_r, dst_w = os.pipe()
+        done = threading.Event()
+        thread = threading.Thread(
+            target=relay._line_pump,
+            args=(src_r, dst_w, done.set),
+            kwargs={
+                "handle": handle,
+                "out_lock": threading.Lock(),
+                "dst_is_client": True,
+            },
+        )
+        thread.start()
+        os.write(src_w, data)
+        os.close(src_w)
+        thread.join(timeout=20)
+        assert done.is_set()
+        os.close(dst_w)
+        out = b""
+        while chunk := os.read(dst_r, 65536):
+            out += chunk
+        os.close(src_r)
+        os.close(dst_r)
+        return out
+
+    def test_a_line_that_the_handler_fails_on_is_not_forwarded(self) -> None:
+        def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
+            if b"bad" in line:
+                raise RuntimeError("boom")
+            return line, None
+
+        assert self._pump(b"one\nbad\ntwo\n", handle) == b"one\ntwo\n"
+
+    def test_a_line_over_the_limit_is_not_forwarded(
+        self, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        from mcp_audit.runtime import relay
+
+        monkeypatch.setattr(relay, "MAX_LINE", 1000)
+        monkeypatch.setattr(relay, "CHUNK_SIZE", 512)
+        seen: list[bytes] = []
+
+        def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
+            seen.append(line)
+            return (line if line.startswith(b"ok") else None), None
+
+        long_line = b"x" * 5000 + b"\n"
+        assert self._pump(b"ok 1\n" + long_line + b"ok 2\n", handle) == b"ok 1\nok 2\n"
+        assert capfd.readouterr().err.count("was not forwarded") == 1
+        assert all(len(line) <= 1000 + 512 for line in seen)
+
+    def test_the_last_bytes_with_no_newline_are_handled(self) -> None:
+        def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
+            return (None if b"tail" in line else line), None
+
+        assert self._pump(b"one\ntail", handle) == b"one\n"

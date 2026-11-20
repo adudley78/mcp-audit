@@ -524,7 +524,13 @@ def _run_write(
             if problem:
                 tool_failures.append((server_key(server), problem))
                 continue
-            record = tool_digests.server_record(enumeration.tools, day=day)
+            try:
+                record = tool_digests.server_record(enumeration.tools, day=day)
+            except ValueError as exc:  # a definition past the canonical limits
+                tool_failures.append(
+                    (server_key(server), f"a tool definition cannot be digested: {exc}")
+                )
+                continue
             earlier = tool_records.get(server_key(server))
             if earlier is not None:
                 # Two config files give one key.  Keep the tools of both
