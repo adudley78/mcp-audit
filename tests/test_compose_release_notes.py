@@ -65,7 +65,7 @@ def test_compose_substitutes_and_leaves_no_tokens() -> None:
     assert "{{VERSION}}" not in notes
     assert "{{CHANGELOG_SECTION}}" not in notes
     assert notes.startswith("<!--")
-    assert "## mcp-audit v0.15.0" in notes
+    assert "## Credenzo v0.15.0" in notes
     assert "adudley78/credenzo@v0.15.0" in notes
     assert "### Security" in notes
     assert "### Install" in notes
@@ -120,5 +120,5 @@ def test_main_writes_output(tmp_path: Path) -> None:
         == 0
     )
     body = out.read_text(encoding="utf-8")
-    assert "## mcp-audit v0.15.0" in body
+    assert "## Credenzo v0.15.0" in body
     assert leftover_tokens(body) == []
