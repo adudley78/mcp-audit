@@ -52,8 +52,9 @@ Lock: 2 servers verified; not verified: trees (see docs/lock.md)
 - `lock --connect` also records a digest of every tool each server lists; `lock --verify --connect` reports tools added, changed, or removed (LOCK-006…009).
 - `credenzo guard` is a Claude Code hook that reads the lock before each MCP tool call. A tool or a server that is not in the lock cannot be called — see [docs/guard.md](docs/guard.md).
 
-`lock` is experimental in this release (`lock_version` 1); the file shape may change
-before it is frozen — see [docs/lock.md](docs/lock.md).
+The lock format is stable from 0.35.0: a lock that verifies today verifies with every later
+release — see [docs/lock-format.md](docs/lock-format.md). To get an alert when a server or a tool
+changes without review, see [Credenzo Team](docs/team.md).
 
 ![Terminal recording: credenzo lock, a drift edit, a failed --verify, then --accept and a passing --verify](docs/media/lock-demo.gif)
 
@@ -334,7 +335,7 @@ then post the diff as a PR comment via `github-script`:
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
 
-- uses: adudley78/credenzo/setup-action@v0.34.0
+- uses: adudley78/credenzo/setup-action@v0.35.0
 
 - run: git checkout ${{ github.event.pull_request.base.sha }}
         && credenzo scan --format json -o base.json || true
@@ -502,7 +503,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-10,924 tests validate detection accuracy and guard against regressions.
+11,053 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -631,9 +632,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/credenzo@v0.34.0
+        uses: adudley78/credenzo@v0.35.0
         with:
-          version: v0.34.0
+          version: v0.35.0
           severity-threshold: high
           upload-sarif: 'true'
 ```
@@ -695,7 +696,7 @@ Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-c
 ```yaml
 repos:
   - repo: https://github.com/adudley78/credenzo
-    rev: v0.34.0
+    rev: v0.35.0
     hooks:
       - id: mcp-audit
 ```
@@ -735,7 +736,7 @@ git clone https://github.com/adudley78/credenzo.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 10,924 tests
+uv run pytest                        # Run all 11,053 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
@@ -775,8 +776,13 @@ If `credenzo` saves your team time or prevents a security incident, consider
 
 Sponsorship funds ongoing MCP attack-pattern research, false-positive tuning,
 new detection rules, and timely releases. Every dollar goes to development
-time — there is no legal entity, no paid tier, and no gated features.
-All work remains Apache 2.0 and available to every user.
+time. Every `credenzo` command is Apache 2.0 and free for every user, with no
+gated feature.
+
+A team can also fund the work with [Credenzo Team](docs/team.md): a GitHub
+Action that sends an alert when an MCP server or a tool changes without
+review. It is free for personal accounts and public repositories, and $99 a
+month for the private repositories of an organization.
 
 If Credenzo is useful to you, a star helps others find it.
 

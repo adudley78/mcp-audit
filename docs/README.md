@@ -21,7 +21,8 @@ Every file in this folder is listed once. `tests/test_docs_index.py` fails when 
 | [affected.md](affected.md) | `affected`: is this advisory in any server here |
 | [vet.md](vet.md) · [badge.md](badge.md) | `vet`: pre-install verdict, and the README badge |
 | [fix.md](fix.md) | `fix`: safe remediations |
-| [lock.md](lock.md) | `lock`: the committable record of approved servers |
+| [lock.md](lock.md) · [lock-format.md](lock-format.md) | `lock`: the committable record of approved servers, and what will not change in the file |
+| [team.md](team.md) | Credenzo Team: drift alerts from the lock in GitHub Actions (the one paid part) |
 | [run.md](run.md) | `run`, `wrap`, `unwrap`: the launch gate |
 | [guard.md](guard.md) | `guard`: a Claude Code hook that denies a call to a tool the lock does not approve |
 | [reach.md](reach.md) · [secret-reach.md](secret-reach.md) | `reach`: what the agents on this machine can touch; REACH-001..003 |

@@ -29,6 +29,10 @@ A plain scan runs entirely on your machine and sends nothing anywhere.  Registra
 
 The package-registry lookups send package names and versions taken from your config, never the config itself.
 
+### The Credenzo Team action
+
+The [Credenzo Team](team.md) GitHub Action is not part of the `credenzo` command. In a private repository of an organization it sends one GET to GitHub (`raw.githubusercontent.com`) for the public licence list. It writes its alert to an issue in your own repository and, when you give a URL, to your webhook. It sends nothing to the Credenzo project and reports no use. See [What leaves the runner](team.md#what-leaves-the-runner).
+
 ---
 
 ## Opt-in registration (`credenzo register`)

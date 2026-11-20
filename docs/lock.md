@@ -1,10 +1,8 @@
 # `credenzo lock` — a committable, reviewable record of approved MCP servers
 
-> **EXPERIMENTAL.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2)) and
-> verifies both `1` and `2`. The name of the `section_digests` field is pending confirmation with
-> the `trees` producer ([#88](https://github.com/adudley78/credenzo/issues/88)) and may change
-> before it is released. Treat `mcp-lock.json`'s shape as subject to change across a minor release
-> until this note is removed — the same posture the advisory feed shipped with.
+> **Stable from 0.35.0.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2))
+> and verifies both `1` and `2`. A lock that verifies today verifies with every later release, and
+> a field keeps its name and its meaning. The promises are in [lock-format.md](lock-format.md).
 
 `credenzo lock` writes `mcp-lock.json` at your project root: a small, deterministic, git-committable
 record of exactly which MCP servers your team has approved, what package version each one resolved
@@ -502,7 +500,7 @@ poisoning arrives. It is ranked below a schema change because the tool still acc
 the same things, but it still fails the build until someone reads the new text and re-locks.
 `credenzo scan --connect` runs the poisoning checks over the current text.
 
-**A date that moves with the calendar is not a change (0.35.0).** Some servers write the date of
+**A date that moves with the calendar is not a change (0.36.0).** Some servers write the date of
 the day into a tool description or a schema default, for example an example query for "today".
 The digests of such a tool are new each day, although its author changed nothing. For a tool
 whose text holds an ISO date (`2026-11-20`), `lock --connect` also records `calendar`:
@@ -535,8 +533,8 @@ A tool that passes is not a finding. `lock --verify --connect` names it in one l
   month. One choice of clocks must explain every date of the tool.
 - Each date is tested by itself: it stayed, or it moved. So a date that the author meant as
   fixed (`Data starts on 2020-01-01`) can move by the days since the lock and still pass.
-- A lock from before 0.35.0 has no `calendar` record. Such a tool is `LOCK-008` or `LOCK-007`
-  until you run `credenzo lock --accept --connect` once with 0.35.0 or later.
+- A lock from before 0.36.0 has no `calendar` record. Such a tool is `LOCK-008` or `LOCK-007`
+  until you run `credenzo lock --accept --connect` once with 0.36.0 or later.
 - An older Credenzo reads the new lock and ignores `calendar`: it reports the tool each day, as
   before.
 - The lock now holds the ISO dates of the tool's text. It holds no other tool text.

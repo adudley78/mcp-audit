@@ -43,6 +43,8 @@ updates:
   # had to be applied by hand because of that. `/.github/actions/*` is a
   # single-level glob (not `**`; that duplicates PRs). `/setup-action` is
   # the other composite; it pins `actions/cache`, which no workflow uses.
+  # `/team` (Credenzo Team) has one `run` step and no `uses:` today; it is
+  # listed so that a `uses:` added there later is covered from its first day.
   # `group-by: dependency-name` keeps one PR per action across directories
   # instead of a workflow PR and a composite PR for the same SHA.
   - package-ecosystem: github-actions
@@ -50,6 +52,7 @@ updates:
       - "/"
       - "/.github/actions/*"
       - "/setup-action"
+      - "/team"
     schedule:
       interval: weekly
       day: monday

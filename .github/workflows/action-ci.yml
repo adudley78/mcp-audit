@@ -36,3 +36,59 @@ jobs:
           sast-path: 'src/'
           fail-on-findings: 'false'
           upload-sarif: 'false'
+
+  # The Credenzo Team action (team/, docs/team.md) on a real runner: a clean
+  # lock, then a server that nobody locked. `alert-issue: false` and the
+  # pull_request event both keep it from writing an issue here.
+  test-team-action:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Credenzo
+        uses: ./setup-action
+
+      - name: Make a project and lock it
+        run: |
+          mkdir -p "$RUNNER_TEMP/app"
+          cd "$RUNNER_TEMP/app"
+          printf '%s' '{"mcpServers":{"files":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem@1.0.0"]}}}' > .mcp.json
+          credenzo lock . --offline
+
+      - name: Team action on a clean lock
+        id: clean
+        uses: ./team
+        with:
+          path: ${{ runner.temp }}/app
+          alert-issue: 'false'
+
+      - name: Add a server that nobody locked
+        run: |
+          cd "$RUNNER_TEMP/app"
+          printf '%s' '{"mcpServers":{"files":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem@1.0.0"]},"new":{"command":"node","args":["x.js"]}}}' > .mcp.json
+
+      - name: Team action on drift
+        id: drift
+        uses: ./team
+        with:
+          path: ${{ runner.temp }}/app
+          alert-issue: 'false'
+          fail-on-drift: 'false'
+
+      - name: Check both results
+        env:
+          CLEAN: ${{ steps.clean.outputs.drift }}
+          DRIFT: ${{ steps.drift.outputs.drift }}
+          PLAN: ${{ steps.drift.outputs.plan }}
+        run: |
+          echo "clean drift=$CLEAN, drift drift=$DRIFT, plan=$PLAN"
+          test "$CLEAN" = "false"
+          test "$DRIFT" = "true"
+          case "$PLAN" in
+            personal|public) ;;
+            *) echo "::error::This repository is public and personal; plan was '$PLAN'."; exit 1 ;;
+          esac

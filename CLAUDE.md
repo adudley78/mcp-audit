@@ -43,13 +43,40 @@ and flags security issues.
 
 ## Business model
 
-Fully open source under Apache 2.0 — every feature is free for every user. There
-is no Community / Pro / Enterprise split, no license-key gate, and no paid tier.
-All paid-license plumbing (Ed25519 signing, revocation lists, `activate` /
-`license` commands, the `gate()` shim) was removed in v0.2.0; anything that
-still references `licensing.py` or `_gate.py` is stale. Funding is requested
-via GitHub Sponsors (handle configured in `.github/FUNDING.yml`, with a
-"Support" section in `README.md`), not through feature gating.
+The `credenzo` command is fully open source under Apache 2.0 — every command and
+every check is free for every user. There is no Community / Pro / Enterprise
+split and no license-key gate in the package. All paid-license plumbing (Ed25519
+signing, revocation lists, `activate` / `license` commands, the `gate()` shim)
+was removed in v0.2.0; anything that still references `licensing.py` or
+`_gate.py` is stale.
+
+There is one paid offer, beside the package and not in it: **Credenzo Team**
+(`team/`, `docs/team.md`, added 2026-11-20). It is a GitHub Action that runs
+`credenzo lock --verify` and sends drift alerts (an issue, a webhook message).
+The check itself is the free command and always runs. Alerts are free for
+personal accounts and public repositories, and $99 a month (up to 10 seats) for
+the private repositories of an organization. Rules that keep it honest:
+
+- `team/` is never imported by `src/mcp_audit` and never ships in the wheel or
+  the binary (`tests/test_team_action.py::test_the_team_code_is_not_in_the_package`).
+  Do not put a licence check in the package.
+- `team/credenzo_team.py` and `scripts/team_licenses.py` use the standard
+  library only. The action sends nothing to the project (no usage report);
+  `docs/telemetry.md` still holds.
+- A subscription is found by GitHub owner name in the public licence list on
+  the `team-licenses` branch, which `.github/workflows/team-licenses.yml`
+  builds from Stripe twice an hour. The list holds digests and fillers, never a
+  name, an email address, a Stripe ID or a count; neither job prints one. When
+  the list cannot be read, alerts stay on.
+- The offer (price, checkout link, the date the experiment started) is
+  `team/offer.json`; `scripts/team_go_live.py` writes it and the "Subscribe"
+  block of `docs/team.md`. `scripts/paid_path_report.py` prints the weekly
+  public numbers and applies the continue/stop rule that was set before the
+  experiment (10 customers or $1k MRR to continue; under 3 customers or $300
+  MRR after 90 days to stop).
+
+Funding is also requested via GitHub Sponsors (handle configured in
+`.github/FUNDING.yml`, with a "Support" section in `README.md`).
 
 ## Tech stack
 
@@ -347,6 +374,12 @@ Data files at project root:
 GitHub Action at project root:
 - `action.yml` — composite GitHub Action definition; allows any repo to wire Credenzo into CI with a single workflow addition; inputs: `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version`; outputs: `findings-count`, `grade`, `sarif-path`. Uses `github/codeql-action/upload-sarif` (v4, pinned to a commit SHA like every third-party `uses:` ref in `action.yml`, `setup-action/` and `.github/` — `tests/test_action_yaml.py::test_every_third_party_action_ref_is_sha_pinned`) with `continue-on-error: true` so repos without Code Scanning enabled still run cleanly. Marketplace-ready — passes `tests/test_action_yaml.py` structural and safety checks.
 
+Credenzo Team action (`team/`, the one paid offer; docs/team.md):
+- `team/action.yml` + `team/credenzo_team.py` — composite action, one step, standard library only. Runs `credenzo lock --verify --if-present --format json` (the command must already be on PATH) and returns its exit code. On a failed check outside a pull request it keeps one issue ("MCP lock drift", found again by a marker in the body, fingerprint of the findings so the same drift is reported once) and POSTs `{"text": ...}` to `alert-webhook`. An alert holds finding IDs, severities and cleaned server/tool names (`clean_name`), never a finding's own text. `decide()` is the whole pricing rule: personal account or public repository = alerts; else the licence list (`read_offer`): not readable or not live = alerts, owner digest in the list = alerts, otherwise the check runs and one notice is printed. `MEANINGS` must hold every LOCK ID the lock package reports (a test reads the source).
+- `team/offer.json` — price, seats, `live_since`, checkout link, payment link ID. Written by `scripts/team_go_live.py`.
+- `scripts/team_licenses.py` + `.github/workflows/team-licenses.yml` — Stripe (restricted read key, `team-licenses` environment) to `index.json` on the `team-licenses` branch: `offer` plus `owners`, SHA-256 digests padded with HMAC fillers to a multiple of 64. A failed Stripe request writes nothing. The `publish` job replaces the branch with one parentless commit.
+- `scripts/paid_path_report.py` — weekly public numbers (`gh` + pypistats) and `decide()` for the experiment; the paid numbers are arguments, never read or stored.
+
 Pre-commit hook at project root:
 - `.pre-commit-hooks.yaml` — pre-commit hook definition; `language: python`, `entry: credenzo` (the old ids `mcp-audit` and `mcp-audit-lock-verify` stay, with `entry: mcp-audit`), `pass_filenames: false` (Credenzo uses its own discovery), `types: [json]` (fires only on staged JSON files), `always_run: false`; default args run `scan --severity-threshold high`; see `docs/pre-commit.md`
 
@@ -435,7 +468,7 @@ Measurement scripts (dev tooling, not in the package):
 - OSV.dev lookups **are implemented** via `scan --check-vulns` (deps.dev transitive graph + OSV.dev CVE batch query; shipped v0.6.0). The `--offline` flag enforces mutual exclusion with network-touching opt-in flags (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`); a plain scan already makes no network calls, so `--offline` is a no-op for the default configuration
 - **Credenzo does not implement semver range resolution anywhere** — no semver library appears in `src/mcp_audit/vulnerability/` or `src/mcp_audit/attestation/`. For an unpinned npm server, `resolve_latest_version()` asks `registry.npmjs.org/<pkg>/latest` (the `latest` dist-tag, npm-pick-manifest's own first-preference rule) rather than computing a highest-satisfying version, so the class of resolver bug an external measurement (issue [#88](https://github.com/adudley78/credenzo/issues/88)) found in a from-scratch range resolver — preferring a higher non-`latest`-tagged version over the dist-tag — cannot reach us; we declined to implement the thing that has the bug. For PyPI, `info.version` from the PyPI JSON API is documented to report the latest **stable** release (pre-releases excluded), matching pip's/`uvx`'s/`pipx`'s own default install behaviour, so it errs the same direction a real install would. `resolver.is_version_range()` (R36) is a syntactic, non-semver detector for a config entry that carries a floating specifier (`^1.2.3`, `~1.2.3`, `>=1.0.0`, `1.2.x`, `*`, `1.0.0 - 2.0.0`, `latest`) rather than an exact pin; `check_vulnerabilities()` and `credenzo sbom` both check it before calling `fetch_transitive_deps()`, because deps.dev requires an exact `(name, version)` key and 404s on a range — without the check, that 404 was caught by `fetch_transitive_deps()`'s own `except URLError/HTTPError` and silently degraded to a top-level-only result carrying the literal range string as its "version," with no warning. Both call sites now resolve a concrete version first (same as the existing "unpinned" path) and surface a visible `VULN-UNPINNED` finding / Rich console warning naming the original range and the resolved version. See "Known limitation: the published graph vs. the installed tree" in `docs/supply-chain.md` for the measured, externally-contributed error-rate bound on the deps.dev-vs-real-install gap this same issue established.
 - Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
-- **No feature gating.** Credenzo is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer.
+- **No feature gating in the package.** Credenzo is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer of `src/mcp_audit`. The one paid offer is the Credenzo Team action in `team/` (see "Business model"): it gates its own alerts, never a command.
 - **Watcher callback serialisation.** `_McpConfigEventHandler._fire()` holds `_scan_lock` for the entire duration of the user callback to prevent two `run_scan` calls from racing on `state_<hash>.json`. Events arriving while a scan is in flight are stored in `_pending_rescan` (tuple of latest `(path, event_type)`) and coalesced into a single re-trigger when the active callback returns. Never release the scan lock before the callback finishes.
 - Exit codes: 0 = clean, 1 = findings found, 2 = error
 - JSON output includes a nested `score` object from `ScanScore`: `{"numeric": int, "grade": str, "positive_signals": [], "deductions": []}` — `numeric` is 0–100, `grade` is "A"–"F", `positive_signals` and `deductions` carry the per-signal strings displayed in the terminal score panel; HTML dashboard displays a colour-coded grade badge in the header
@@ -653,7 +686,7 @@ What each feature does is in `README.md`, `docs/README.md` (the index of every d
 Counts that `scripts/update_test_count.py` keeps in sync:
 
 - 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
-- 10924 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 11053 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - 35 top-level CLI commands: affected, vet, reach, check, fix, run, guard, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `credenzo --help` before each release
 - 56-entry curated dataset of legitimate MCP servers (`registry/known-servers.json`, `docs/registry.md`)
 - 42 community rules ship bundled; the breakdown is under "Data files at project root" above

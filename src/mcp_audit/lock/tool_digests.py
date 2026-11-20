@@ -307,7 +307,7 @@ def compare(locked: dict, current: dict[str, dict[str, object]]) -> ToolDiff:
 
     A tool whose digests differ is ``calendar_only`` when both records hold
     ``calendar`` and :func:`calendar_text.followed_calendar` is true. A lock
-    record with no ``calendar`` (written before 0.35.0, or without a day) is
+    record with no ``calendar`` (written before 0.36.0, or without a day) is
     compared by its digests alone.
 
     Args:
