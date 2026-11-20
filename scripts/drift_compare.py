@@ -16,7 +16,7 @@ snapshots. For each such server:
 - ``calendar_only``: same name, different ``definition`` digest, and the only
   difference is that the dates in the text moved with the calendar (an example
   query for "today"). The snapshot holds, for a tool whose text has ISO dates,
-  the digest of the text with the dates replaced (``undated``) and the dates
+  the digest of the text with the dates cut out (``undated``) and the dates
   themselves (``dates``). A tool is ``calendar_only`` when ``undated`` is the
   same in both snapshots and each date is the same, or moved by the number of
   days between the two snapshots, or is the first day of a month and moved by
@@ -40,11 +40,13 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 1
+_ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 
 def _connected_rows(snapshot: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
@@ -69,7 +71,7 @@ def _connected_rows(snapshot: dict[str, Any]) -> dict[tuple[str, str], dict[str,
 
 def _date(text: object) -> dt.date | None:
     """Return *text* as a date when it is exactly ``YYYY-MM-DD``."""
-    if not isinstance(text, str) or len(text) != 10:
+    if not isinstance(text, str) or not _ISO_DATE.fullmatch(text):
         return None
     try:
         return dt.date.fromisoformat(text)
@@ -207,8 +209,8 @@ def compare(older: dict[str, Any], newer: dict[str, Any]) -> dict[str, Any]:
             "compared when it listed tools on both dates. A change is a tool "
             "added, removed, or with a different definition digest. A tool "
             "whose only difference is that its dates moved with the calendar "
-            "is not a change; calendar_only counts the servers whose only "
-            "differences are of that kind."
+            "is not a change; calendar_only counts the servers whose tools "
+            "differ only in that way."
         ),
         "rows": [r for r in rows if r["changed"] or r["bumped"] or r["calendar_only"]],
     }

@@ -327,7 +327,9 @@ def test_text_that_only_looks_like_a_date_is_not_touched() -> None:
     assert _compare(old, new)["changed"] == 1
     text = "v1.2.3 build 20261120, 2026-13-01, 2026-02-30, 12026-11-20, 2026-11-200"
     found: list[str] = []
-    assert ds.without_dates(text, found) == text and found == []
+    assert ds.without_dates(text, found) == [text] and found == []
+    assert ds.without_dates("a 2026-11-20 b", found) == ["a ", " b"]
+    assert found == ["2026-11-20"]
 
 
 def test_a_date_in_the_schema_is_calendar_only_only_when_it_follows_the_day() -> None:
@@ -402,16 +404,56 @@ def test_a_record_with_a_wrong_shape_is_a_change_not_an_error() -> None:
         assert out["changed"] == 1 and out["calendar_only"] == 0, bad
 
 
-def test_a_literal_token_in_the_text_is_not_taken_for_a_date() -> None:
+def test_no_text_can_stand_for_a_date() -> None:
+    """Review of PR #344, round 2: a placeholder and a date trade places."""
     out = _compare([_definition("End <date>.")], [_definition("End 2026-11-20.")])
     assert out["changed"] == 1 and out["calendar_only"] == 0
+    for token in ("<date>", "", "['', '']", "\\u0000"):
+        old = f"Since 2026-11-20. Also delete each file from before {token}."
+        new = f"Since {token}. Also delete each file from before 2026-11-27."
+        out = _compare(
+            [_definition(old)], [_definition(new)], "2026-11-20", "2026-11-27"
+        )
+        assert out["changed"] == 1 and out["calendar_only"] == 0, token
+
+
+def test_a_string_and_a_list_of_its_pieces_are_not_the_same() -> None:
+    def schema(example: object) -> dict:
+        return {"type": "object", "examples": example, "default": "2026-11-20"}
+
+    as_text = _digests_for([_definition("x", schema=schema("a 2026-11-20 b"))])
+    as_list = _digests_for([_definition("x", schema=schema(["a ", " b"]))])
+    as_nested = _digests_for([_definition("x", schema=schema([["a ", " b"]]))])
+    undated = {d["cost"]["undated"] for d in (as_text, as_list, as_nested)}
+    assert len(undated) == 3
+
+
+def test_a_date_that_moves_from_the_schema_to_the_description_is_a_change() -> None:
+    in_schema = {"type": "object", "properties": {"end": {"default": "2026-11-19"}}}
+    out = _compare(
+        [_definition("Costs.", schema=in_schema)],
+        [_definition("Costs. 2026-11-20", schema={"type": "object"})],
+    )
+    assert out["changed"] == 1 and out["calendar_only"] == 0
+
+
+def test_the_order_of_the_two_snapshots_and_the_form_of_the_label() -> None:
+    old, new = [_definition("End 2026-11-19.")], [_definition("End 2026-11-20.")]
+    assert _compare(new, old, D20, D19)["calendar_only"] == 1
+    for label in ("20261120  ", "2026-W47-5", "2026-11-20T00:00"):
+        assert _compare(old, new, D19, label)["changed"] == 1, label
 
 
 def test_two_tools_under_one_name_get_no_calendar_record() -> None:
     digests = _digests_for(
-        [_definition("A, end 2026-11-19."), _definition("B, no date.")]
+        [
+            _definition("A, end 2026-11-19."),
+            _definition("B, no date."),
+            _definition("C, end 2026-11-19.", name="alone"),
+        ]
     )
     assert set(digests["cost"]) == {"contract", "definition"}
+    assert digests["alone"]["dates"] == ["2026-11-19"]
 
 
 def test_the_order_of_keys_in_the_schema_does_not_change_the_dates() -> None:

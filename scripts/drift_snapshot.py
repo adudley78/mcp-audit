@@ -304,23 +304,29 @@ MAX_DATES = 200
 
 
 def without_dates(value: Any, found: list[str]) -> Any:
-    """Return *value* with each ISO date in its strings replaced by ``<date>``.
+    """Return *value* with the ISO dates cut out of its strings.
 
-    Each date that is replaced is added to *found*, in a fixed order (keys
-    sorted). Text that is not a real date (``1111-22-33``, month 13) is not
-    replaced. Keys are not changed.
+    Each string becomes the list of its pieces between the dates, so a string
+    with no date becomes a list of one piece. Each date that is cut out is
+    added to *found*, in a fixed order (keys sorted). The result of two
+    values is the same only when they are the same value apart from their
+    dates: no text can stand for a date, because a date leaves a gap between
+    two pieces and nothing else does. Text that is not a real date
+    (``1111-22-33``, month 13) stays in its piece. Keys are not changed.
     """
     if isinstance(value, str):
-
-        def token(match: re.Match[str]) -> str:
+        pieces: list[str] = []
+        start = 0
+        for match in _ISO_DATE.finditer(value):
             try:
                 dt.date(int(match[1]), int(match[2]), int(match[3]))
             except ValueError:
-                return match[0]
+                continue
+            pieces.append(value[start : match.start()])
             found.append(match[0])
-            return "<date>"
-
-        return _ISO_DATE.sub(token, value)
+            start = match.end()
+        pieces.append(value[start:])
+        return pieces
     if isinstance(value, list):
         return [without_dates(item, found) for item in value]
     if isinstance(value, dict):
@@ -334,8 +340,8 @@ def add_undated(
     """Record the dates of each tool whose definition holds an ISO date.
 
     Such a tool gets two more fields: ``undated``, the digest of its
-    definition with each date replaced by one token, and ``dates``, the dates
-    themselves in order. ``drift_compare.py`` uses them to tell a tool whose
+    definition with each date cut out (:func:`without_dates`), and ``dates``,
+    the dates themselves in order. ``drift_compare.py`` uses them to tell a tool whose
     text changed from a tool whose dates only moved with the calendar. The
     dates are the only part of a tool's text that the snapshot holds. A tool
     with no date, with more than ``MAX_DATES`` dates, or that shares its name
