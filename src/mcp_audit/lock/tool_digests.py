@@ -11,8 +11,8 @@ SHA-256 digests of the RFC 8785 canonical JSON of what the server sent:
 Comparing both tells ``lock --verify --connect`` which kind of change it is
 looking at: a different ``contract`` means the schema or annotations moved
 (LOCK-007); the same ``contract`` with a different ``definition`` means only
-the text changed (LOCK-008). Only names and digests are written, never the
-tool text.
+the text changed (LOCK-008). Only names, digests and the ISO dates of a
+tool's text are written, never the rest of the tool text.
 
 The section declares its producer and carries its own checksum::
 
@@ -27,6 +27,18 @@ The section declares its producer and carries its own checksum::
       "_checksum": "sha256:<hex>"
     }
 
+A tool whose text holds an ISO date also gets ``calendar`` (STORY-0180)::
+
+    "<tool>": {"calendar": {"day": "2026-11-20", "dates": ["2026-11-20"],
+                            "undated": "sha256:..."},
+               "contract": "sha256:...", "definition": "sha256:..."}
+
+``day`` is the day of the record, ``dates`` are the dates in the text and
+``undated`` is the digest of the definition with each date cut out. A tool
+whose digests differ from the lock but whose dates only moved with the
+calendar is not a change (:mod:`mcp_audit.lock.calendar_text`). The field is
+optional: a record with no ``calendar`` is compared by its digests alone.
+
 The top-level ``checksum`` keeps its ADR-0005 §10 scope. Folding ``tools``
 into it would make every Credenzo up to 0.20 report LOCK-005 ("tampered")
 on a lock written with ``--connect``; a section-local checksum lets those
@@ -40,7 +52,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from mcp_audit._jcs import canonicalize
+from mcp_audit._jcs import CanonicalError, canonicalize
+from mcp_audit.lock import calendar_text
 
 if TYPE_CHECKING:  # pragma: no cover — annotations only; keeps `run` lean
     from mcp_audit.models import ServerConfig, ToolInfo
@@ -48,6 +61,8 @@ if TYPE_CHECKING:  # pragma: no cover — annotations only; keeps `run` lean
 TOOLS_KEY = "tools"
 TOOLS_PRODUCER = "mcp-audit"
 TOOLS_SCHEMA_VERSION = 1
+#: Optional per-tool record of the dates in its text (STORY-0180).
+CALENDAR_KEY = "calendar"
 
 #: Free text a model or person reads; no effect on what the tool accepts,
 #: returns, or declares about itself.
@@ -128,23 +143,30 @@ def _contract(definition: dict) -> dict:
     return {k: v for k, v in definition.items() if k not in TEXT_FIELDS}
 
 
-def tool_digests(tools: list[ToolInfo]) -> dict[str, dict[str, str]]:
+def tool_digests(
+    tools: list[ToolInfo], *, day: str | None = None
+) -> dict[str, dict[str, object]]:
     """Return ``{tool name: {"contract": ..., "definition": ...}}`` for *tools*.
 
     A server that lists two tools under one name (a collision, never valid)
     gets one entry digesting all of them in a fixed order, so any change to
     any of them still shows.
+
+    With *day* (``YYYY-MM-DD``, the day of this listing), a tool whose text
+    holds an ISO date also gets ``calendar``.
     """
-    return digests_of_definitions([tool_definition(tool) for tool in tools])
+    return digests_of_definitions([tool_definition(tool) for tool in tools], day=day)
 
 
-def digests_of_definitions(definitions: list[dict]) -> dict[str, dict[str, str]]:
+def digests_of_definitions(
+    definitions: list[dict], *, day: str | None = None
+) -> dict[str, dict[str, object]]:
     """Return :func:`tool_digests` for already-built tool definitions."""
     grouped: dict[str, list[dict]] = {}
     for definition in definitions:
         grouped.setdefault(definition["name"], []).append(definition)
 
-    records: dict[str, dict[str, str]] = {}
+    records: dict[str, dict[str, object]] = {}
     for name, definitions in grouped.items():
         contracts = [_contract(d) for d in definitions]
         if len(definitions) == 1:
@@ -152,6 +174,9 @@ def digests_of_definitions(definitions: list[dict]) -> dict[str, dict[str, str]]
                 "contract": digest(contracts[0]),
                 "definition": digest(definitions[0]),
             }
+            calendar = _calendar(definitions[0], day)
+            if calendar is not None:
+                records[name][CALENDAR_KEY] = calendar
         else:
             records[name] = {
                 "contract": digest(sorted(contracts, key=canonicalize)),
@@ -160,9 +185,33 @@ def digests_of_definitions(definitions: list[dict]) -> dict[str, dict[str, str]]
     return records
 
 
-def server_record(tools: list[ToolInfo]) -> dict:
-    """Return one server's record for the ``tools`` section."""
-    return {"tools": tool_digests(tools)}
+def _calendar(definition: dict, day: str | None) -> dict | None:
+    """Return the ``calendar`` record of one tool, or ``None``.
+
+    Only a tool with a unique name gets one (the caller checks), and only
+    when *day* is a real date. The definition with its dates cut out has one
+    more level and more nodes than the definition. When it is past the
+    limits of the canonical form, the tool gets no record and is compared by
+    its digests alone.
+    """
+    if day is None or calendar_text.parse_day(day) is None:
+        return None
+    record = calendar_text.calendar_record(definition, day)
+    if record is None:
+        return None
+    try:
+        record["undated"] = digest(record["undated"])
+    except CanonicalError:
+        return None
+    return record
+
+
+def server_record(tools: list[ToolInfo], *, day: str | None = None) -> dict:
+    """Return one server's record for the ``tools`` section.
+
+    *day* is the day of the listing (see :func:`tool_digests`).
+    """
+    return {"tools": tool_digests(tools, day=day)}
 
 
 def is_owned(section: object) -> bool:
@@ -248,14 +297,23 @@ class ToolDiff:
     removed: list[str] = field(default_factory=list)
     contract_changed: list[str] = field(default_factory=list)
     text_changed: list[str] = field(default_factory=list)
+    #: Tools whose digests differ only because their dates moved with the
+    #: calendar. Not a change: they are in neither list above.
+    calendar_only: list[str] = field(default_factory=list)
 
 
-def compare(locked: dict, current: dict[str, dict[str, str]]) -> ToolDiff:
+def compare(locked: dict, current: dict[str, dict[str, object]]) -> ToolDiff:
     """Compare a locked server record with freshly computed digests.
+
+    A tool whose digests differ is ``calendar_only`` when both records hold
+    ``calendar`` and :func:`calendar_text.followed_calendar` is true. A lock
+    record with no ``calendar`` (written before 0.36.0, or without a day) is
+    compared by its digests alone.
 
     Args:
         locked: The server's record from the lock (``{"tools": {...}}``).
-        current: :func:`tool_digests` of what the server lists now.
+        current: :func:`tool_digests` of what the server lists now (with
+            ``day`` for the calendar test).
     """
     locked_tools = locked.get("tools") if isinstance(locked, dict) else None
     if not isinstance(locked_tools, dict):
@@ -266,8 +324,16 @@ def compare(locked: dict, current: dict[str, dict[str, str]]) -> ToolDiff:
     )
     for name in sorted(set(current) & set(locked_tools)):
         was, now = locked_tools[name], current[name]
-        if not isinstance(was, dict) or was.get("contract") != now["contract"]:
+        if isinstance(was, dict) and was.get("definition") == now["definition"]:
+            if was.get("contract") != now["contract"]:
+                diff.contract_changed.append(name)
+            continue
+        if isinstance(was, dict) and calendar_text.followed_calendar(
+            was.get(CALENDAR_KEY), now.get(CALENDAR_KEY)
+        ):
+            diff.calendar_only.append(name)
+        elif not isinstance(was, dict) or was.get("contract") != now["contract"]:
             diff.contract_changed.append(name)
-        elif was.get("definition") != now["definition"]:
+        else:
             diff.text_changed.append(name)
     return diff

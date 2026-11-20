@@ -32,6 +32,10 @@ lock in a ``tools/list`` it has already checked, so a call made before the
 client has listed the tools (real clients list first) is answered with an
 error too.
 
+A tool whose text holds a date that moved with the calendar since the lock
+(``calendar`` in its lock record, :mod:`mcp_audit.lock.calendar_text`) is not
+a change: it is approved and nothing is reported.
+
 ``notifications/tools/list_changed`` passes through; the client's next
 ``tools/list`` is compared afresh. A paginated list is compared as a whole:
 added and changed tools are judged page by page, removed tools once the
@@ -49,6 +53,7 @@ import sys
 import threading
 from collections.abc import Callable
 
+from mcp_audit.lock import calendar_text
 from mcp_audit.lock.tool_digests import (
     compare,
     digests_of_definitions,
@@ -97,6 +102,8 @@ class ToolGuard:
         poison: A :class:`~mcp_audit.runtime.poison.PoisonCheck` (duck-typed:
             ``threshold``, ``over_threshold(definitions)``), or ``None`` to
             skip the POISON-* check.
+        today: Returns the date of today as ``YYYY-MM-DD`` (UTC by default),
+            for tools whose text holds a date.
     """
 
     def __init__(
@@ -107,8 +114,10 @@ class ToolGuard:
         enforce: bool,
         report: Callable[[str], None] = _say,
         poison: object | None = None,
+        today: Callable[[], str] = calendar_text.today,
     ) -> None:
         self.server_name = server_name
+        self._today = today
         self.poison = poison
         self._poison_severity: dict[str, str] = {}
         self.record = tools_record
@@ -180,11 +189,13 @@ class ToolGuard:
     ) -> bytes:
         valid = [t for t in tools if isinstance(t, dict)]
         definitions = [wire_definition(t) for t in valid]
-        current = digests_of_definitions(definitions)
+        day = self._today()
+        current = digests_of_definitions(definitions, day=day)
         # The same tools as a lock written under mcp SDK 2.x digests them
         # (non-spec annotation keys dropped); a match in either form counts.
         spec_only = digests_of_definitions(
-            [wire_definition(t, spec_annotations_only=True) for t in valid]
+            [wire_definition(t, spec_annotations_only=True) for t in valid],
+            day=day,
         )
         last_page = not result.get("nextCursor")
 

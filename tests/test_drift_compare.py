@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from mcp_audit.lock import calendar_text
+
 SCRIPT = Path(__file__).parent.parent / "scripts" / "drift_compare.py"
 SNAPSHOT_SCRIPT = Path(__file__).parent.parent / "scripts" / "drift_snapshot.py"
 
@@ -367,7 +369,9 @@ def test_a_tool_with_no_date_gets_no_more_fields() -> None:
     assert set(digests["cost"]) == {"contract", "definition"}
     dated_name = _digests_for([_definition("x", name="report-2026-11-20")])
     assert set(dated_name["report-2026-11-20"]) == {"contract", "definition"}
-    many = _digests_for([_definition(" ".join(["2026-11-20"] * (ds.MAX_DATES + 1)))])
+    many = _digests_for(
+        [_definition(" ".join(["2026-11-20"] * (calendar_text.MAX_DATES + 1)))]
+    )
     assert set(many["cost"]) == {"contract", "definition"}
 
 

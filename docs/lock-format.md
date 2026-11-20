@@ -17,7 +17,7 @@ How to write and check a lock is in [lock.md](lock.md).
 
    | Where | Names |
    |---|---|
-   | Top level | `lock_version`, `generated_by`, `generated_at`, `servers`, `trees`, `tools`, `section_digests`, `checksum` |
+   | Top level | `lock_version`, `generated_by`, `generated_at`, `servers`, `trees`, `tools`, `guardrails`, `section_digests`, `checksum` |
    | A server entry | `client`, `name`, `config`, `identity`, `package`, `env_keys`, `header_keys`, `capabilities`, `first_locked`, `hashes` |
    | `identity` | `command`, `args`, `url` |
    | `package` | `ecosystem`, `name`, `spec_as_written`, `range_spec`, `resolved_version`, `resolution`, `integrity`, `source`, `deprecated` |
@@ -26,10 +26,21 @@ How to write and check a lock is in [lock.md](lock.md).
 
    The optional sections that `lock --connect` and the guardrail record write
    (`tools`, `guardrails`) follow the same rule for the names that they hold.
+   A tool record in `tools` holds `contract` and `definition`.
 
 3. **A release adds. It does not rename, remove or change.** A new fact about
    a server is a new optional field. A lock with no such field stays valid.
    The release notes name each new field.
+
+   One place takes no new field: `identity`. It is the launch that was
+   approved, and each of its fields is compared. A new field there would be a
+   change of every entry, so it needs a new `lock_version` (promise 4).
+
+   Fields added since 0.35.0:
+
+   | Release | Where | Field | Meaning |
+   |---|---|---|---|
+   | 0.36.0 | A tool record in `tools` | `calendar` (optional) | The ISO dates in the tool's text, the day of the lock and the digest of the definition without its dates. A tool whose dates only moved with the calendar is not a change ([lock.md](lock.md#tool-definitions---connect)). A lock with no `calendar` verifies as before, and an older release ignores the field. |
 
 4. **A change that cannot be an addition gets a new `lock_version`.** Credenzo
    then writes the new version and still reads the old ones (promise 1).
@@ -87,3 +98,5 @@ invalid by an upgrade of Credenzo alone.
   0.34.0. `tests/test_lock_format_stability.py` verifies it with the current
   code, expects no finding, and fails when a frozen name is missing from a
   lock that the current code writes or from this page.
+- `tests/test_lock_calendar.py` holds the field that 0.36.0 added: a tool
+  record with no `calendar` is compared as before.

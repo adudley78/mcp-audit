@@ -1948,24 +1948,39 @@ trust"). Recorded limits:
   frontmatter split by `agent_files/discovery.py` and the subagent reader;
   if it ever is not, lines count from the start of the body.
 
-## A tool that writes the date into its description (found 2026-11-20)
+## A tool that writes the date into its description (found 2026-11-20, STORY-0180)
 
-- **Each day is drift.** Some servers build a tool description that holds the
-  date of the day (an example query for "today" and "a week ago"). The lock
-  digests cover the whole description, so the day after `lock --connect` the
-  tool is `LOCK-008` in `lock --verify --connect` (`LOCK-007` when the date is
-  in the schema), and `run --mode enforce` withholds it. This follows from the digest rule; it was not run against such
-  a server. One case is known: 1 of 493 servers in a daily record of 999
-  packages.
-- **Not changed in the lock.** A rule that ignores dates in the lock is a
-  change to what the lock approves, and a date can be a place to hide data. It
-  needs a decision and a review of its own. Until then, accept the tool again
-  (`credenzo lock --accept --connect`) or do not use `--mode enforce` for that
-  server.
-- **Changed in the drift index only.** The weekly index (`docs/drift-index.md`)
-  lists a tool as `calendar_only`, and does not count it as a change, when
-  its text is the same without its dates and each date moved with the
-  calendar. The index holds those dates; the lock does not.
+- **Fixed for ISO dates in 0.36.0.** Some servers build a tool description
+  that holds the date of the day. `lock --connect` now records the dates of
+  such a tool (`calendar`), and `lock --verify --connect` and `credenzo run`
+  do not report a tool whose text is the same without its dates and whose
+  dates moved with the calendar (`docs/lock.md`). The drift index uses the
+  same rule (`docs/drift-index.md`).
+- **A lock from before 0.35.0 still reports the tool each day** (`LOCK-008`,
+  or `LOCK-007` when the date is in the schema), until
+  `credenzo lock --accept --connect` runs once with 0.36.0 or later.
+- **Other moving text is still drift.** A date in another format
+  (`November 20, 2026`, `20/11/2026`), a time of day, a week number, the
+  last day of a month, a counter or a random example value changes the
+  digests each time. The lock reports such a tool; accept it again or do not
+  use `--mode enforce` for that server.
+- **Slack in the dates.** The clock of the server can be one day from UTC at
+  the lock and again at the check, so a date can be up to two days from the
+  exact count and still pass. A first day of a month can be one month from
+  the exact count for each end (the lock, the check) that is on the first or
+  the last day of a month: with a lock on 2026-11-01 and a check on the same
+  day, `2026-11-01` can become `2026-12-01` or `2026-10-01`. Each date is
+  tested by itself, so a date that the author meant as fixed can move by the
+  days since the lock. A server can use this to show a wrong date. It cannot
+  change another character.
+- **A very large or deep tool gets no record.** The definition with its
+  dates cut out must fit the limits of the canonical form (64 levels,
+  100,000 nodes). Cutting the dates adds one level and more nodes, so a
+  schema that is 63 levels deep is already past them. Such a tool is compared
+  by its digests alone.
+- **Not run against the real server.** The rule was checked on the source
+  text of the one known server (1 of 493 in a daily record) and with a
+  fixture server end to end, not against that server from a lock.
 
 ## Tool-call guard (`credenzo guard`, STORY-0176)
 
