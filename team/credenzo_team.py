@@ -713,6 +713,7 @@ def _send_alerts(
                     "::warning title=Credenzo Team::The drift issue could not be"
                     " read or written. Give the job `issues: write`."
                 )
+        state["alert"] = alerted
         webhook = (env.get("INPUT_ALERT_WEBHOOK") or "").strip()
         if webhook and drift and changed:
             sent = webhook.startswith("https://") and send_webhook(webhook, text, fetch)

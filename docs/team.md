@@ -212,6 +212,9 @@ card again.
   one `path` share an issue. The legs of a matrix share an issue.
 - When the issue list cannot be read, the action writes no issue (a new one
   could be a second one). The webhook message is still sent.
+- When the token cannot read or write issues (issues are off in the
+  repository, or the job has no `issues: write`), the webhook message is sent
+  in each run that fails. Set `alert-issue: "false"` there.
 - A workflow of your own that opens issues as `github-actions[bot]` from text
   that a stranger wrote can write the marker. Do not let such a workflow copy
   HTML comments.
