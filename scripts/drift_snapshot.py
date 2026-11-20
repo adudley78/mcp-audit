@@ -294,44 +294,11 @@ def remove_prefix(cfg: Settings, path: str) -> None:
         _run(cfg, ["rm", "-rf", "--", path])
 
 
-#: An ISO calendar date. A tool that writes the date of the day into its
-#: description (an example query for "today") gets a new definition digest each
-#: day with no change by its author.
-_ISO_DATE = re.compile(r"(?<![0-9])([0-9]{4})-([0-9]{2})-([0-9]{2})(?![0-9])")
-
-#: A tool with more dates than this gets no ``undated`` record.
-MAX_DATES = 200
-
-
 def without_dates(value: Any, found: list[str]) -> Any:
-    """Return *value* with the ISO dates cut out of its strings.
+    """:func:`mcp_audit.lock.calendar_text.without_dates` (one definition)."""
+    from mcp_audit.lock.calendar_text import without_dates as cut
 
-    Each string becomes the list of its pieces between the dates, so a string
-    with no date becomes a list of one piece. Each date that is cut out is
-    added to *found*, in a fixed order (keys sorted). The result of two
-    values is the same only when they are the same value apart from their
-    dates: no text can stand for a date, because a date leaves a gap between
-    two pieces and nothing else does. Text that is not a real date
-    (``1111-22-33``, month 13) stays in its piece. Keys are not changed.
-    """
-    if isinstance(value, str):
-        pieces: list[str] = []
-        start = 0
-        for match in _ISO_DATE.finditer(value):
-            try:
-                dt.date(int(match[1]), int(match[2]), int(match[3]))
-            except ValueError:
-                continue
-            pieces.append(value[start : match.start()])
-            found.append(match[0])
-            start = match.end()
-        pieces.append(value[start:])
-        return pieces
-    if isinstance(value, list):
-        return [without_dates(item, found) for item in value]
-    if isinstance(value, dict):
-        return {key: without_dates(value[key], found) for key in sorted(value)}
-    return value
+    return cut(value, found)
 
 
 def add_undated(
@@ -347,6 +314,7 @@ def add_undated(
     with no date, with more than ``MAX_DATES`` dates, or that shares its name
     with another tool of the server gets neither field.
     """
+    from mcp_audit.lock.calendar_text import MAX_DATES
     from mcp_audit.lock.tool_digests import digest
 
     names = Counter(d["name"] for d in definitions)

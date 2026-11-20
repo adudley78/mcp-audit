@@ -1,0 +1,45 @@
+# Credenzo Team — verify mcp-lock.json and get an alert when it drifts.
+#
+# On a pull request the step fails on drift and sends no alert: the failed
+# check is in front of the author. On a push to main and on the daily run,
+# drift opens one issue ("MCP lock drift") and sends one message to the
+# webhook. The same drift is reported once; the issue closes when the check
+# passes again.
+#
+# Free for personal accounts and public repositories. The private
+# repositories of an organization need a subscription for the alerts; the
+# check runs either way. See docs/team.md.
+#
+# First: `credenzo lock`, then commit mcp-lock.json.
+
+name: MCP lock
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write   # the drift issue
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Credenzo
+        uses: adudley78/credenzo/setup-action@381b99621dc6ff26d1620696dadc7f6f2f823a5f # v0.35.0
+
+      - name: Verify the lock and send alerts
+        uses: adudley78/credenzo/team@381b99621dc6ff26d1620696dadc7f6f2f823a5f # v0.35.0
+        with:
+          # Optional. A Slack incoming webhook accepts the message.
+          alert-webhook: ${{ secrets.MCP_ALERT_WEBHOOK }}
