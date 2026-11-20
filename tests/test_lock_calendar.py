@@ -118,39 +118,109 @@ class TestFollowedCalendar:
         assert not ct.followed_calendar(bad, good)
         assert not ct.followed_calendar(good, bad)
 
+    def test_the_documented_slack_of_a_first_day_of_a_month(self) -> None:
+        """GAPS.md: one month for each end that is on a month boundary."""
+
+        def passes(lock: str, check: str, old: str, new: str) -> bool:
+            return ct.followed_calendar(_record([old], lock), _record([new], check))
+
+        assert passes("2026-11-01", "2026-11-01", "2026-11-01", "2026-12-01")
+        assert passes("2026-11-01", "2026-11-01", "2026-11-01", "2026-10-01")
+        assert passes("2026-11-30", "2026-11-30", "2026-11-01", "2026-12-01")
+        assert passes("2026-11-01", "2026-11-30", "2026-11-01", "2027-01-01")
+        assert not passes("2026-11-01", "2026-11-30", "2026-11-01", "2027-02-01")
+        assert not passes("2026-11-15", "2026-11-15", "2026-11-01", "2026-12-01")
+        assert not passes("2026-11-02", "2026-11-29", "2026-11-01", "2026-12-01")
+
+    def test_a_fixed_date_can_move_with_the_days(self) -> None:
+        """docs/lock.md: each date is tested by itself."""
+        was = _record(["2020-01-01", LOCK_DAY], LOCK_DAY)
+        now = _record(["2020-01-10", _later(9)], _later(9))
+        assert ct.followed_calendar(was, now)
+
     def test_the_first_and_the_last_day_of_the_calendar_do_not_crash(self) -> None:
         for day in ("0001-01-01", "9999-12-31"):
             assert ct.followed_calendar(_record([day], day), _record([day], day))
 
 
-def test_the_drift_script_holds_the_same_rule() -> None:
-    """``scripts/drift_compare.py`` uses no package code, so it has a copy."""
+def _drift_script():  # noqa: ANN202
     spec = importlib.util.spec_from_file_location(
         "drift_compare_for_parity", ROOT / "scripts" / "drift_compare.py"
     )
     script = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = script
     spec.loader.exec_module(script)
+    return script
 
-    days = ["2026-10-31", "2026-11-01", "2026-11-19", "2026-11-20", "2027-01-01"]
-    values = [*days, "2026-11-08", "not a date", 5, None]
-    cases = 0
+
+def _parity_cases():  # noqa: ANN202
+    """Record pairs and day pairs that reach each branch of the rule."""
+    days = [
+        "2026-10-31",
+        "2026-11-01",
+        "2026-11-20",
+        "2026-12-31",
+        "2027-01-01",
+        "2027-11-01",
+    ]
+    values = [*days, "2026-11-08", "2027-02-01", "not a date", 5, None]
+    date_lists = [[a, b] for a in values for b in values]
+    date_lists += [[], [days[1]], "2026-11-01", None, [days[1]] * 3]
+    undated = ["sha256:same", "sha256:other", "", None]
     for day_old, day_new in itertools.product(days, repeat=2):
-        for a, b in itertools.product(values, repeat=2):
-            for undated in ("sha256:same", "sha256:other", "", None):
-                old = {"undated": "sha256:same", "dates": [a, "2026-11-01"]}
-                new = {"undated": undated, "dates": [b, "2026-12-01"]}
-                args = (
-                    old,
-                    new,
-                    dt.date.fromisoformat(day_old),
-                    dt.date.fromisoformat(day_new),
-                )
-                assert script.moved_with_calendar(*args) == ct.moved_with_calendar(
-                    *args
-                ), (day_old, day_new, a, b, undated)
-                cases += 1
-    assert cases == 25 * 81 * 4
+        first, second = dt.date.fromisoformat(day_old), dt.date.fromisoformat(day_new)
+        for dates_old in [*date_lists[::7], [], [days[1]]]:
+            for dates_new in date_lists:
+                for value in undated:
+                    old = {"undated": "sha256:same", "dates": dates_old}
+                    new = {"undated": value, "dates": dates_new}
+                    yield old, new, first, second
+
+
+def test_the_drift_script_holds_the_same_rule() -> None:
+    """``scripts/drift_compare.py`` uses no package code, so it has a copy."""
+    script = _drift_script()
+    cases = passed = 0
+    for args in _parity_cases():
+        want = ct.moved_with_calendar(*args)
+        assert script.moved_with_calendar(*args) == want, args
+        cases += 1
+        passed += want
+    assert cases > 50_000 and passed > 200
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("a.day == b.day == 1", "a.day == 1"),
+        ("if not dates_old or len", "if len"),
+        (
+            "(b.year - a.year) * 12 + b.month - a.month == months",
+            "b.month - a.month == months",
+        ),
+        ("(day_new.year - day_old.year) * 12 + day_new.month", "day_new.month"),
+        ("a == b or (b - a).days == days", "(b - a).days == days"),
+        ("(b - a).days == days", "(b - a).days >= days"),
+        ("undated != new.get", "undated == new.get"),
+    ],
+)
+def test_the_parity_cases_find_a_changed_copy(
+    old: str, new: str, tmp_path: Path
+) -> None:
+    """Each of these changes to the copy of the rule must fail the parity test."""
+    source = (ROOT / "src" / "mcp_audit" / "lock" / "calendar_text.py").read_text(
+        encoding="utf-8"
+    )
+    assert source.count(old) == 1, old
+    changed = tmp_path / "changed_calendar_text.py"
+    changed.write_text(source.replace(old, new), encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("changed_calendar_text", changed)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert any(
+        module.moved_with_calendar(*args) != ct.moved_with_calendar(*args)
+        for args in _parity_cases()
+    ), (old, new)
 
 
 # ── the lock record ──────────────────────────────────────────────────────────
@@ -202,6 +272,25 @@ class TestRecord:
     def test_too_many_dates_give_no_record(self) -> None:
         text = " ".join([LOCK_DAY] * (ct.MAX_DATES + 1))
         assert "calendar" not in td.tool_digests([_tool(text)], day=LOCK_DAY)["cost"]
+
+    def test_a_tool_past_the_limits_of_the_canonical_form_gets_no_record(self) -> None:
+        """Cutting the dates adds a level and nodes; the digests must not fail."""
+        deep: dict = {"default": LOCK_DAY}
+        for _ in range(62):  # the deepest schema that the plain digests take
+            deep = {"x": deep}
+        with pytest.raises(ValueError, match="nested too deeply"):
+            td.tool_digests([_tool("Costs.", schema={"x": deep})])
+        shallow = deep["x"]
+        assert (
+            "calendar"
+            in td.tool_digests([_tool("Costs.", schema=shallow)], day=LOCK_DAY)["cost"]
+        )
+        wide = {"type": "string", "enum": [f"v{i}" for i in range(60_000)]}
+        for schema in (deep, wide):
+            tool = _tool(_text(LOCK_DAY), schema=schema)
+            plain = td.tool_digests([tool])["cost"]
+            dated = td.tool_digests([tool], day=LOCK_DAY)["cost"]
+            assert dated == plain, sorted(dated)
 
     def test_two_tools_with_one_name_get_no_record(self) -> None:
         tools = [_tool(_text(LOCK_DAY)), _tool(_text(LOCK_DAY, " More."))]

@@ -126,6 +126,10 @@ def followed_calendar(was: object, now: object) -> bool:
     its own clock, which can be one day from the clock that wrote ``day``, so
     each day is also tried one day earlier and one day later. One choice must
     explain every date of the tool.
+
+    The bound that follows: a date can be two days from the exact count, and
+    a first day of a month can be one month from the exact count for each of
+    the two days that is the first or the last day of a month.
     """
     if not isinstance(was, dict) or not isinstance(now, dict):
         return False

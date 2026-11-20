@@ -1964,10 +1964,18 @@ trust"). Recorded limits:
   last day of a month, a counter or a random example value changes the
   digests each time. The lock reports such a tool; accept it again or do not
   use `--mode enforce` for that server.
-- **Two days of slack.** The clock of the server can be one day from UTC at
+- **Slack in the dates.** The clock of the server can be one day from UTC at
   the lock and again at the check, so a date can be up to two days from the
-  exact count and still pass. A server can use that slack to show a date
-  that is one or two days wrong. It cannot change another character.
+  exact count and still pass. A first day of a month can be one month from
+  the exact count for each end (the lock, the check) that is on the first or
+  the last day of a month: with a lock on 2026-11-01 and a check on the same
+  day, `2026-11-01` can become `2026-12-01` or `2026-10-01`. Each date is
+  tested by itself, so a date that the author meant as fixed can move by the
+  days since the lock. A server can use this to show a wrong date. It cannot
+  change another character.
+- **A very large or deep tool gets no record.** The definition with its
+  dates cut out must fit the limits of the canonical form (64 levels,
+  100,000 nodes). A tool past them is compared by its digests alone.
 - **Not run against the real server.** The rule was checked on the source
   text of the one known server (1 of 493 in a daily record) and with a
   fixture server end to end, not against that server from a lock.

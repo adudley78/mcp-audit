@@ -530,8 +530,11 @@ A tool that passes is not a finding. `lock --verify --connect` names it in one l
   date and a removed date are changes.
 - Only a real ISO date is a date. `1111-22-3333`, month 13 and a date in another format stay text.
 - The clock of the server can be one day from UTC at the lock, and again at the check. So a date
-  can be up to two days from the exact count. One choice of clocks must explain every date of
-  the tool.
+  can be up to two days from the exact count. A first day of a month can be one month from the
+  exact count for each end (the lock, the check) that is on the first or the last day of a
+  month. One choice of clocks must explain every date of the tool.
+- Each date is tested by itself: it stayed, or it moved. So a date that the author meant as
+  fixed (`Data starts on 2020-01-01`) can move by the days since the lock and still pass.
 - A lock from before 0.35.0 has no `calendar` record. Such a tool is `LOCK-008` or `LOCK-007`
   until you run `credenzo lock --accept --connect` once with 0.35.0 or later.
 - An older Credenzo reads the new lock and ignores `calendar`: it reports the tool each day, as

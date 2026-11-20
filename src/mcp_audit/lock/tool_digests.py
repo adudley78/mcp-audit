@@ -52,7 +52,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from mcp_audit._jcs import canonicalize
+from mcp_audit._jcs import CanonicalError, canonicalize
 from mcp_audit.lock import calendar_text
 
 if TYPE_CHECKING:  # pragma: no cover — annotations only; keeps `run` lean
@@ -189,14 +189,20 @@ def _calendar(definition: dict, day: str | None) -> dict | None:
     """Return the ``calendar`` record of one tool, or ``None``.
 
     Only a tool with a unique name gets one (the caller checks), and only
-    when *day* is a real date.
+    when *day* is a real date. The definition with its dates cut out has one
+    more level and more nodes than the definition. When it is past the
+    limits of the canonical form, the tool gets no record and is compared by
+    its digests alone.
     """
     if day is None or calendar_text.parse_day(day) is None:
         return None
     record = calendar_text.calendar_record(definition, day)
     if record is None:
         return None
-    record["undated"] = digest(record["undated"])
+    try:
+        record["undated"] = digest(record["undated"])
+    except CanonicalError:
+        return None
     return record
 
 

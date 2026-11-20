@@ -294,9 +294,6 @@ def remove_prefix(cfg: Settings, path: str) -> None:
         _run(cfg, ["rm", "-rf", "--", path])
 
 
-#: An ISO calendar date. A tool that writes the date of the day into its
-#: description (an example query for "today") gets a new definition digest each
-#: day with no change by its author.
 def without_dates(value: Any, found: list[str]) -> Any:
     """:func:`mcp_audit.lock.calendar_text.without_dates` (one definition)."""
     from mcp_audit.lock.calendar_text import without_dates as cut
