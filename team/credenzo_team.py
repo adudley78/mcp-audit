@@ -6,11 +6,14 @@ and runs the ``credenzo`` command that is on PATH. It adds nothing to the
 check itself: ``credenzo lock --verify`` decides, and its exit code is the
 exit code of this step.
 
-What Team adds is the alert. When the check fails on the default branch, on a
-schedule or on a manual run, the action
+What Team adds is the alert. When the check fails in a run on the default
+branch (a push, a schedule or a manual run), the action
 
 - opens one GitHub issue (and updates or closes it on later runs), and
 - sends one message to a webhook, when a webhook URL is given.
+
+A problem with an alert (the network, the issue API, the webhook) never
+changes the exit code of the step.
 
 Who gets alerts
 ---------------
@@ -42,8 +45,9 @@ import shutil
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -59,9 +63,17 @@ ISSUE_TITLE = "MCP lock drift"
 MAX_INDEX_BYTES = 1024 * 1024
 MAX_ROWS = 50
 HTTP_TIMEOUT_SECONDS = 15
+#: The longest time that `credenzo lock --verify` gets. With `connect` it
+#: starts each locked server.
+VERIFY_TIMEOUT_SECONDS = 1800
+#: The account that writes an issue with the workflow token.
+ACTIONS_LOGIN = "github-actions[bot]"
 
-#: Events on which a failed check is already in front of its author.
-NO_ALERT_EVENTS = ("pull_request", "pull_request_target", "merge_group")
+#: The events on which an alert is sent. On each other event (a pull request,
+#: a review, a comment, a run that another workflow started) the failed check
+#: is in front of its author, or the content that was checked can come from
+#: a pull request.
+ALERT_EVENTS = ("push", "schedule", "workflow_dispatch")
 
 #: One fixed sentence for each finding ID. Alerts never carry the finding's
 #: own text: a pull request can write a server name, and evidence can hold a
@@ -87,14 +99,23 @@ SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
 Fetch = Callable[[urllib.request.Request], tuple[int, bytes]]
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse each redirect: a token or a message goes to the first URL only."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _fetch(request: urllib.request.Request) -> tuple[int, bytes]:
-    """Send *request* and return ``(status, body)``. HTTPS only."""
+    """Send *request* and return ``(status, body)``. HTTPS only, no redirect."""
     if not request.full_url.startswith("https://"):
         raise ValueError("only https URLs are used")
     try:
-        with urllib.request.urlopen(  # noqa: S310 - scheme checked above
-            request, timeout=HTTP_TIMEOUT_SECONDS
-        ) as response:
+        # The scheme is checked above and redirects are refused.
+        with _OPENER.open(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
             return response.status, response.read(MAX_INDEX_BYTES + 1)
     except urllib.error.HTTPError as exc:
         return exc.code, b""
@@ -158,13 +179,70 @@ def rows_of(payload: dict[str, Any] | None) -> list[Row]:
     return sorted(rows, key=lambda r: (r.finding_id, r.server, r.tool, r.severity))
 
 
-def fingerprint(rows: list[Row], exit_code: int) -> str:
+def unverified_of(payload: dict[str, Any] | None) -> list[str]:
+    """Return one line for each item that the check could not verify.
+
+    The line holds the kind and the cleaned name. It never holds the reason:
+    a reason can quote what a server printed.
+    """
+    items = (payload or {}).get("unverified")
+    lines: set[str] = set()
+    for item in items if isinstance(items, list) else []:
+        if isinstance(item, dict):
+            kind = clean_name(item.get("kind"))
+            lines.add(f"not verified ({kind}): `{clean_name(item.get('name'))}`")
+    return sorted(lines)
+
+
+def fingerprint(rows: list[Row], exit_code: int, unverified: Sequence[str] = ()) -> str:
     """Return a short digest that changes when the set of findings changes."""
-    material = json.dumps([exit_code, [r.text() for r in rows]], sort_keys=True)
+    material = json.dumps(
+        [exit_code, [r.text() for r in rows], list(unverified)], sort_keys=True
+    )
     return hashlib.sha256(material.encode()).hexdigest()[:16]
 
 
-def message(rows: list[Row], exit_code: int, repository: str, run_url: str) -> str:
+@dataclass(frozen=True)
+class Scope:
+    """Which check an issue belongs to.
+
+    A repository can run the action in more than one job, for example on
+    each push and, with ``connect``, on a schedule. Each such check keeps its
+    own issue, so that a check that passes does not close the issue of
+    another check that failed.
+    """
+
+    workflow: str
+    job: str
+    path: str
+    connect: bool
+    resolve: bool
+
+    def key(self) -> str:
+        material = json.dumps(
+            [self.workflow, self.job, self.path, self.connect, self.resolve]
+        )
+        return hashlib.sha256(material.encode()).hexdigest()[:8]
+
+    def text(self) -> str:
+        flags = [
+            n for n, on in (("connect", self.connect), ("resolve", self.resolve)) if on
+        ]
+        tail = f", with {' and '.join(flags)}" if flags else ""
+        return (
+            f"Check: workflow `{clean_name(self.workflow)}`,"
+            f" job `{clean_name(self.job)}`{tail}."
+        )
+
+
+def message(
+    rows: list[Row],
+    exit_code: int,
+    repository: str,
+    run_url: str,
+    unverified: Sequence[str] = (),
+    scope: Scope | None = None,
+) -> str:
     """Return the alert text. It is the same text for the issue and the webhook."""
     if exit_code == 1:
         head = f"MCP lock drift in `{clean_name(repository)}`."
@@ -173,12 +251,15 @@ def message(rows: list[Row], exit_code: int, repository: str, run_url: str) -> s
             f"The MCP lock check could not finish in `{clean_name(repository)}`"
             f" (exit code {exit_code})."
         )
+    listed = [row.text() for row in rows] + list(unverified)
     lines = [head, ""]
-    lines += [f"- {row.text()}" for row in rows[:MAX_ROWS]]
-    if len(rows) > MAX_ROWS:
-        lines.append(f"- and {len(rows) - MAX_ROWS} more")
-    if not rows:
+    lines += [f"- {line}" for line in listed[:MAX_ROWS]]
+    if len(listed) > MAX_ROWS:
+        lines.append(f"- and {len(listed) - MAX_ROWS} more")
+    if not listed:
         lines.append("- No finding was listed. Read the run log.")
+    if scope is not None:
+        lines += ["", scope.text()]
     lines += [
         "",
         f"Run: {run_url}",
@@ -208,7 +289,7 @@ def read_offer(fetch: Fetch = _fetch, url: str = INDEX_URL) -> Offer | None:
         if status != 200 or len(body) > MAX_INDEX_BYTES:
             return None
         data = json.loads(body.decode("utf-8"))
-    except (OSError, ValueError):
+    except Exception:  # noqa: BLE001 - a list that cannot be read is "unchecked"
         return None
     if not isinstance(data, dict) or data.get("schema_version") != 1:
         return None
@@ -282,14 +363,14 @@ class GitHub:
     def __init__(
         self, api_url: str, repository: str, token: str, fetch: Fetch = _fetch
     ) -> None:
-        self._base = f"{api_url.rstrip('/')}/repos/{repository}"
+        self._api = api_url.rstrip("/")
+        self._base = f"{self._api}/repos/{repository}"
         self._token = token
         self._fetch = fetch
 
-    def call(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
-        """Return the decoded answer, or ``None`` when the call did not succeed."""
+    def _send(self, method: str, url: str, body: dict[str, Any] | None = None) -> Any:
         request = urllib.request.Request(  # noqa: S310 - https checked in _fetch
-            self._base + path,
+            url,
             method=method,
             data=json.dumps(body).encode() if body is not None else None,
             headers={
@@ -304,39 +385,84 @@ class GitHub:
             if not 200 <= status < 300 or not raw:
                 return None
             return json.loads(raw.decode("utf-8"))
-        except (OSError, ValueError):
+        except Exception:  # noqa: BLE001 - a failed call is "no answer"
             return None
 
-    def repository(self) -> tuple[str | None, bool | None]:
-        """Return ``(owner type, private)`` of the repository."""
-        data = self.call("GET", "")
-        if not isinstance(data, dict):
-            return None, None
-        owner = data.get("owner") if isinstance(data.get("owner"), dict) else {}
-        private = data.get("private")
-        return owner.get("type"), private if isinstance(private, bool) else None
+    def call(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
+        """Return the decoded answer, or ``None`` when the call did not succeed."""
+        return self._send(method, self._base + path, body)
 
-    def open_drift_issue(self) -> dict[str, Any] | None:
-        """Return the open issue that this action wrote, when there is one."""
-        issues = self.call("GET", "/issues?state=open&per_page=100")
-        for issue in issues if isinstance(issues, list) else []:
-            if (
-                isinstance(issue, dict)
-                and "pull_request" not in issue
-                and ISSUE_MARKER in str(issue.get("body") or "")
-            ):
-                return issue
+    def repository(self) -> dict[str, Any]:
+        """Return the repository record, or an empty record."""
+        data = self.call("GET", "")
+        return data if isinstance(data, dict) else {}
+
+    def login(self) -> str:
+        """Return the account that this token writes issues as.
+
+        A user token answers ``GET /user``. The workflow token does not, and
+        it writes as ``github-actions[bot]``.
+        """
+        user = self._send("GET", f"{self._api}/user")
+        name = user.get("login") if isinstance(user, dict) else None
+        return name if isinstance(name, str) and name else ACTIONS_LOGIN
+
+    def open_drift_issue(self, scope_key: str) -> dict[str, Any] | None:
+        """Return the open issue that this action wrote for this check.
+
+        An issue counts only when its author is this token's own account, or
+        a bot account and the issue has the action's label. Anyone can open
+        an issue with the marker in its body; only the token's account and
+        people with triage rights can meet this rule. So a stranger cannot
+        plant an issue that the action reads as its own.
+
+        Raises:
+            LookupError: The issue list could not be read.
+        """
+        login = self.login()
+        prefix = f"{ISSUE_MARKER}:{scope_key}:"
+        for query in (
+            f"creator={urllib.parse.quote(login, safe='')}",
+            f"labels={urllib.parse.quote(ISSUE_LABEL, safe='')}",
+        ):
+            issues = self.call("GET", f"/issues?state=open&per_page=100&{query}")
+            if not isinstance(issues, list):
+                # "No issue" and "no answer" are not the same: with no answer,
+                # a new issue could be a second one.
+                raise LookupError("the issue list could not be read")
+            for issue in issues:
+                if _is_ours(issue, login) and prefix in str(issue.get("body") or ""):
+                    return issue
         return None
 
 
-def sync_issue(github: GitHub, text: str, mark: str, drift: bool) -> str:
-    """Open, update or close the drift issue. Return what was done.
+def _is_ours(issue: object, login: str) -> bool:
+    """Whether *issue* was written by this action (see ``open_drift_issue``)."""
+    if not isinstance(issue, dict) or "pull_request" in issue:
+        return False
+    user = issue.get("user") if isinstance(issue.get("user"), dict) else {}
+    if user.get("login") == login:
+        return True
+    labels = issue.get("labels") if isinstance(issue.get("labels"), list) else []
+    names = {x.get("name") if isinstance(x, dict) else x for x in labels}
+    return user.get("type") == "Bot" and ISSUE_LABEL in names
+
+
+def sync_issue(
+    github: GitHub, text: str, mark: str, drift: bool, scope_key: str = "0" * 8
+) -> str:
+    """Open, update or close the drift issue of this check. Return what was done.
 
     Returns one of ``opened``, ``updated``, ``same``, ``closed``, ``none``
-    and ``failed``.
+    and ``failed``. When the issue list cannot be read, nothing is written
+    (a new issue could be a second one) and the result is ``failed``.
     """
-    issue = github.open_drift_issue()
-    body = f"{text}\n\n{ISSUE_MARKER}:{mark} -->"
+    try:
+        issue = github.open_drift_issue(scope_key)
+    except LookupError:
+        return "failed"
+    marker = f"{ISSUE_MARKER}:{scope_key}:{mark} -->"
+    body = f"{text}\n\n{marker}"
     if not drift:
         if issue is None:
             return "none"
@@ -354,7 +480,7 @@ def sync_issue(github: GitHub, text: str, mark: str, drift: bool) -> str:
         if made is None:  # A token that cannot make the label can make the issue.
             made = github.call("POST", "/issues", new)
         return "opened" if made is not None else "failed"
-    if f"{ISSUE_MARKER}:{mark} -->" in str(issue.get("body") or ""):
+    if marker in str(issue.get("body") or ""):
         return "same"
     number = issue.get("number")
     done = github.call("PATCH", f"/issues/{number}", {"body": body})
@@ -376,7 +502,7 @@ def send_webhook(url: str, text: str, fetch: Fetch = _fetch) -> bool:
     )
     try:
         status, _ = fetch(request)
-    except (OSError, ValueError):
+    except Exception:  # noqa: BLE001 - a webhook that fails is "not sent"
         return False
     return 200 <= status < 300
 
@@ -390,7 +516,8 @@ def run_verify(
     """Run ``credenzo lock --verify`` and return ``(exit code, JSON document)``.
 
     The document is ``None`` when there is no lock file (exit code 0) or when
-    the command stopped before it wrote one (exit code 2).
+    the command stopped before it wrote one (exit code 2). A command that
+    runs longer than ``VERIFY_TIMEOUT_SECONDS`` is stopped: exit code 2.
     """
     args = [command, "lock", root, "--verify", "--if-present", "--format", "json"]
     if connect:
@@ -399,9 +526,27 @@ def run_verify(
         args.append("--resolve")
     # Bytes are decoded as UTF-8 with replacement: on a Windows runner the
     # locale encoding cannot decode every byte that the command can print.
-    done = subprocess.run(  # noqa: S603
-        args, capture_output=True, encoding="utf-8", errors="replace", check=False
-    )
+    try:
+        done = subprocess.run(  # noqa: S603
+            args,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=VERIFY_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        print(
+            "::error title=Credenzo Team::`credenzo lock --verify` did not end"
+            f" in {VERIFY_TIMEOUT_SECONDS} seconds."
+        )
+        return 2, None
+    except OSError as exc:
+        print(
+            "::error title=Credenzo Team::The `credenzo` command could not be"
+            f" started ({type(exc).__name__})."
+        )
+        return 2, None
     sys.stderr.write(done.stderr)
     try:
         payload = json.loads(done.stdout) if done.stdout.strip() else None
@@ -445,14 +590,41 @@ def main(env: dict[str, str] | None = None, fetch: Fetch = _fetch) -> int:
         _truthy(env.get("INPUT_CONNECT")),
         _truthy(env.get("INPUT_RESOLVE")),
     )
+    try:
+        _alerts(env, fetch, exit_code, payload)
+    except Exception as exc:  # noqa: BLE001 - an alert never changes the result
+        print(
+            "::warning title=Credenzo Team::The alert step stopped"
+            f" ({type(exc).__name__}). The result of the lock check is unchanged."
+        )
+    if exit_code == 1 and not _truthy(env.get("INPUT_FAIL_ON_DRIFT", "true")):
+        return 0
+    return exit_code
+
+
+def _alerts(
+    env: dict[str, str], fetch: Fetch, exit_code: int, payload: dict[str, Any] | None
+) -> None:
+    """Write the summary, send the alerts and write the step outputs.
+
+    The outputs are written whatever happens to the summary or to an alert.
+    """
     rows = rows_of(payload)
+    unverified = unverified_of(payload)
     drift = exit_code != 0
     repository = env.get("GITHUB_REPOSITORY", "")
     run_url = (
         f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/{repository}"
         f"/actions/runs/{env.get('GITHUB_RUN_ID', '')}"
     )
-    text = message(rows, exit_code, repository, run_url)
+    scope = Scope(
+        workflow=env.get("GITHUB_WORKFLOW", ""),
+        job=env.get("GITHUB_JOB", ""),
+        path=env.get("INPUT_PATH") or ".",
+        connect=_truthy(env.get("INPUT_CONNECT")),
+        resolve=_truthy(env.get("INPUT_RESOLVE")),
+    )
+    text = message(rows, exit_code, repository, run_url, unverified, scope)
 
     if payload is None and exit_code == 0:
         summary = "No `mcp-lock.json` here. Run `credenzo lock` and commit the file."
@@ -461,42 +633,87 @@ def main(env: dict[str, str] | None = None, fetch: Fetch = _fetch) -> int:
     else:
         checked = payload.get("checked_servers", 0) if payload else 0
         summary = f"Lock verified: {checked} server(s)."
-    _append(env.get("GITHUB_STEP_SUMMARY"), f"### Credenzo lock check\n\n{summary}\n")
+    try:
+        _append(
+            env.get("GITHUB_STEP_SUMMARY"), f"### Credenzo lock check\n\n{summary}\n"
+        )
+    except OSError:
+        print("::warning title=Credenzo Team::The step summary could not be written.")
 
+    state = {"plan": "unchecked", "alert": "failed"}
+    try:
+        _send_alerts(env, fetch, state, rows, unverified, exit_code, text, scope)
+    finally:
+        _append(
+            env.get("GITHUB_OUTPUT"),
+            f"drift={'true' if drift else 'false'}\n"
+            f"plan={state['plan']}\nalert={state['alert']}\n",
+        )
+
+
+def _send_alerts(
+    env: dict[str, str],
+    fetch: Fetch,
+    state: dict[str, str],
+    rows: list[Row],
+    unverified: list[str],
+    exit_code: int,
+    text: str,
+    scope: Scope,
+) -> None:
+    """Decide who this repository is and send the alerts. Fill *state*."""
+    drift = exit_code != 0
+    repository = env.get("GITHUB_REPOSITORY", "")
     token = env.get("INPUT_GITHUB_TOKEN", "")
     api_url = env.get("GITHUB_API_URL", "https://api.github.com")
     github = GitHub(api_url, repository, token, fetch)
     event = _event(env.get("GITHUB_EVENT_PATH"))
     repo = event.get("repository")
     repo = repo if isinstance(repo, dict) else {}
+    if (
+        not isinstance(repo.get("owner"), dict)
+        or not isinstance(repo.get("private"), bool)
+        or not isinstance(repo.get("default_branch"), str)
+    ) and token:
+        repo = {**github.repository(), **repo}
     owner = repo.get("owner") if isinstance(repo.get("owner"), dict) else {}
-    owner_type, private = owner.get("type"), repo.get("private")
-    if owner_type is None or not isinstance(private, bool):
-        owner_type, private = github.repository() if token else (None, None)
+    private = repo.get("private") if isinstance(repo.get("private"), bool) else None
+    default_branch = repo.get("default_branch")
 
     entitlement = decide(
         env.get("GITHUB_REPOSITORY_OWNER") or repository.split("/")[0],
-        owner_type,
+        owner.get("type"),
         private,
         lambda: read_offer(fetch, env.get("CREDENZO_TEAM_INDEX_URL") or INDEX_URL),
     )
-    if entitlement.note:
-        print(f"::notice title=Credenzo Team::{entitlement.note}")
+    state["plan"] = entitlement.kind
 
     alerted = "off"
-    if env.get("GITHUB_EVENT_NAME", "") in NO_ALERT_EVENTS:
+    if env.get("GITHUB_EVENT_NAME", "") not in ALERT_EVENTS:
         alerted = "not on this event"
-    elif entitlement.alerts:
-        mark = fingerprint(rows, exit_code)
+    elif (
+        isinstance(default_branch, str)
+        and default_branch
+        and env.get("GITHUB_REF", "") != f"refs/heads/{default_branch}"
+    ):
+        # A check on another branch is in front of the person who pushed it,
+        # and it must not close the issue of the default branch.
+        alerted = "not on this branch"
+    elif not entitlement.alerts:
+        if drift and entitlement.note:
+            print(f"::notice title=Credenzo Team::{entitlement.note}")
+    else:
+        mark = fingerprint(rows, exit_code, unverified)
         changed = drift
         if _truthy(env.get("INPUT_ALERT_ISSUE", "true")) and token:
-            alerted = sync_issue(github, text, mark, drift)
+            alerted = sync_issue(github, text, mark, drift, scope.key())
             changed = alerted in ("opened", "updated", "failed")
             if alerted == "failed":
                 print(
                     "::warning title=Credenzo Team::The drift issue could not be"
-                    " written. Give the job `issues: write`."
+                    " read or written. Give the job `issues: write`."
                 )
+        state["alert"] = alerted
         webhook = (env.get("INPUT_ALERT_WEBHOOK") or "").strip()
         if webhook and drift and changed:
             sent = webhook.startswith("https://") and send_webhook(webhook, text, fetch)
@@ -506,15 +723,7 @@ def main(env: dict[str, str] | None = None, fetch: Fetch = _fetch) -> int:
                     " accept the message."
                 )
             alerted = f"{alerted}, webhook {'sent' if sent else 'failed'}"
-
-    _append(
-        env.get("GITHUB_OUTPUT"),
-        f"drift={'true' if drift else 'false'}\n"
-        f"plan={entitlement.kind}\nalert={alerted}\n",
-    )
-    if exit_code == 1 and not _truthy(env.get("INPUT_FAIL_ON_DRIFT", "true")):
-        return 0
-    return exit_code
+    state["alert"] = alerted
 
 
 if __name__ == "__main__":

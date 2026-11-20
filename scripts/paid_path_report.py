@@ -128,7 +128,9 @@ def pypi_last_month(package: str = "mcp-audit-scanner") -> int | None:
     """Return last month's PyPI downloads from pypistats.org, when reachable."""
     url = f"https://pypistats.org/api/packages/{package}/recent"
     try:
-        with urllib.request.urlopen(url, timeout=20) as response:  # noqa: S310
+        # A constant https URL of pypistats.org.
+        opened = urllib.request.urlopen(url, timeout=20)  # noqa: S310  # nosec B310
+        with opened as response:
             return int(json.loads(response.read())["data"]["last_month"])
     except (OSError, ValueError, KeyError, TypeError):
         return None

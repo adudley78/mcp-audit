@@ -66,14 +66,17 @@ the private repositories of an organization. Rules that keep it honest:
 - A subscription is found by GitHub owner name in the public licence list on
   the `team-licenses` branch, which `.github/workflows/team-licenses.yml`
   builds from Stripe twice an hour. The list holds digests and fillers, never a
-  name, an email address, a Stripe ID or a count; neither job prints one. When
+  name, an email address or a Stripe ID; neither job prints one, or a count.
+  The length of the list shows no count, but someone who keeps copies of it
+  can count the entries that are new. When
   the list cannot be read, alerts stay on.
 - The offer (price, checkout link, the date the experiment started) is
   `team/offer.json`; `scripts/team_go_live.py` writes it and the "Subscribe"
   block of `docs/team.md`. `scripts/paid_path_report.py` prints the weekly
   public numbers and applies the continue/stop rule that was set before the
-  experiment (10 customers or $1k MRR to continue; under 3 customers or $300
-  MRR after 90 days to stop).
+  experiment (10 customers or $1k MRR to continue; after 90 days, fewer than 3
+  customers or less than $300 MRR to stop, which at $99 means that 4 customers
+  pass the stop line).
 
 Funding is also requested via GitHub Sponsors (handle configured in
 `.github/FUNDING.yml`, with a "Support" section in `README.md`).
@@ -375,7 +378,7 @@ GitHub Action at project root:
 - `action.yml` — composite GitHub Action definition; allows any repo to wire Credenzo into CI with a single workflow addition; inputs: `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version`; outputs: `findings-count`, `grade`, `sarif-path`. Uses `github/codeql-action/upload-sarif` (v4, pinned to a commit SHA like every third-party `uses:` ref in `action.yml`, `setup-action/` and `.github/` — `tests/test_action_yaml.py::test_every_third_party_action_ref_is_sha_pinned`) with `continue-on-error: true` so repos without Code Scanning enabled still run cleanly. Marketplace-ready — passes `tests/test_action_yaml.py` structural and safety checks.
 
 Credenzo Team action (`team/`, the one paid offer; docs/team.md):
-- `team/action.yml` + `team/credenzo_team.py` — composite action, one step, standard library only. Runs `credenzo lock --verify --if-present --format json` (the command must already be on PATH) and returns its exit code. On a failed check outside a pull request it keeps one issue ("MCP lock drift", found again by a marker in the body, fingerprint of the findings so the same drift is reported once) and POSTs `{"text": ...}` to `alert-webhook`. An alert holds finding IDs, severities and cleaned server/tool names (`clean_name`), never a finding's own text. `decide()` is the whole pricing rule: personal account or public repository = alerts; else the licence list (`read_offer`): not readable or not live = alerts, owner digest in the list = alerts, otherwise the check runs and one notice is printed. `MEANINGS` must hold every LOCK ID the lock package reports (a test reads the source).
+- `team/action.yml` + `team/credenzo_team.py` — composite action, one step, standard library only. Runs `credenzo lock --verify --if-present --format json` (the command must already be on PATH; stopped after `VERIFY_TIMEOUT_SECONDS`) and returns its exit code: everything after the check runs in `_alerts()` under one `except Exception`, so a fault in an alert never changes the result. On a push, a schedule or a manual run (`ALERT_EVENTS`) on the default branch it keeps one issue for each check ("MCP lock drift"; `Scope` = workflow, job, path, connect, resolve; the marker in the body holds the scope key and a fingerprint of the findings, so the same drift is reported once and a passing check does not close the issue of another check) and POSTs `{"text": ...}` to `alert-webhook`. `GitHub.open_drift_issue` reads an issue as its own only when its author is the token's account (`GET /user`, else `github-actions[bot]`), or a bot account and the issue has the label: a stranger cannot plant an issue with the marker. No redirect is followed (`_NoRedirect`). An alert holds finding IDs, severities, cleaned server/tool names (`clean_name`) and "not verified" names, never a finding's own text or a reason. `decide()` is the whole pricing rule: personal account or public repository = alerts; else the licence list (`read_offer`): not readable or not live = alerts, owner digest in the list = alerts, otherwise the check runs and one notice is printed in a run where an alert was held back. `MEANINGS` must hold every LOCK ID the lock package reports (a test reads the source).
 - `team/offer.json` — price, seats, `live_since`, checkout link, payment link ID. Written by `scripts/team_go_live.py`.
 - `scripts/team_licenses.py` + `.github/workflows/team-licenses.yml` — Stripe (restricted read key, `team-licenses` environment) to `index.json` on the `team-licenses` branch: `offer` plus `owners`, SHA-256 digests padded with HMAC fillers to a multiple of 64. A failed Stripe request writes nothing. The `publish` job replaces the branch with one parentless commit.
 - `scripts/paid_path_report.py` — weekly public numbers (`gh` + pypistats) and `decide()` for the experiment; the paid numbers are arguments, never read or stored.
@@ -687,7 +690,7 @@ What each feature does is in `README.md`, `docs/README.md` (the index of every d
 Counts that `scripts/update_test_count.py` keeps in sync:
 
 - 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
-- 11098 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 11135 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - 35 top-level CLI commands: affected, vet, reach, check, fix, run, guard, wrap, unwrap, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `credenzo --help` before each release
 - 56-entry curated dataset of legitimate MCP servers (`registry/known-servers.json`, `docs/registry.md`)
 - 42 community rules ship bundled; the breakdown is under "Data files at project root" above
