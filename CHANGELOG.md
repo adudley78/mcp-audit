@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Credenzo Team action: a stranger could stop the alerts.** The action read each open issue with its marker in the body as its own issue. A person who can open an issue (anyone, in a public repository) could open one with the marker of the drift to come; the action then wrote no issue and sent no webhook message. With a wrong marker, the action wrote its alert into that person's issue, who could then edit or close it. The action now reads an issue as its own only when the account of its token wrote it (`github-actions[bot]` for the workflow token), or a bot account wrote it and it has the label `credenzo-lock-drift`. Found by a review after 0.35.0 was released. The lock check itself was not affected: the step still failed on drift.
+- **Credenzo Team action: no redirect is followed.** The GitHub token, the webhook message and (in `scripts/team_licenses.py`) the Stripe key went with a request to the place that a redirect named. They now go to the first URL only.
+
+### Fixed
+
+- **Credenzo Team action: a fault in an alert changed the result of the step.** A connection that was cut in the middle of an answer (the licence list, the issue API, the webhook) or a list nested too deep raised an error that the action did not catch, and the step failed although `credenzo lock --verify` passed. Everything after the check now runs under one guard. The result of the step is the exit code of the check.
+- **Credenzo Team action: a check that passed closed the issue of another check.** The action kept one issue for the repository. A scheduled check with `connect` that found a changed tool and a check on each push that passed took turns: each push closed the issue, and the next scheduled run opened it and sent the webhook message again. A push to another branch did the same. The action now keeps one issue for each check (workflow, job, `path`, `connect`, `resolve`) and sends, changes and closes alerts only in a run on the default branch.
+- **Credenzo Team action: an alert for a server that could not be compared said only "No finding was listed".** It now lists each item that was not verified by kind and name, without the reason (a reason can quote what a server printed).
+- **Credenzo Team action: the check is stopped after 30 minutes** (exit code 2). It had no limit of its own.
+
+### Changed
+
+- **Credenzo Team action: the notice about the subscription is printed only in a run where an alert was held back.** It was printed in each run, pull requests included, and also before subscriptions opened.
+
+### Documentation
+
+- **The licence list does not hide the number of subscribers from a person who keeps copies of it.** The 0.35.0 notes said that the list holds no count. Its length shows no count, but each new subscriber takes the place of one filler, so the new entries can be counted over time. `docs/team.md` and `scripts/team_licenses.py` now say so.
+- **The stop line of the Team experiment needs 4 customers.** The rule is "fewer than 3 customers or less than $300 a month after 90 days". At $99 a month, 3 customers are $297.
+
 ## [0.35.0] - 2026-11-20
 
 ### Added

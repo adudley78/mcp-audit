@@ -15,7 +15,9 @@ What the list holds
   subscriber typed at checkout, or it is a filler. The list always has a
   multiple of 64 entries, so its length does not show how many subscribers
   there are. Fillers come from a secret (``TEAM_INDEX_SALT``) and do not
-  change between runs.
+  change between runs. Each new subscriber takes the place of one filler, so
+  someone who keeps the copies of the list over time can count the entries
+  that are new.
 
 The list holds no name, no email address, no Stripe ID and no amount. This
 script prints no count of subscribers: the log of a public repository is
@@ -72,6 +74,16 @@ _OWNER = re.compile(r"[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}")
 Get = Callable[[str], Any]
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse each redirect: the Stripe key goes to the first URL only."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 class StripeError(RuntimeError):
     """A Stripe request did not return the expected document."""
 
@@ -84,9 +96,8 @@ def stripe_get(key: str) -> Get:
             STRIPE_API + path, headers={"Authorization": f"Bearer {key}"}
         )
         try:
-            with urllib.request.urlopen(  # noqa: S310
-                request, timeout=HTTP_TIMEOUT_SECONDS
-            ) as response:
+            # nosec B310 - constant https host; redirects are refused
+            with _OPENER.open(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             # The body can repeat request details. Give the status only.

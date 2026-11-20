@@ -52,10 +52,12 @@ class Net:
         index: dict | None = None,
         issues: list[dict] | None = None,
         repo: dict | None = None,
+        login: str | None = None,
     ) -> None:
         self.index = index
         self.issues = issues or []
         self.repo = repo
+        self.login = login
         self.calls: list[tuple[str, str, dict | None]] = []
 
     def __call__(self, request: urllib.request.Request) -> tuple[int, bytes]:
@@ -70,12 +72,29 @@ class Net:
             return 200, b"ok"
         if url.endswith("/repos/acme/app"):
             return (200, json.dumps(self.repo).encode()) if self.repo else (404, b"")
+        if url.endswith("/user"):
+            if self.login is None:  # the workflow token cannot read /user
+                return 403, b""
+            return 200, json.dumps({"login": self.login}).encode()
         if "/issues?" in url:
             return 200, json.dumps(self.issues).encode()
         return 201, b"{}"
 
     def sent(self, method: str, part: str) -> list[dict | None]:
         return [b for m, u, b in self.calls if m == method and part in u]
+
+
+BOT = {"login": "github-actions[bot]", "type": "Bot"}
+
+
+def _scope(root: Path, connect: bool = False) -> str:
+    """The scope key of the check that `_run` makes on *root*."""
+    return team.Scope("MCP lock", "lock", str(root), connect, False).key()
+
+
+def _issue(root: Path, mark: str = "0" * 16, number: int = 7, **fields: object) -> dict:
+    body = f"old\n\n{team.ISSUE_MARKER}:{_scope(root)}:{mark} -->"
+    return {"number": number, "body": body, "user": BOT, **fields}
 
 
 def _index(*owners: str, live: bool = True) -> dict:
@@ -256,11 +275,20 @@ def _run(
     event_name: str = "schedule",
     owner_type: str = "Organization",
     private: bool = True,
+    ref: str = "refs/heads/main",
     **inputs: str,
 ) -> tuple[int, dict[str, str]]:
     event = tmp_path / "event.json"
     event.write_text(
-        json.dumps({"repository": {"private": private, "owner": {"type": owner_type}}}),
+        json.dumps(
+            {
+                "repository": {
+                    "private": private,
+                    "owner": {"type": owner_type},
+                    "default_branch": "main",
+                }
+            }
+        ),
         encoding="utf-8",
     )
     output = tmp_path / "output.txt"
@@ -272,6 +300,9 @@ def _run(
         "GITHUB_REPOSITORY": "acme/app",
         "GITHUB_REPOSITORY_OWNER": "acme",
         "GITHUB_EVENT_NAME": event_name,
+        "GITHUB_REF": ref,
+        "GITHUB_WORKFLOW": "MCP lock",
+        "GITHUB_JOB": "lock",
         "GITHUB_EVENT_PATH": str(event),
         "GITHUB_RUN_ID": "42",
         "GITHUB_OUTPUT": str(output),
@@ -320,7 +351,9 @@ def test_drift_opens_an_issue_and_sends_the_webhook(
     assert set(hook) == {"text"} and "LOCK-002" in hook["text"]
     assert "`" not in hook["text"].replace("`evil?x?@all???here?`", "").replace(
         "`acme/app`", ""
-    ).replace("`credenzo lock --accept`", "").replace("`mcp-lock.json`", "")
+    ).replace("`credenzo lock --accept`", "").replace("`mcp-lock.json`", "").replace(
+        "`MCP?lock`", ""
+    ).replace("`lock`", "")
     assert "MCP lock drift" in (tmp_path / "summary.md").read_text(encoding="utf-8")
 
 
@@ -330,7 +363,9 @@ def test_the_same_drift_is_reported_once(project: Path, tmp_path: Path) -> None:
     first = Net(index=_index("acme"))
     _run(project, tmp_path, first, INPUT_ALERT_WEBHOOK="https://hooks.example/a")
     (issue,) = first.sent("POST", "/repos/acme/app/issues")
-    again = Net(index=_index("acme"), issues=[{"number": 7, "body": issue["body"]}])
+    again = Net(
+        index=_index("acme"), issues=[{"number": 7, "body": issue["body"], "user": BOT}]
+    )
     code, out = _run(
         project, tmp_path, again, INPUT_ALERT_WEBHOOK="https://hooks.example/a"
     )
@@ -343,8 +378,7 @@ def test_new_findings_update_the_issue_and_send_again(
     project: Path, tmp_path: Path
 ) -> None:
     _drift(project)
-    old = {"number": 7, "body": f"old\n\n{team.ISSUE_MARKER}:0000000000000000 -->"}
-    net = Net(index=_index("acme"), issues=[old])
+    net = Net(index=_index("acme"), issues=[_issue(project)])
     _, out = _run(project, tmp_path, net, INPUT_ALERT_WEBHOOK="https://hooks.example/a")
     assert out["alert"] == "updated, webhook sent"
     assert len(net.sent("PATCH", "/issues/7")) == 1
@@ -353,8 +387,8 @@ def test_new_findings_update_the_issue_and_send_again(
 
 @needs_cli
 def test_a_passing_check_closes_the_issue(project: Path, tmp_path: Path) -> None:
-    old = {"number": 7, "body": f"old\n\n{team.ISSUE_MARKER}:0000000000000000 -->"}
-    pull = {"number": 8, "pull_request": {}, "body": old["body"]}
+    old = _issue(project)
+    pull = {**old, "number": 8, "pull_request": {}}
     net = Net(index=_index("acme"), issues=[pull, old])
     code, out = _run(project, tmp_path, net)
     assert (code, out["alert"]) == (0, "closed")
@@ -374,7 +408,255 @@ def test_no_subscription_keeps_the_check_and_sends_no_alert(
     assert code == 1
     assert out == {"drift": "true", "plan": "unlicensed", "alert": "off"}
     assert [m for m, _, _ in net.calls] == ["GET"]
-    assert "::notice title=Credenzo Team::" in capsys.readouterr().out
+    assert capsys.readouterr().out.count("::notice title=Credenzo Team::") == 1
+
+
+@needs_cli
+def test_a_notice_is_printed_only_when_an_alert_was_held_back(
+    project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No notice on a passing run, on a pull request, or before the offer is live."""
+    _run(project, tmp_path, Net(index=_index("someone-else")))
+    _run(project, tmp_path, Net(index=_index(live=False)))
+    _run(project, tmp_path, Net(index=None))
+    _drift(project)
+    _run(
+        project, tmp_path, Net(index=_index("someone-else")), event_name="pull_request"
+    )
+    _run(project, tmp_path, Net(index=_index("someone-else")), ref="refs/heads/topic")
+    _run(project, tmp_path, Net(index=_index(live=False)))
+    assert "::notice" not in capsys.readouterr().out
+
+
+# --- whose issue it is -----------------------------------------------------
+
+
+@needs_cli
+def test_an_issue_that_a_stranger_planted_is_not_read(
+    project: Path, tmp_path: Path
+) -> None:
+    """The exact marker of the coming drift, in an issue from another account."""
+    _drift(project)
+    first = Net(index=_index("acme"))
+    _run(project, tmp_path, first)
+    (ours,) = first.sent("POST", "/repos/acme/app/issues")
+    planted = {
+        "number": 5,
+        "body": ours["body"],
+        "user": {"login": "mallory", "type": "User"},
+    }
+    net = Net(index=_index("acme"), issues=[planted])
+    code, out = _run(
+        project, tmp_path, net, INPUT_ALERT_WEBHOOK="https://hooks.example/a"
+    )
+    assert (code, out["alert"]) == (1, "opened, webhook sent")
+    assert net.sent("PATCH", "/issues/5") == []
+    assert net.sent("POST", "/issues/5/comments") == []
+
+
+@needs_cli
+def test_a_stranger_cannot_get_the_issue_closed_or_use_the_label(
+    project: Path, tmp_path: Path
+) -> None:
+    planted = _issue(
+        project,
+        number=5,
+        user={"login": "mallory", "type": "User"},
+        labels=[{"name": team.ISSUE_LABEL}],
+    )
+    net = Net(index=_index("acme"), issues=[planted])
+    code, out = _run(project, tmp_path, net)
+    assert (code, out["alert"]) == (0, "none")
+    assert net.sent("PATCH", "") == []
+
+
+@needs_cli
+def test_an_issue_of_another_bot_counts_only_with_the_label(
+    project: Path, tmp_path: Path
+) -> None:
+    """A token of a GitHub App writes as that app, and cannot read /user."""
+    app = {"login": "acme-ci[bot]", "type": "Bot"}
+    bare = Net(index=_index("acme"), issues=[_issue(project, user=app)])
+    assert _run(project, tmp_path, bare)[1]["alert"] == "none"
+    labelled = _issue(project, user=app, labels=[{"name": team.ISSUE_LABEL}])
+    net = Net(index=_index("acme"), issues=[labelled])
+    assert _run(project, tmp_path, net)[1]["alert"] == "closed"
+
+
+@needs_cli
+def test_a_user_token_reads_its_own_issues(project: Path, tmp_path: Path) -> None:
+    alice = {"login": "alice", "type": "User"}
+    net = Net(index=_index("acme"), issues=[_issue(project, user=alice)], login="alice")
+    assert _run(project, tmp_path, net)[1]["alert"] == "closed"
+    assert any("creator=alice" in u for _, u, _ in net.calls)
+    other = Net(index=_index("acme"), issues=[_issue(project, user=BOT)], login="alice")
+    assert _run(project, tmp_path, other)[1]["alert"] == "none"
+
+
+@needs_cli
+def test_the_issue_list_is_asked_for_this_account_only(
+    project: Path, tmp_path: Path
+) -> None:
+    net = Net(index=_index("acme"))
+    _run(project, tmp_path, net)
+    queries = [u.split("?", 1)[1] for _, u, _ in net.calls if "/issues?" in u]
+    assert queries == [
+        "state=open&per_page=100&creator=github-actions%5Bbot%5D",
+        "state=open&per_page=100&labels=credenzo-lock-drift",
+    ]
+
+
+# --- one issue for each check ----------------------------------------------
+
+
+@needs_cli
+def test_a_passing_check_does_not_close_the_issue_of_another_check(
+    project: Path, tmp_path: Path
+) -> None:
+    """The scheduled check with `connect` found drift; the push check passes."""
+    other = team.Scope("MCP lock", "lock", str(project), True, False).key()
+    body = f"old\n\n{team.ISSUE_MARKER}:{other}:{'0' * 16} -->"
+    net = Net(index=_index("acme"), issues=[{"number": 7, "body": body, "user": BOT}])
+    code, out = _run(project, tmp_path, net)
+    assert (code, out["alert"]) == (0, "none")
+    assert net.sent("PATCH", "") == []
+
+
+@needs_cli
+def test_a_run_on_another_branch_sends_and_closes_nothing(
+    project: Path, tmp_path: Path
+) -> None:
+    net = Net(index=_index("acme"), issues=[_issue(project)])
+    code, out = _run(project, tmp_path, net, ref="refs/heads/topic")
+    assert (code, out["alert"]) == (0, "not on this branch")
+    _drift(project)
+    code, out = _run(
+        project,
+        tmp_path,
+        net,
+        ref="refs/heads/topic",
+        event_name="push",
+        INPUT_ALERT_WEBHOOK="https://hooks.example/a",
+    )
+    assert (code, out["alert"]) == (1, "not on this branch")
+    assert net.sent("PATCH", "") == [] and net.sent("POST", "") == []
+
+
+@needs_cli
+def test_the_alert_names_its_check(project: Path, tmp_path: Path) -> None:
+    _drift(project)
+    net = Net(index=_index("acme"))
+    _run(project, tmp_path, net)
+    (issue,) = net.sent("POST", "/repos/acme/app/issues")
+    assert "Check: workflow `MCP?lock`, job `lock`." in issue["body"]
+
+
+# --- an alert never changes the result -------------------------------------
+
+
+class Broken(Net):
+    """A network that fails in a way that is not an OSError."""
+
+    def __init__(self, error: BaseException, part: str, **kw: object) -> None:
+        super().__init__(**kw)
+        self.error, self.part = error, part
+
+    def __call__(self, request: urllib.request.Request) -> tuple[int, bytes]:
+        if self.part in request.full_url:
+            raise self.error
+        return super().__call__(request)
+
+
+@needs_cli
+@pytest.mark.parametrize("part", ["raw.githubusercontent", "/issues", "hooks.example"])
+@pytest.mark.parametrize("drift", [False, True])
+def test_a_broken_network_does_not_change_the_exit_code(
+    project: Path, tmp_path: Path, part: str, drift: bool
+) -> None:
+    import http.client
+
+    if drift:
+        _drift(project)
+    for error in (http.client.IncompleteRead(b""), RecursionError(), KeyError("x")):
+        net = Broken(error, part, index=_index("acme"))
+        code, _ = _run(
+            project, tmp_path, net, INPUT_ALERT_WEBHOOK="https://hooks.example/a"
+        )
+        assert code == (1 if drift else 0), (part, error)
+
+
+@needs_cli
+def test_a_fault_in_the_alert_step_is_a_warning(
+    project: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _drift(project)
+
+    def boom(*_a: object, **_k: object) -> str:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(team, "sync_issue", boom)
+    code, _ = _run(project, tmp_path, Net(index=_index("acme")))
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "::warning title=Credenzo Team::The alert step stopped (RuntimeError)" in out
+
+
+def test_a_list_nested_too_deep_is_unchecked() -> None:
+    deep = Net()
+    deep.__class__ = type(
+        "Deep", (Net,), {"__call__": lambda self, request: (200, b"[" * 200_000)}
+    )
+    assert team.read_offer(deep) is None
+
+
+def test_a_redirect_is_refused() -> None:
+    handler = team._NoRedirect()
+    request = urllib.request.Request("https://api.github.com/x")  # noqa: S310
+    assert (
+        handler.redirect_request(
+            request, None, 302, "Found", {}, "https://evil.example/"
+        )
+        is None
+    )
+    redirectors = [
+        h
+        for h in team._OPENER.handlers
+        if isinstance(h, urllib.request.HTTPRedirectHandler)
+    ]
+    assert [type(h) for h in redirectors] == [team._NoRedirect]
+
+
+def test_a_check_that_does_not_end_is_exit_2(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import subprocess
+
+    def never(*_a: object, **kw: object) -> None:
+        assert kw["timeout"] == team.VERIFY_TIMEOUT_SECONDS
+        raise subprocess.TimeoutExpired("credenzo", kw["timeout"])
+
+    monkeypatch.setattr(team.subprocess, "run", never)
+    assert team.run_verify("credenzo", ".", True, False) == (2, None)
+    assert "did not end" in capsys.readouterr().out
+
+
+def test_an_item_that_was_not_verified_is_listed_without_its_reason() -> None:
+    payload = {
+        "findings": [],
+        "unverified": [
+            {"kind": "entry", "name": "notes`@all", "reason": "stderr: /home/x token"},
+            "junk",
+        ],
+    }
+    lines = team.unverified_of(payload)
+    assert lines == ["not verified (entry): `notes?@all`"]
+    text = team.message([], 1, "acme/app", "https://x/run", lines)
+    assert "- not verified (entry): `notes?@all`" in text
+    assert "stderr" not in text and "No finding was listed" not in text
+    assert team.fingerprint([], 1, lines) != team.fingerprint([], 1)
 
 
 @needs_cli
@@ -442,13 +724,30 @@ def test_a_missing_command_is_an_error(capsys: pytest.CaptureFixture[str]) -> No
 def test_the_repository_is_read_from_the_api_when_the_event_does_not_say() -> None:
     net = Net(repo={"private": True, "owner": {"type": "Organization"}})
     github = team.GitHub("https://api.github.com", "acme/app", "t", net)
-    assert github.repository() == ("Organization", True)
-    assert team.GitHub(
-        "https://api.github.com", "acme/app", "t", Net()
-    ).repository() == (
-        None,
-        None,
+    assert github.repository() == {"private": True, "owner": {"type": "Organization"}}
+    assert (
+        team.GitHub("https://api.github.com", "acme/app", "t", Net()).repository() == {}
     )
+
+
+@needs_cli
+def test_the_default_branch_is_read_from_the_api_when_the_event_does_not_say(
+    project: Path, tmp_path: Path
+) -> None:
+    repo = {
+        "private": True,
+        "owner": {"type": "Organization"},
+        "default_branch": "trunk",
+    }
+    net = Net(index=_index("acme"), repo=repo, issues=[_issue(project)])
+    event = tmp_path / "bare.json"
+    event.write_text("{}", encoding="utf-8")
+    code, out = _run(project, tmp_path, net, GITHUB_EVENT_PATH=str(event))
+    assert (code, out["plan"], out["alert"]) == (0, "licensed", "not on this branch")
+    code, out = _run(
+        project, tmp_path, net, ref="refs/heads/trunk", GITHUB_EVENT_PATH=str(event)
+    )
+    assert out["alert"] == "closed"
 
 
 def test_only_https_is_fetched() -> None:

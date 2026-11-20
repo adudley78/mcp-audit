@@ -20,8 +20,8 @@ A seat is a developer who commits to the repositories, or a CI system that
 runs the action. The action does not count seats.
 
 With no subscription, the action still runs the check in a private repository
-of an organization, and the step still fails on drift. It sends no alert and
-prints one notice.
+of an organization, and the step still fails on drift. It sends no alert. It
+prints one notice in a run where it held an alert back.
 
 ## Subscribe
 
@@ -76,15 +76,24 @@ again.
 
 ## When an alert is sent
 
-| Event | The step | The alert |
+| Run | The step | The alert |
 |---|---|---|
 | Pull request | Fails on drift | None. The failed check is in front of the author. |
-| Push to a branch, schedule, manual run | Fails on drift | One issue, and one webhook message for each new set of findings |
-| The check passes again | Passes | The issue is closed |
+| Push, schedule or manual run on the default branch | Fails on drift | One issue, and one webhook message for each new set of findings |
+| Push or manual run on another branch | Fails on drift | None. The failed check is in front of the person who pushed. |
+| The same check passes again on the default branch | Passes | The issue is closed |
 
-The action keeps one open issue, titled "MCP lock drift". It changes the issue
-when the findings change. The same drift on the next scheduled run sends
-nothing new.
+The action keeps one open issue for each check, titled "MCP lock drift". A
+check is a workflow, a job, a `path` and the `connect` and `resolve` inputs.
+So a scheduled check with `connect` and a check on each push have one issue
+each, and a check that passes does not close the issue of the other check.
+The action changes the issue when the findings change. The same drift on the
+next scheduled run sends nothing new.
+
+The action reads an issue as its own only when the issue was written by the
+account of its token (`github-actions[bot]` for the workflow token), or by a
+bot account and has the label `credenzo-lock-drift`. An issue that another
+person opens is not read, whatever its text.
 
 ## A server that changes its tools with no commit
 
@@ -124,21 +133,28 @@ you turn it on.
 |---|---|
 | `drift` | `true` when the check did not pass |
 | `plan` | `personal`, `public`, `licensed`, `preview`, `unchecked` or `unlicensed` |
-| `alert` | What the action did about alerts in this run |
+| `alert` | What the action did about alerts in this run: `opened`, `updated`, `same`, `closed`, `none`, `failed`, `off`, `not on this event` or `not on this branch`, and the result of the webhook |
 
 ## What an alert holds
 
-An alert holds finding IDs, severities, server names, tool names and the link
-to the run:
+An alert holds finding IDs, severities, server names, tool names, the name of
+the check and the link to the run:
 
 ```text
 MCP lock drift in `acme/app`.
 
 - LOCK-002 (HIGH) `notes`: server is not in the lock
 - LOCK-006 (HIGH) `files` tool `delete_all`: tool added
+- not verified (entry): `search`
+
+Check: workflow `MCP?lock`, job `lock`, with connect.
 
 Run: https://github.com/acme/app/actions/runs/123
 ```
+
+A "not verified" line names a server that the check could not compare, for
+example a server that did not start. The alert does not hold the reason; the
+run log does.
 
 It holds no evidence text, no file path and no config content. A name is cut
 to 80 characters, and each character that is not a letter, a digit or one of
@@ -168,11 +184,15 @@ Know these three facts about the list:
 - It holds digests, not names. Someone who guesses your organization name
   can compute its digest and see that it is in the list.
 - It always holds a multiple of 64 entries. The others are fillers, so the
-  length of the list does not show the number of subscribers.
+  length of the list does not show the number of subscribers. The fillers do
+  not change. Someone who keeps the copies of the list over time can see
+  when an entry is new, and can count the new entries.
 - It holds no email address, no Stripe ID and no amount.
 
 When the list cannot be read (GitHub is down, the runner has no network), the
-action sends alerts as usual. A network fault never stops an alert.
+action sends alerts as usual. A network fault never stops an alert. A fault
+in an alert (the list, the issue, the webhook) never changes the result of
+the step: the result is the exit code of `credenzo lock --verify`.
 
 A subscription whose payment failed keeps its alerts while Stripe tries the
 card again.
@@ -186,6 +206,19 @@ card again.
 - The action does not count seats.
 - An issue is found again by a marker in its body. If you edit the marker
   out, the next run opens a second issue.
+- Use the workflow token or the token of a user for `github-token`. With the
+  token of another GitHub App, the action finds its issue again only when
+  the issue has the label `credenzo-lock-drift`.
+- A server that does not start in a `connect` run is "not verified". That
+  opens the issue, and the next run that passes closes it. A server that
+  fails now and then gives an issue now and then.
+- A tool that writes the date of the day into its text is not drift, when
+  the lock was written with Credenzo 0.36.0 or later
+  ([lock.md](lock.md#tool-definitions---connect)). Other text that a server
+  changes by itself is drift each time.
+- The check gets 30 minutes. After that the action stops it and the step
+  fails with exit code 2.
+- The action follows no redirect.
 - The webhook body is `{"text": "..."}` and nothing else.
 
 ## Opening subscriptions
