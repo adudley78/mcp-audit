@@ -1948,6 +1948,25 @@ trust"). Recorded limits:
   frontmatter split by `agent_files/discovery.py` and the subagent reader;
   if it ever is not, lines count from the start of the body.
 
+## A tool that writes the date into its description (found 2026-11-20)
+
+- **Each day is drift.** Some servers build a tool description that holds the
+  date of the day (an example query for "today" and "a week ago"). The lock
+  digests cover the whole description, so the day after `lock --connect` the
+  tool is `LOCK-008` in `lock --verify --connect` (`LOCK-007` when the date is
+  in the schema), and `run --mode enforce` withholds it. This follows from the digest rule; it was not run against such
+  a server. One case is known: 1 of 493 servers in a daily record of 999
+  packages.
+- **Not changed in the lock.** A rule that ignores dates in the lock is a
+  change to what the lock approves, and a date can be a place to hide data. It
+  needs a decision and a review of its own. Until then, accept the tool again
+  (`credenzo lock --accept --connect`) or do not use `--mode enforce` for that
+  server.
+- **Changed in the drift index only.** The weekly index (`docs/drift-index.md`)
+  lists a tool as `calendar_only`, and does not count it as a change, when
+  its text is the same without its dates and each date moved with the
+  calendar. The index holds those dates; the lock does not.
+
 ## Tool-call guard (`credenzo guard`, STORY-0176)
 
 - **Names, not text.** The hook input holds the tool's name, not its
