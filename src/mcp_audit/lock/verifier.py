@@ -31,7 +31,12 @@ from mcp_audit.analyzers.supply_chain import (
     build_deprecated_package_finding,
     redact_text,
 )
-from mcp_audit.lock import guardrail_section, section_digests, tool_digests
+from mcp_audit.lock import (
+    calendar_text,
+    guardrail_section,
+    section_digests,
+    tool_digests,
+)
 from mcp_audit.lock import tool_text as tool_text_mod
 from mcp_audit.lock.core import index_locked_entries
 from mcp_audit.lock.identity import (
@@ -150,6 +155,10 @@ class VerifyResult:
     #: Why saved tool text could not be used for a server (out of step with
     #: the lock, unreadable). Informational: it never changes the exit code.
     tool_text_notes: list[str] = field(default_factory=list)
+    #: ``{lock key: [tool names]}``: tools whose digests differ from the lock
+    #: only because a date in their text moved with the calendar (STORY-0180).
+    #: Not a finding; it never changes the exit code.
+    calendar_only: dict[str, list[str]] = field(default_factory=dict)
     #: Files in the lock's (mcp-audit-owned) ``guardrails`` section, STORY-0143.
     guardrails_recorded: int = 0
     #: Why a recorded guardrail file could not be compared (unreadable).
@@ -291,6 +300,8 @@ def verify(
     tools_compared = 0
     tool_diffs: dict[str, list[dict]] = {}
     tool_text_notes: list[str] = [tool_text_problem] if tool_text_problem else []
+    calendar_only: dict[str, list[str]] = {}
+    day = calendar_text.today()
 
     lock_root = root if root is not None else lock_path.resolve().parent
     locked_servers: dict = doc.get("servers", {})
@@ -353,8 +364,10 @@ def verify(
                 enumeration = tool_enumerations[tool_digests.enumeration_key(server)]
                 diff = tool_digests.compare(
                     locked_tool_servers[key],
-                    tool_digests.tool_digests(enumeration.tools),
+                    tool_digests.tool_digests(enumeration.tools, day=day),
                 )
+                if diff.calendar_only:
+                    calendar_only[key] = diff.calendar_only
                 details = _tool_details(
                     key,
                     locked_tool_servers[key],
@@ -440,6 +453,7 @@ def verify(
         tools_compared=tools_compared if tool_enumerations is not None else None,
         tool_diffs=tool_diffs,
         tool_text_notes=tool_text_notes,
+        calendar_only=calendar_only,
         guardrails_recorded=guards_recorded,
         guardrail_notes=guard_errors,
     )

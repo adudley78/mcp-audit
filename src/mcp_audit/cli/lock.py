@@ -29,7 +29,7 @@ from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
-from mcp_audit.lock import guardrail_section, tool_digests, tool_text
+from mcp_audit.lock import calendar_text, guardrail_section, tool_digests, tool_text
 from mcp_audit.lock.core import index_locked_entries, match_key
 from mcp_audit.lock.identity import launch_carries_secret
 from mcp_audit.lock.model import LOCK_FILENAME
@@ -517,13 +517,14 @@ def _run_write(
             servers, enumerations, existing_doc, root, withhold=not allow_copies
         )
         tool_records = {}
+        day = calendar_text.today()
         for server in servers:
             enumeration = enumerations[tool_digests.enumeration_key(server)]
             problem = enumeration.error or enumeration.tools_error
             if problem:
                 tool_failures.append((server_key(server), problem))
                 continue
-            record = tool_digests.server_record(enumeration.tools)
+            record = tool_digests.server_record(enumeration.tools, day=day)
             earlier = tool_records.get(server_key(server))
             if earlier is not None:
                 # Two config files give one key.  Keep the tools of both
@@ -598,6 +599,20 @@ def _run_write(
             f"Tool definitions recorded for {len(tool_records or {})} of "
             f"{len(servers)} server(s)."
         )
+        dated = sorted(
+            f"{key}: {name}"
+            for key, record in (tool_records or {}).items()
+            for name, tool in record["tools"].items()
+            if tool_digests.CALENDAR_KEY in tool
+        )
+        if dated:
+            console.print(
+                f"[dim]{len(dated)} tool(s) hold a date in their text "
+                f"({escape(', '.join(dated[:5]))}"
+                f"{' and more' if len(dated) > 5 else ''}). A date that moves "
+                "with the calendar is not a change (docs/lock.md).[/dim]",
+                highlight=False,
+            )
         for key, tool, original_key, original_tool in withheld_copies:
             if allow_copies:
                 console.print(
@@ -766,6 +781,7 @@ def _run_verify(
             "tools_compared": result.tools_compared,
             "tool_diffs": result.tool_diffs,
             "tool_text_notes": result.tool_text_notes,
+            "calendar_only": result.calendar_only,
             "guardrails_recorded": result.guardrails_recorded,
             "guardrail_notes": result.guardrail_notes,
             "findings": [f.model_dump(mode="json") for f in result.findings],
@@ -848,6 +864,21 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
 
     for note in result.tool_text_notes:
         console.print(f"[yellow]WARN[/yellow] {escape(note)}")
+
+    calendar_tools = sorted(
+        f"{key}: {name}"
+        for key, names in result.calendar_only.items()
+        for name in names
+    )
+    if calendar_tools:
+        console.print(
+            f"[dim]{len(calendar_tools)} tool(s) differ from the lock only by a "
+            f"date that moved with the calendar "
+            f"({escape(', '.join(calendar_tools[:5]))}"
+            f"{' and more' if len(calendar_tools) > 5 else ''}). Not a change "
+            "(docs/lock.md).[/dim]",
+            highlight=False,
+        )
 
     if result.guardrails_recorded:
         console.print(f"Guardrail files compared: {result.guardrails_recorded}.")

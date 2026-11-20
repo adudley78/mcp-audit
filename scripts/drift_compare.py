@@ -88,6 +88,10 @@ def moved_with_calendar(
     and *day_new*. True needs the same ``undated`` digest and, for each pair
     of dates in order, one of: the same date; a move by the days between the
     snapshots; two first days of a month, moved by the months between them.
+
+    This script uses no package code, so the rule is written here a second
+    time. ``mcp_audit.lock.calendar_text.moved_with_calendar`` is the same
+    rule for the lock; ``tests/test_lock_calendar.py`` holds the two equal.
     """
     undated = old.get("undated")
     if not isinstance(undated, str) or not undated or undated != new.get("undated"):

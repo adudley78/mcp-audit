@@ -170,6 +170,10 @@ comparison `lock --verify --connect` makes:
 | `LOCK-009` | a locked tool is gone | reported | reported (nothing to withhold) |
 | `RUN-003` | the lock has no tool record for this server | reported | every tool withheld |
 
+A tool whose text holds a date that moved with the calendar since the lock
+is not a change. It is approved and nothing is reported. The rule is in
+[lock.md](lock.md#tool-definitions---connect).
+
 "Withheld" means two things in enforce mode:
 
 - The tool is removed from the `tools/list` result the client sees, so the

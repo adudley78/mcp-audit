@@ -502,6 +502,44 @@ poisoning arrives. It is ranked below a schema change because the tool still acc
 the same things, but it still fails the build until someone reads the new text and re-locks.
 `credenzo scan --connect` runs the poisoning checks over the current text.
 
+**A date that moves with the calendar is not a change (0.35.0).** Some servers write the date of
+the day into a tool description or a schema default, for example an example query for "today".
+The digests of such a tool are new each day, although its author changed nothing. For a tool
+whose text holds an ISO date (`2026-11-20`), `lock --connect` also records `calendar`:
+
+```json
+"cost-explorer": {
+  "calendar": {"day": "2026-11-20", "dates": ["2026-11-20", "2026-11-01"], "undated": "sha256:..."},
+  "contract": "sha256:...",
+  "definition": "sha256:..."
+}
+```
+
+`day` is the day of the lock (UTC). `dates` are the dates in the text, in order. `undated` is the
+digest of the definition with each date cut out. When a tool's digests differ from the lock,
+`lock --verify --connect` and `credenzo run` make one more test before they report a change:
+
+- the text without its dates is the same (`undated`), and
+- each date is the same as in the lock, or moved by the number of days since `day`, or is the
+  first day of a month that moved by the number of months since `day`.
+
+A tool that passes is not a finding. `lock --verify --connect` names it in one line and under
+`calendar_only` in `--format json`. The rule is strict:
+
+- A changed word beside a date is `LOCK-008`. A date that an author moved in another way, a new
+  date and a removed date are changes.
+- Only a real ISO date is a date. `1111-22-3333`, month 13 and a date in another format stay text.
+- The clock of the server can be one day from UTC at the lock, and again at the check. So a date
+  can be up to two days from the exact count. One choice of clocks must explain every date of
+  the tool.
+- A lock from before 0.35.0 has no `calendar` record. Such a tool is `LOCK-008` or `LOCK-007`
+  until you run `credenzo lock --accept --connect` once with 0.35.0 or later.
+- An older Credenzo reads the new lock and ignores `calendar`: it reports the tool each day, as
+  before.
+- The lock now holds the ISO dates of the tool's text. It holds no other tool text.
+- A tool with more than 200 dates, and two tools that a server lists under one name, get no
+  `calendar` record.
+
 A server that cannot be compared is reported, never passed: no tool record yet (run
 `lock --connect`), the connection failed, or the tool list could not be read to the last page. Each
 is an unverified entry in the sense of R56 above: exit 1 unless `--allow-unverified`. A server that
