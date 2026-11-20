@@ -19,7 +19,7 @@ Canonical sources of truth:
 - Analyzer count:   concrete ``BaseAnalyzer`` subclasses in ``src/mcp_audit/analyzers/``
   (i.e. ``class XxxAnalyzer(BaseAnalyzer)`` in any file except ``base.py``)
 - Release pin:      ``[project].version`` in ``pyproject.toml``, written as
-  ``v<version>`` into every ``uses: adudley78/credenzo[/setup-action]@`` ref
+  ``v<version>`` into every ``uses: adudley78/credenzo[/setup-action|/team]@`` ref
   and pinned ``version:`` input in README.md and the Action docs, every
   pre-commit ``rev:`` for this repo in README.md, docs/ and
   examples/pre-commit/, and ``credenzo==<version>`` in
@@ -77,13 +77,13 @@ _PRE_COMMIT_REV_PATTERN = (
     r"v\d+\.\d+\.\d+(?![\w.])"
 )
 
-# Action refs: ``uses: adudley78/credenzo[/setup-action]@main|vX.Y.Z``.
+# Action refs: ``uses: adudley78/credenzo[/setup-action|/team]@main|vX.Y.Z``.
 # Anchored on ``uses:`` so prose that cites a historical release ("added in
 # `adudley78/credenzo@v0.17.0`") is never rewritten. Group 1 keeps
 # everything up to the ``@``. SHA pins (``@<40 hex>``) are deliberately not
 # matched: they cannot be resolved offline.
 _ACTION_REF_PATTERN = (
-    r"(uses:[ \t]*adudley78/credenzo(?:/setup-action)?@)"
+    r"(uses:[ \t]*adudley78/credenzo(?:/setup-action|/team)?@)"
     r"(?:main|v\d+\.\d+\.\d+)(?![\w.])"
 )
 # The action's ``version`` input (which binary it downloads; defaults to
@@ -107,6 +107,7 @@ _ACTION_REF_DOCS = (
     "docs/snyk-integration.md",
     "docs/governance.md",
     "docs/docs-usage.md",
+    "docs/team.md",
 )
 _VERSION_INPUT_DOCS = (
     "README.md",

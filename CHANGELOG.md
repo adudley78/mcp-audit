@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-20
+
+### Added
+
+- **Credenzo Team: drift alerts from the lock (the one paid part).** `adudley78/credenzo/team` is a GitHub Action that runs `credenzo lock --verify` and, when the check fails outside a pull request, keeps one issue in the repository and sends one message to a webhook for each new set of findings. A scheduled run with `connect: "true"` sees a server that changed its tools with no commit. An alert holds finding IDs, severities, server and tool names and the link to the run; it never holds a finding's own text. Alerts are free for personal accounts and public repositories, and $99 a month for up to 10 seats in the private repositories of an organization. With no subscription the check still runs and still fails on drift; no alert is sent. Subscriptions are not open yet, and until they open every repository gets alerts. Every `credenzo` command stays free under Apache 2.0, and the action sends nothing to the project. `docs/team.md`.
+- **The licence list (`team-licenses.yml`, `scripts/team_licenses.py`).** A subscriber types a GitHub owner name at checkout and gets no key. Twice an hour a workflow reads the subscriptions from Stripe with a read-only key and publishes SHA-256 digests of the owner names, padded with fillers to a multiple of 64, to the `team-licenses` branch. The list holds no name, email address, Stripe ID or count, and when it cannot be read the action sends alerts as usual.
+- **`scripts/paid_path_report.py`.** Prints the public numbers of the project (stars, visitors, downloads, public repositories that hold a Credenzo lock or run the action) and applies the rule set for the Team experiment: continue at 10 paying customers or $1,000 a month, stop under 3 customers or $300 a month after 90 days.
+
+### Changed
+
+- **`mcp-lock.json` is a stable format.** The `EXPERIMENTAL` note is gone. A lock that verifies today verifies with every later release; a field keeps its name and meaning; a release adds optional fields and never renames or removes one; a change that cannot be an addition gets a new `lock_version`. `section_digests` is the final name in a version-2 lock. `docs/lock-format.md` lists the promises, and a lock written by 0.34.0 (`tests/fixtures/lock_v2_frozen/`) is verified by every later build.
+
 ### Documentation
 
 - **Head-to-head table with two other scanners (2026-11-19).** `scripts/bench_competitors.py` ran Credenzo, NVIDIA SkillSpector v2.12.0 (static mode) and Cisco mcp-scanner 4.8.7 (YARA only) on the same corpus, on one machine, with nothing sent away. MCPTox poisoned cases found: Credenzo 1,005 of 1,312, SkillSpector 295, Cisco 277 (MCPTox is in-sample for Credenzo, and 877 of the cases have a wrapper that Credenzo finds each time). MCPTox clean tools flagged: 2, 6 and 3 of 353. Hidden payloads found at HIGH: 8, 6 and 6 of 8. Benign checklists flagged at HIGH: 0, 1 and 2 of 4. Credenzo flags 5 of 9 harmless hiding twins below HIGH; Cisco flags none. Snyk agent-scan was not run (it needs a remote service). `docs/research/head-to-head/README.md`, `results.json`.

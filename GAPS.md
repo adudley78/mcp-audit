@@ -2406,8 +2406,10 @@ Items below were confirmed open at some point and have since been resolved. Each
 
 ## mcp-lock.json lock_version 2 (LOCK-010..012, lock/section_digests.py — STORY-0116)
 
-- **The digest field name is provisional.** `section_digests` was chosen without the confirmation
-  from the `trees` producer that #88 called for; it may be renamed before release.
+- **The digest field name was frozen without the `trees` producer's confirmation.**
+  `section_digests` was chosen without the confirmation that #88 called for. From 0.35.0 it is the
+  final name in a version-2 lock (`docs/lock-format.md`). A different name, if one is ever agreed,
+  needs a new `lock_version`; a version-2 lock keeps `section_digests`.
 - **`npm_major` and `node_version` are always `null` in Credenzo's section.** Credenzo resolves by
   reading the registry's `latest` dist-tag, so neither shaped its answer. LOCK-010 can therefore only
   see a change in `latest` or in its deprecation notice for mcp-audit-written entries. PyPI has no

@@ -1,10 +1,8 @@
 # `credenzo lock` — a committable, reviewable record of approved MCP servers
 
-> **EXPERIMENTAL.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2)) and
-> verifies both `1` and `2`. The name of the `section_digests` field is pending confirmation with
-> the `trees` producer ([#88](https://github.com/adudley78/credenzo/issues/88)) and may change
-> before it is released. Treat `mcp-lock.json`'s shape as subject to change across a minor release
-> until this note is removed — the same posture the advisory feed shipped with.
+> **Stable from 0.35.0.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2))
+> and verifies both `1` and `2`. A lock that verifies today verifies with every later release, and
+> a field keeps its name and its meaning. The promises are in [lock-format.md](lock-format.md).
 
 `credenzo lock` writes `mcp-lock.json` at your project root: a small, deterministic, git-committable
 record of exactly which MCP servers your team has approved, what package version each one resolved
