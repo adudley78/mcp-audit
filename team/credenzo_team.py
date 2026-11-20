@@ -69,8 +69,11 @@ VERIFY_TIMEOUT_SECONDS = 1800
 #: The account that writes an issue with the workflow token.
 ACTIONS_LOGIN = "github-actions[bot]"
 
-#: Events on which a failed check is already in front of its author.
-NO_ALERT_EVENTS = ("pull_request", "pull_request_target", "merge_group")
+#: The events on which an alert is sent. On each other event (a pull request,
+#: a review, a comment, a run that another workflow started) the failed check
+#: is in front of its author, or the content that was checked can come from
+#: a pull request.
+ALERT_EVENTS = ("push", "schedule", "workflow_dispatch")
 
 #: One fixed sentence for each finding ID. Alerts never carry the finding's
 #: own text: a pull request can write a server name, and evidence can hold a
@@ -111,7 +114,7 @@ def _fetch(request: urllib.request.Request) -> tuple[int, bytes]:
     if not request.full_url.startswith("https://"):
         raise ValueError("only https URLs are used")
     try:
-        # nosec B310 - the scheme is checked above and redirects are refused
+        # The scheme is checked above and redirects are refused.
         with _OPENER.open(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
             return response.status, response.read(MAX_INDEX_BYTES + 1)
     except urllib.error.HTTPError as exc:
@@ -412,6 +415,9 @@ class GitHub:
         an issue with the marker in its body; only the token's account and
         people with triage rights can meet this rule. So a stranger cannot
         plant an issue that the action reads as its own.
+
+        Raises:
+            LookupError: The issue list could not be read.
         """
         login = self.login()
         prefix = f"{ISSUE_MARKER}:{scope_key}:"
@@ -420,7 +426,11 @@ class GitHub:
             f"labels={urllib.parse.quote(ISSUE_LABEL, safe='')}",
         ):
             issues = self.call("GET", f"/issues?state=open&per_page=100&{query}")
-            for issue in issues if isinstance(issues, list) else []:
+            if not isinstance(issues, list):
+                # "No issue" and "no answer" are not the same: with no answer,
+                # a new issue could be a second one.
+                raise LookupError("the issue list could not be read")
+            for issue in issues:
                 if _is_ours(issue, login) and prefix in str(issue.get("body") or ""):
                     return issue
         return None
@@ -444,9 +454,13 @@ def sync_issue(
     """Open, update or close the drift issue of this check. Return what was done.
 
     Returns one of ``opened``, ``updated``, ``same``, ``closed``, ``none``
-    and ``failed``.
+    and ``failed``. When the issue list cannot be read, nothing is written
+    (a new issue could be a second one) and the result is ``failed``.
     """
-    issue = github.open_drift_issue(scope_key)
+    try:
+        issue = github.open_drift_issue(scope_key)
+    except LookupError:
+        return "failed"
     marker = f"{ISSUE_MARKER}:{scope_key}:{mark} -->"
     body = f"{text}\n\n{marker}"
     if not drift:
@@ -527,6 +541,12 @@ def run_verify(
             f" in {VERIFY_TIMEOUT_SECONDS} seconds."
         )
         return 2, None
+    except OSError as exc:
+        print(
+            "::error title=Credenzo Team::The `credenzo` command could not be"
+            f" started ({type(exc).__name__})."
+        )
+        return 2, None
     sys.stderr.write(done.stderr)
     try:
         payload = json.loads(done.stdout) if done.stdout.strip() else None
@@ -585,7 +605,10 @@ def main(env: dict[str, str] | None = None, fetch: Fetch = _fetch) -> int:
 def _alerts(
     env: dict[str, str], fetch: Fetch, exit_code: int, payload: dict[str, Any] | None
 ) -> None:
-    """Write the summary, send the alerts and write the step outputs."""
+    """Write the summary, send the alerts and write the step outputs.
+
+    The outputs are written whatever happens to the summary or to an alert.
+    """
     rows = rows_of(payload)
     unverified = unverified_of(payload)
     drift = exit_code != 0
@@ -610,8 +633,37 @@ def _alerts(
     else:
         checked = payload.get("checked_servers", 0) if payload else 0
         summary = f"Lock verified: {checked} server(s)."
-    _append(env.get("GITHUB_STEP_SUMMARY"), f"### Credenzo lock check\n\n{summary}\n")
+    try:
+        _append(
+            env.get("GITHUB_STEP_SUMMARY"), f"### Credenzo lock check\n\n{summary}\n"
+        )
+    except OSError:
+        print("::warning title=Credenzo Team::The step summary could not be written.")
 
+    state = {"plan": "unchecked", "alert": "failed"}
+    try:
+        _send_alerts(env, fetch, state, rows, unverified, exit_code, text, scope)
+    finally:
+        _append(
+            env.get("GITHUB_OUTPUT"),
+            f"drift={'true' if drift else 'false'}\n"
+            f"plan={state['plan']}\nalert={state['alert']}\n",
+        )
+
+
+def _send_alerts(
+    env: dict[str, str],
+    fetch: Fetch,
+    state: dict[str, str],
+    rows: list[Row],
+    unverified: list[str],
+    exit_code: int,
+    text: str,
+    scope: Scope,
+) -> None:
+    """Decide who this repository is and send the alerts. Fill *state*."""
+    drift = exit_code != 0
+    repository = env.get("GITHUB_REPOSITORY", "")
     token = env.get("INPUT_GITHUB_TOKEN", "")
     api_url = env.get("GITHUB_API_URL", "https://api.github.com")
     github = GitHub(api_url, repository, token, fetch)
@@ -634,9 +686,10 @@ def _alerts(
         private,
         lambda: read_offer(fetch, env.get("CREDENZO_TEAM_INDEX_URL") or INDEX_URL),
     )
+    state["plan"] = entitlement.kind
 
     alerted = "off"
-    if env.get("GITHUB_EVENT_NAME", "") in NO_ALERT_EVENTS:
+    if env.get("GITHUB_EVENT_NAME", "") not in ALERT_EVENTS:
         alerted = "not on this event"
     elif (
         isinstance(default_branch, str)
@@ -658,7 +711,7 @@ def _alerts(
             if alerted == "failed":
                 print(
                     "::warning title=Credenzo Team::The drift issue could not be"
-                    " written. Give the job `issues: write`."
+                    " read or written. Give the job `issues: write`."
                 )
         webhook = (env.get("INPUT_ALERT_WEBHOOK") or "").strip()
         if webhook and drift and changed:
@@ -669,12 +722,7 @@ def _alerts(
                     " accept the message."
                 )
             alerted = f"{alerted}, webhook {'sent' if sent else 'failed'}"
-
-    _append(
-        env.get("GITHUB_OUTPUT"),
-        f"drift={'true' if drift else 'false'}\n"
-        f"plan={entitlement.kind}\nalert={alerted}\n",
-    )
+    state["alert"] = alerted
 
 
 if __name__ == "__main__":

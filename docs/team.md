@@ -78,9 +78,9 @@ again.
 
 | Run | The step | The alert |
 |---|---|---|
-| Pull request | Fails on drift | None. The failed check is in front of the author. |
-| Push, schedule or manual run on the default branch | Fails on drift | One issue, and one webhook message for each new set of findings |
-| Push or manual run on another branch | Fails on drift | None. The failed check is in front of the person who pushed. |
+| Push, schedule or manual run (`workflow_dispatch`) on the default branch | Fails on drift | One issue, and one webhook message for each new set of findings |
+| Push or manual run on another branch, or a push of a tag | Fails on drift | None. The failed check is in front of the person who pushed. |
+| Each other event: a pull request, a review, a comment, `workflow_run`, `repository_dispatch`, a release | Fails on drift | None. On these events the files that were checked can come from a pull request. |
 | The same check passes again on the default branch | Passes | The issue is closed |
 
 The action keeps one open issue for each check, titled "MCP lock drift". A
@@ -206,6 +206,15 @@ card again.
 - The action does not count seats.
 - An issue is found again by a marker in its body. If you edit the marker
   out, the next run opens a second issue.
+- The issue belongs to a check: the name of the workflow, the job, `path`,
+  `connect` and `resolve`. When you change one of them, the old issue stays
+  open; close it by hand. Two workflow files with one name, one job name and
+  one `path` share an issue. The legs of a matrix share an issue.
+- When the issue list cannot be read, the action writes no issue (a new one
+  could be a second one). The webhook message is still sent.
+- A workflow of your own that opens issues as `github-actions[bot]` from text
+  that a stranger wrote can write the marker. Do not let such a workflow copy
+  HTML comments.
 - Use the workflow token or the token of a user for `github-token`. With the
   token of another GitHub App, the action finds its issue again only when
   the issue has the label `credenzo-lock-drift`.

@@ -551,6 +551,112 @@ def test_the_alert_names_its_check(project: Path, tmp_path: Path) -> None:
     assert "Check: workflow `MCP?lock`, job `lock`." in issue["body"]
 
 
+@needs_cli
+@pytest.mark.parametrize(
+    "event_name",
+    [
+        "pull_request",
+        "pull_request_target",
+        "merge_group",
+        "pull_request_review",
+        "issue_comment",
+        "workflow_run",
+        "repository_dispatch",
+        "release",
+        "",
+    ],
+)
+def test_an_alert_is_sent_only_on_a_push_a_schedule_or_a_manual_run(
+    project: Path, tmp_path: Path, event_name: str
+) -> None:
+    """On these events the content that was checked can come from a pull request."""
+    _drift(project)
+    net = Net(index=_index("acme"), issues=[_issue(project)])
+    code, out = _run(
+        project,
+        tmp_path,
+        net,
+        event_name=event_name,
+        INPUT_ALERT_WEBHOOK="https://hooks.example/a",
+    )
+    assert (code, out["alert"]) == (1, "not on this event")
+    assert net.sent("POST", "") == [] and net.sent("PATCH", "") == []
+
+
+@needs_cli
+@pytest.mark.parametrize("event_name", ["push", "schedule", "workflow_dispatch"])
+def test_the_three_alert_events(project: Path, tmp_path: Path, event_name: str) -> None:
+    _drift(project)
+    _, out = _run(project, tmp_path, Net(index=_index("acme")), event_name=event_name)
+    assert out["alert"] == "opened"
+
+
+class NoList(Net):
+    """The issue list gives no answer; each other call works."""
+
+    def __call__(self, request: urllib.request.Request) -> tuple[int, bytes]:
+        if "/issues?" in request.full_url:
+            self.calls.append((request.get_method(), request.full_url, None))
+            return 503, b""
+        return super().__call__(request)
+
+
+@needs_cli
+def test_no_second_issue_when_the_issue_list_cannot_be_read(
+    project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The alert still goes to the webhook; no issue is opened or closed."""
+    _drift(project)
+    net = NoList(index=_index("acme"))
+    code, out = _run(
+        project, tmp_path, net, INPUT_ALERT_WEBHOOK="https://hooks.example/a"
+    )
+    assert (code, out["alert"]) == (1, "failed, webhook sent")
+    assert net.sent("POST", "/repos/acme/app/issues") == []
+    assert "could not be read or written" in capsys.readouterr().out
+
+
+@needs_cli
+def test_a_summary_that_cannot_be_written_does_not_stop_the_alert(
+    project: Path, tmp_path: Path
+) -> None:
+    _drift(project)
+    net = Net(index=_index("acme"))
+    code, out = _run(
+        project,
+        tmp_path,
+        net,
+        GITHUB_STEP_SUMMARY=str(tmp_path),  # a directory
+    )
+    assert code == 1
+    assert out == {"drift": "true", "plan": "licensed", "alert": "opened"}
+
+
+@needs_cli
+def test_the_outputs_are_written_when_the_alert_step_fails(
+    project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _drift(project)
+
+    def boom(*_a: object, **_k: object) -> str:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(team, "sync_issue", boom)
+    code, out = _run(project, tmp_path, Net(index=_index("acme")))
+    assert code == 1
+    assert out == {"drift": "true", "plan": "licensed", "alert": "failed"}
+
+
+def test_a_command_that_cannot_start_is_exit_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    broken = tmp_path / "credenzo"
+    broken.write_bytes(b"\x00not a program")
+    broken.chmod(0o755)
+    assert team.run_verify(str(broken), ".", False, False) == (2, None)
+    assert "could not be started" in capsys.readouterr().out
+
+
 # --- an alert never changes the result -------------------------------------
 
 

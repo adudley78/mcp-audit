@@ -96,7 +96,7 @@ def stripe_get(key: str) -> Get:
             STRIPE_API + path, headers={"Authorization": f"Bearer {key}"}
         )
         try:
-            # nosec B310 - constant https host; redirects are refused
+            # A constant https host; redirects are refused.
             with _OPENER.open(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
