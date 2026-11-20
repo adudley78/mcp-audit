@@ -269,7 +269,7 @@ Add `credenzo fix` as an auto-remediation step after a failing scan gate:
 
 ```yaml
 - name: Scan MCP configs
-  uses: adudley78/credenzo@v0.35.0
+  uses: adudley78/credenzo@v0.36.0
   with:
     severity-threshold: high
     fail-on-findings: 'true'
