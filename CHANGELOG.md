@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Credenzo Team action: the run log of a failed check was empty.** On drift the action wrote the findings to the step summary and to the alert, and printed nothing. A person who opened the failed step saw exit code 1 and no reason. The action now also prints the text of the alert in the run log, on each event. The text holds finding IDs, severities and cleaned names only, as before.
+- **The heading of the GitHub Release notes said "mcp-audit".** The template now says "Credenzo". The names of the release binaries (`mcp-audit-<os>-<arch>`) do not change.
+
 ## [0.36.0] - 2026-11-20
 
 ### Security

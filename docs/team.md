@@ -158,6 +158,10 @@ A "not verified" line names a server that the check could not compare, for
 example a server that did not start. The alert does not hold the reason; the
 run log does.
 
+On each event, pull requests included, the action writes the same text to the
+step summary. From the release after 0.36.0 it also prints the text in the run
+log of the failed step.
+
 It holds no evidence text, no file path and no config content. A name is cut
 to 80 characters, and each character that is not a letter, a digit or one of
 `. _ / @ : + -` becomes `?`, so a name in a pull request cannot write a link
