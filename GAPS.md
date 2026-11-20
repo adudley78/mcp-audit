@@ -2558,7 +2558,8 @@ a ClawHub-side matter and not checked.
   number of more than 4,300 digits, one key twice in an object) and for a
   line of more than 64 MiB. Monitor mode changes no byte.
 - **Enforce mode drops a line of more than 64 MiB.** In either direction,
-  no part of such a line is forwarded, with one line on stderr. A
+  no part of a line that reaches 64 MiB with no newline is forwarded, with
+  one line on stderr. A
   `tools/call` with more than 64 MiB of arguments gets no answer in enforce
   mode. Monitor mode forwards every byte.
 - **Enforce mode drops client lines that it cannot read.** A line from the
