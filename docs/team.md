@@ -66,8 +66,8 @@ again.
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v4
-         - uses: adudley78/credenzo/setup-action@v0.36.0
-         - uses: adudley78/credenzo/team@v0.36.0
+         - uses: adudley78/credenzo/setup-action@v0.36.1
+         - uses: adudley78/credenzo/team@v0.36.1
            with:
              alert-webhook: ${{ secrets.MCP_ALERT_WEBHOOK }}
    ```
@@ -109,7 +109,7 @@ the lock.
         with:
           python-version: "3.12"
       - run: pip install 'credenzo[mcp]'
-      - uses: adudley78/credenzo/team@v0.36.0
+      - uses: adudley78/credenzo/team@v0.36.1
         with:
           connect: "true"
 ```
