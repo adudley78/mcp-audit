@@ -127,6 +127,11 @@ runs:
         # uv stops a download after 30 seconds by default. On 2026-11-18 a
         # Windows runner with a slow network failed here on one wheel.
         UV_HTTP_TIMEOUT: "120"
+        # uv waits 10 seconds for a connection and tries a request 3 more
+        # times. On 2026-11-20 a macOS runner could not connect to pypi.org
+        # for 54 seconds and this step failed on `main`.
+        UV_HTTP_CONNECT_TIMEOUT: "30"
+        UV_HTTP_RETRIES: "8"
       run: uv sync --all-extras --locked
 
     - name: Build binary
