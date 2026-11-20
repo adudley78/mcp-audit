@@ -127,10 +127,10 @@ def _line_pump(
     *handle* returns ``(forward, reply)``: bytes for *dst_fd* (``None`` to
     drop the line) and bytes for *reply_fd* (the client) instead. Every write
     to the client goes through *out_lock*, so a reply never lands inside a
-    server message. A line *handle* fails on is not forwarded, in either
-    direction. Toward the server, a line longer than :data:`MAX_LINE` is
-    forwarded uninspected. Toward the client (*dst_is_client*) it is not
-    forwarded: the client gets only what was read and checked.
+    server message. In either direction, a line *handle* fails on is not
+    forwarded, a line longer than :data:`MAX_LINE` is dropped up to its
+    newline, and the last bytes with no newline are handled like a line:
+    each side gets only what was read and checked.
     """
 
     def _client_write(data: bytes) -> None:
@@ -143,7 +143,26 @@ def _line_pump(
         else:
             _write_all(dst_fd, data)
 
+    def _handled(raw: bytes) -> None:
+        """Pass one line through *handle*; forward only what it returns."""
+        nonlocal failed
+        try:
+            forward, reply = handle(raw)
+        except Exception:  # noqa: BLE001 — never break the session
+            # A line that could not be handled was not checked: it is not
+            # forwarded, in either direction. Toward the server it could
+            # hold a call to a withheld tool.
+            forward, reply = None, None
+            if not failed:
+                _report("withheld: a line that could not be checked was not forwarded")
+            failed = True
+        if forward is not None:
+            _forward(forward)
+        if reply is not None and reply_fd is not None:
+            _client_write(reply)
+
     pending = b""
+    skipping = False  # inside a line that passed MAX_LINE: drop up to its newline
     dropped = False
     failed = False
     try:
@@ -154,55 +173,36 @@ def _line_pump(
                 break
             if not chunk:
                 break
+            if skipping:
+                _, newline, chunk = chunk.partition(b"\n")
+                if not newline:
+                    continue
+                skipping = False
             pending += chunk
             *lines, pending = pending.split(b"\n")
             try:
                 for line in lines:
-                    raw = line + b"\n"
-                    try:
-                        forward, reply = handle(raw)
-                    except Exception:  # noqa: BLE001 — never break the session
-                        # A line that could not be handled was not checked:
-                        # it is not forwarded, in either direction. Toward
-                        # the server it could hold a call to a withheld tool.
-                        forward, reply = None, None
-                        if not failed:
-                            _report(
-                                "withheld: a line that could not be checked "
-                                "was not forwarded"
-                            )
-                        failed = True
-                    if forward is not None:
-                        _forward(forward)
-                    if reply is not None and reply_fd is not None:
-                        _client_write(reply)
+                    _handled(line + b"\n")
                 if len(pending) > MAX_LINE:
-                    if dst_is_client:
-                        # Enforce mode forwards to the client only what it
-                        # read. The rest of the line is read as lines of its
-                        # own, and a part that is not a message is dropped.
-                        if not dropped:
-                            _report(
-                                "withheld: a line of more than "
-                                f"{MAX_LINE // (1024 * 1024)} MiB from the server "
-                                "was not forwarded"
-                            )
-                        dropped = True
-                    else:
-                        _forward(pending)
+                    # A line that is too long to read is not forwarded, in
+                    # either direction: no part of it, up to its newline.
+                    if not dropped:
+                        _report(
+                            "withheld: a line of more than "
+                            f"{MAX_LINE // (1024 * 1024)} MiB from the "
+                            f"{'server' if dst_is_client else 'client'} "
+                            "was not forwarded"
+                        )
+                    dropped = True
+                    skipping = True
                     pending = b""
             except OSError:
                 break
         if pending:
-            # The last bytes had no newline. Toward the client they are
-            # handled like a line, so they are checked too.
-            with contextlib.suppress(Exception):
-                if dst_is_client:
-                    forward, _ = handle(pending)
-                    if forward is not None:
-                        _forward(forward)
-                else:
-                    _forward(pending)
+            # The last bytes had no newline. They are handled like a line,
+            # so they are checked too, in either direction.
+            with contextlib.suppress(OSError):
+                _handled(pending)
     finally:
         on_done()
 

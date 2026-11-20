@@ -207,7 +207,8 @@ In enforce mode the client gets only what Credenzo read:
   `tools/list` request with its id was seen.
 - A tool list inside a batch (a JSON array) is emptied. MCP has had no batch
   since protocol 2025-06-18.
-- A line of more than 64 MiB from the server is not forwarded.
+- A line of more than 64 MiB from the server is not forwarded: no part of it,
+  up to its newline.
 
 Toward the server, enforce mode stops a `tools/call` to a tool that is not
 approved in three forms: a request (the client gets an error), a message with
@@ -217,8 +218,13 @@ that Credenzo cannot read as JSON is not forwarded, by the same rule as a
 line from the server: another parser could read a call in it. A line that
 the check fails on is not forwarded. Each line that gets no answer is
 reported one time on stderr. A line of more than 64 MiB from the client is
-forwarded and not read. Each other line from the client goes to the server
-with no change.
+not forwarded: no part of it, up to its newline. The last bytes before the
+client closes its side are checked like a line, also when they have no
+newline. Each other line from the client goes to the server with no change.
+
+MCP writes one message on one line. A host that splits one message over
+several lines (pretty-printed JSON) gets no answer in enforce mode, because
+no single line is JSON.
 
 "Withheld" means two things in enforce mode:
 

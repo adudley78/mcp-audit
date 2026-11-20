@@ -2557,15 +2557,16 @@ a ClawHub-side matter and not checked.
   on stderr. The same holds for a line that Python does not read as JSON (a
   number of more than 4,300 digits, one key twice in an object) and for a
   line of more than 64 MiB. Monitor mode changes no byte.
-- **Large client lines are not read.** A line of more than 64 MiB from the
-  client goes to the server unread, so a `tools/call` in it is not checked.
-  The client is the agent host, which Credenzo trusts; the model does not
-  choose how the host frames a call.
+- **Enforce mode drops a line of more than 64 MiB.** In either direction,
+  no part of such a line is forwarded, with one line on stderr. A
+  `tools/call` with more than 64 MiB of arguments gets no answer in enforce
+  mode. Monitor mode forwards every byte.
 - **Enforce mode drops client lines that it cannot read.** A line from the
   client that is not JSON, holds one key twice, or holds a number of more
   than 4,300 digits is not forwarded in enforce mode, with one line on
   stderr and no answer to the client. A host that writes such a line gets no
-  answer to that request.
+  answer to that request. The same holds for a host that splits one message
+  over several lines; MCP does not allow a newline inside a message.
 
 ## Guard hooks that will never run (HOOK-004/005, analyzers/hook_runnable.py — STORY-0156)
 

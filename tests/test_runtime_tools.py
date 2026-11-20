@@ -828,6 +828,42 @@ class TestEndToEnd:
         assert answer["id"] == "\ud800"
         assert answer["error"]["data"] == {"finding": "LOCK-008", "tool": "add"}
 
+    @pytest.mark.parametrize(
+        ("tool", "ran"), [("add", False), ("echo", True)], ids=["withheld", "approved"]
+    )
+    def test_enforce_checks_a_last_line_with_no_newline(
+        self, locked_repo, tool: str, ran: bool
+    ) -> None:
+        """Through the real relay: the client writes a call with no newline
+        and closes its side. A server reads such a last line."""
+        config, tools, argv = locked_repo
+        tools.write_text(json.dumps([ECHO, {**ADD, "description": "changed"}]))
+        proc = subprocess.Popen(  # noqa: S603
+            [
+                PY, "-m", "mcp_audit._entry", "run", "--config", str(config),
+                "--server", "fx", "--mode", "enforce", "--", *argv,
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )  # fmt: skip
+        assert proc.stdin is not None and proc.stdout is not None
+        raw = b""
+        for msg in HANDSHAKE[:3]:
+            proc.stdin.write(_line(msg))
+            proc.stdin.flush()
+            if "id" in msg:
+                raw += proc.stdout.readline()
+        proc.stdin.write(_call(tool, msg_id=3).rstrip(b"\n"))
+        proc.stdin.close()
+        raw += proc.stdout.read()
+        assert proc.wait(timeout=60) == 0
+        assert (f"ran {tool}".encode() in raw) is ran
+        answer = json.loads(raw.splitlines()[-1])
+        assert answer["id"] == 3
+        if not ran:
+            assert answer["error"]["data"] == {"finding": "LOCK-008", "tool": "add"}
+
     def test_enforce_never_forwards_a_line_that_it_cannot_read(
         self, locked_repo
     ) -> None:
@@ -1163,6 +1199,25 @@ class TestClientSideInEnforce:
             id="list-in-a-batch",
         ),
         pytest.param(b"not json\n", id="not-json"),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":NaN,"method":"tools/call",'
+            b'"params":{"name":"add"}}\n',
+            id="id-nan",
+        ),
+        pytest.param(
+            b'\xef\xbb\xbf{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+            b'"params":{"name":"add"}}\n',
+            id="byte-order-mark",
+        ),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":1,"method":"tools/call",'
+            b'"params":{"name":"add"}} x\n',
+            id="bytes-after-the-value",
+        ),
+        pytest.param(
+            b'{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add"}}',
+            id="no-newline",
+        ),
     ]
 
     @pytest.mark.parametrize("line", UNREAD)
@@ -1174,6 +1229,7 @@ class TestClientSideInEnforce:
         assert to_server is None
         if reply is not None:
             reply.decode("ascii")
+            assert b"NaN" not in reply
             answers = json.loads(reply)
             answers = answers if isinstance(answers, list) else [answers]
             assert all(a["error"]["code"] == DENIED_TOOL_CODE for a in answers)

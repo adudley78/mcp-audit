@@ -438,8 +438,50 @@ class TestEnforceForwardsOnlyWhatItRead:
         assert capfd.readouterr().err.count("was not forwarded") == 1
         assert all(len(line) <= 1000 + 512 for line in seen)
 
-    def test_the_last_bytes_with_no_newline_are_handled(self) -> None:
+    @pytest.mark.parametrize("to_client", [True, False])
+    def test_the_last_bytes_with_no_newline_are_handled(self, to_client: bool) -> None:
         def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
             return (None if b"tail" in line else line), None
 
-        assert self._pump(b"one\ntail", handle) == b"one\n"
+        assert self._pump(b"one\ntail", handle, to_client=to_client) == b"one\n"
+        assert self._pump(b"one\nlast", handle, to_client=to_client) == b"one\nlast"
+
+    @pytest.mark.parametrize("to_client", [True, False])
+    def test_last_bytes_that_the_handler_fails_on_go_nowhere(
+        self, to_client: bool
+    ) -> None:
+        def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
+            if b"bad" in line:
+                raise RuntimeError("boom")
+            return line, None
+
+        assert self._pump(b"one\nbad", handle, to_client=to_client) == b"one\n"
+
+    @pytest.mark.parametrize("to_client", [True, False])
+    def test_no_part_of_a_line_over_the_limit_is_forwarded(
+        self,
+        to_client: bool,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        """The line is dropped up to its newline; the next line is whole."""
+        from mcp_audit.runtime import relay
+
+        monkeypatch.setattr(relay, "MAX_LINE", 1000)
+        monkeypatch.setattr(relay, "CHUNK_SIZE", 512)
+        seen: list[bytes] = []
+
+        def handle(line: bytes) -> tuple[bytes | None, bytes | None]:
+            seen.append(line)
+            return line, None
+
+        # The tail of the long line is a whole message: it must not be read
+        # as a line of its own, and the next line must not be glued to it.
+        long_line = b"x" * 5000 + b'{"method":"tools/call"}' + b"\n"
+        data = b"ok 1\n" + long_line + b"ok 2\n" + long_line + b"ok 3"
+        out = self._pump(data, handle, to_client=to_client)
+        assert out == b"ok 1\nok 2\nok 3"
+        assert seen == [b"ok 1\n", b"ok 2\n", b"ok 3"]
+        err = capfd.readouterr().err
+        assert err.count("was not forwarded") == 1
+        assert ("from the server" if to_client else "from the client") in err

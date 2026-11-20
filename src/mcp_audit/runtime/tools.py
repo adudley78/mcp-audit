@@ -193,7 +193,7 @@ class ToolGuard:
             denial = self._deny_call(msg)
             if denial is not None:
                 if msg_id is not None:
-                    return None, _encode(denial)
+                    return None, _encode(denial, reply=True)
                 # A call with no id gets no answer: it is not forwarded.
                 self._silent_drop("a tools/call with no id to a withheld tool")
                 return None, None
@@ -249,7 +249,7 @@ class ToolGuard:
                 }
             )
         if replies:
-            return None, _encode(replies)
+            return None, _encode(replies, reply=True)
         self._silent_drop("a batch with a call to a withheld tool, or with a list")
         return None, None
 
@@ -604,13 +604,16 @@ def _read(line: bytes, *, strict: bool) -> object:
     return value
 
 
-def _encode(message: object) -> bytes:
+def _encode(message: object, *, reply: bool = False) -> bytes:
     """Return *message* as one line of JSON.
 
     ASCII only, so a lone surrogate that the server sent as an escape goes
-    back out as the same escape and cannot fail the encoding.
+    back out as the same escape and cannot fail the encoding. A *reply* that
+    Credenzo writes itself must be JSON for each parser, so a ``NaN`` in it
+    (an ``id`` of the request) raises ``ValueError``.
     """
-    return json.dumps(message, separators=(",", ":")).encode("ascii") + b"\n"
+    text = json.dumps(message, separators=(",", ":"), allow_nan=not reply)
+    return text.encode("ascii") + b"\n"
 
 
 def _key(msg_id: object) -> str:
